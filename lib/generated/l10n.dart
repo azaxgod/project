@@ -78,6 +78,101 @@ class S {
   String get sign_in {
     return Intl.message('Sign In', name: 'sign_in', desc: '', args: []);
   }
+
+  /// `Akimat Authorization`
+  String get login_title {
+    return Intl.message(
+      'Akimat Authorization',
+      name: 'login_title',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Login error: {error}`
+  String login_error(Object error) {
+    return Intl.message(
+      'Login error: $error',
+      name: 'login_error',
+      desc: '',
+      args: [error],
+    );
+  }
+
+  /// `User not found`
+  String get user_not_found {
+    return Intl.message(
+      'User not found',
+      name: 'user_not_found',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Logged in as {user}`
+  String logged_in_as(Object user) {
+    return Intl.message(
+      'Logged in as $user',
+      name: 'logged_in_as',
+      desc: '',
+      args: [user],
+    );
+  }
+
+  /// `Loading...`
+  String get loading {
+    return Intl.message('Loading...', name: 'loading', desc: '', args: []);
+  }
+
+  /// `Logout`
+  String get logout {
+    return Intl.message('Logout', name: 'logout', desc: '', args: []);
+  }
+
+  /// `Home`
+  String get home_title {
+    return Intl.message('Home', name: 'home_title', desc: '', args: []);
+  }
+
+  /// `Welcome back!`
+  String get welcome_back {
+    return Intl.message(
+      'Welcome back!',
+      name: 'welcome_back',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Network error. Please check your internet connection`
+  String get network_error {
+    return Intl.message(
+      'Network error. Please check your internet connection',
+      name: 'network_error',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Try again`
+  String get try_again {
+    return Intl.message('Try again', name: 'try_again', desc: '', args: []);
+  }
+
+  /// `Log in`
+  String get loggin_button {
+    return Intl.message('Log in', name: 'loggin_button', desc: '', args: []);
+  }
+
+  /// `wrong credentails`
+  String get wrong_credentials {
+    return Intl.message(
+      'wrong credentails',
+      name: 'wrong_credentials',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

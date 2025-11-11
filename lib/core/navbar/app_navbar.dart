@@ -5,9 +5,11 @@ import '../platform/platform_utils.dart';
 class AppNavbar extends StatelessWidget {
   final List<Widget> webWidgets;
   final List<Widget> mobileWidgets;
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   const AppNavbar({
     super.key,
+  this.scaffoldKey,
     this.webWidgets = const [],
     this.mobileWidgets = const [],
   });
@@ -39,6 +41,11 @@ class AppNavbar extends StatelessWidget {
         backgroundColor: config.backgroundColor,
         title: const Text('Логотип / Название'),
         actions: mobileWidgets, 
+        leading: IconButton(onPressed: (){
+          if (scaffoldKey != null && scaffoldKey!.currentState != null){
+            scaffoldKey!.currentState!.openDrawer();
+          }
+        }, icon: Icon(Icons.menu)),
       );
     }
   }

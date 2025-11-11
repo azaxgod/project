@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>();
-
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authNotifierProvider);
 
@@ -20,14 +19,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) {
-          // Если пользователь уже вошёл, идём на Home
-          if (authState != null) {
-            return const HomeRouter();
-          } else {
-            return const LoginPage();
-          }
-        },
+        builder: (context, state) => const HomeRouter(),
       ),
       GoRoute(
         path: '/login',
@@ -39,9 +31,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
-      // Если пользователь не авторизован — редирект на login
-      final loggedIn = authState != null;
-      final loggingIn = state.uri.toString() == '/login';
+      final loggedIn = authState.user != null;
+      final loggingIn = state.matchedLocation == '/login';
 
       if (!loggedIn && !loggingIn) return '/login';
       if (loggedIn && loggingIn) return '/home';

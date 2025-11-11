@@ -20,13 +20,32 @@ typedef String MessageIfAbsent(String messageStr, List<dynamic> args);
 class MessageLookup extends MessageLookupByLibrary {
   String get localeName => 'kk';
 
+  static String m0(user) => "${user} ретінде кірдіңіз";
+
+  static String m1(error) => "Кіру қатесі: ${error}";
+
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
     "enter_credentials": MessageLookupByLibrary.simpleMessage(
       "Логин мен құпия сөзді енгізіңіз",
     ),
+    "home_title": MessageLookupByLibrary.simpleMessage("Басты бет"),
+    "loading": MessageLookupByLibrary.simpleMessage("Жүктелуде..."),
+    "logged_in_as": m0,
     "login": MessageLookupByLibrary.simpleMessage("Логин"),
+    "login_error": m1,
+    "login_title": MessageLookupByLibrary.simpleMessage("Akimat авторизациясы"),
+    "logout": MessageLookupByLibrary.simpleMessage("Шығу"),
+    "network_error": MessageLookupByLibrary.simpleMessage(
+      "Желі қатесі. Интернет байланысын тексеріңіз",
+    ),
     "password": MessageLookupByLibrary.simpleMessage("Құпия сөз"),
     "sign_in": MessageLookupByLibrary.simpleMessage("Кіру"),
+    "try_again": MessageLookupByLibrary.simpleMessage("Қайта көру"),
+    "user_not_found": MessageLookupByLibrary.simpleMessage(
+      "Пайдаланушы табылмады",
+    ),
+    "welcome_back": MessageLookupByLibrary.simpleMessage("Қайта оралдыңыз!"),
+    "wrong_credentials": MessageLookupByLibrary.simpleMessage("Дурыс емес"),
   };
 }

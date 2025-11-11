@@ -1,22 +1,33 @@
 import 'package:akimat_project/modules/areas/src/ui/contract_home.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/akimat_home.dart';
 import 'package:akimat_project/modules/trips/src/ui/driver_home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controller/auth_notifier.dart';
-// import '../../dashboard/src/ui/akimat_home.dart';
-// import '../../areas/src/ui/contractor_home.dart';
-// import '../../trips/src/ui/driver_home.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeRouter extends ConsumerWidget {
   const HomeRouter({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final role = ref.watch(authNotifierProvider)?.role;
+    final authState = ref.watch(authNotifierProvider);
 
-    if (role == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    // 1. Если ещё идёт проверка токена при старте приложения
+    if (authState.isCheckingToken) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
+    // 2. Пользователь не авторизован → редирект на логин
+    if (authState.user == null) {
+      Future.microtask(() => context.go('/login'));
+      return const SizedBox.shrink();
+    }
+
+    // 3. Пользователь авторизован → проверка роли
+    final role = authState.user!.role;
     switch (role) {
       case 'AKIMAT_ADMIN':
         return const AkimatHome();
@@ -26,7 +37,9 @@ class HomeRouter extends ConsumerWidget {
       case 'DRIVER':
         return const DriverHome();
       default:
-        return const Scaffold(body: Center(child: Text('Нет доступа')));
+        return const Scaffold(
+          body: Center(child: Text('Нет доступа')),
+        );
     }
   }
 }

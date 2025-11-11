@@ -1,4 +1,5 @@
 import 'package:akimat_project/core/navbar/app_navbar.dart';
+import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
@@ -7,6 +8,8 @@ import 'package:akimat_project/core/ui/widgets/card_item.dart';
 
 class AkimatHome extends StatelessWidget {
   const AkimatHome({super.key});
+
+  final _scaffoldKey = GlobalKey<ScaffoldState>;
 
   @override
   Widget build(BuildContext context) {
@@ -54,35 +57,57 @@ class AkimatHome extends StatelessWidget {
       );
     }
 
-    return Scaffold(
-      // 1️⃣ добавляем AppNavbar
-      appBar: kIsWeb
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: AppNavbar(
-                mobileWidgets: [
-                  IconButton(
-                      icon: const Icon(Icons.notifications),
-                      onPressed: () {}),
-                  IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
-                ],
-              ),
-            ),
-      body: Column(
+   final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+return Scaffold(
+  key: _scaffoldKey,
+  drawer: Drawer(
+    child: ListView(
+      padding: EdgeInsets.zero,
+      children: const [
+        DrawerHeader(
+          decoration: BoxDecoration(color: Colors.blue),
+          child: Text('Меню', style: TextStyle(color: Colors.white, fontSize: 20)),
+        ),
+        ListTile(
+          leading: Icon(Icons.dashboard),
+          title: Text('Главная'),
+        ),
+        ListTile(
+          leading: Icon(Icons.business),
+          title: Text('Организации'),
+        ),
+      ],
+    ),
+  ),
+
+  // 1️⃣ добавляем AppNavbar
+  appBar: kIsWeb
+      ? null
+      : PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: HeaderNavbar(
+            scaffoldKey: _scaffoldKey, // ⚡ ключ обязательно передаём
+            mobileWidgets: [
+              IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+              IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
+            ],
+          ),
+        ),
+
+   body: Column(
         children: [
-          // 2️⃣ для веба добавляем сверху Navbar
           if (kIsWeb)
-            AppNavbar(
+            HeaderNavbar(
               webWidgets: [
                 TextButton(onPressed: () {}, child: const Text('Главная')),
                 TextButton(onPressed: () {}, child: const Text('Организации')),
+                TextButton(onPressed: () {}, child: const Text('Статистика')),
               ],
             ),
           Expanded(
             child: Row(
               children: [
-                // Навигация слева для веба
                 if (kIsWeb)
                   NavigationRail(
                     selectedIndex: 0,

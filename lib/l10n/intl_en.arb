@@ -3,5 +3,17 @@
   "login": "Login",
   "password": "Password",
   "enter_credentials": "Please enter login and password",
-  "sign_in": "Sign In"
+  "sign_in": "Sign In",
+  "login_title": "Akimat Authorization",
+  "login_error": "Login error: {error}",
+  "user_not_found": "User not found",
+  "logged_in_as": "Logged in as {user}",
+  "loading": "Loading...",
+  "logout": "Logout",
+  "home_title": "Home",
+  "welcome_back": "Welcome back!",
+  "network_error": "Network error. Please check your internet connection",
+  "try_again": "Try again",
+  "loggin_button": "Log in",
+  "wrong_credentials": "wrong credentails"
 }

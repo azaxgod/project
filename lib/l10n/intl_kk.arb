@@ -3,5 +3,17 @@
   "login": "Логин",
   "password": "Құпия сөз",
   "enter_credentials": "Логин мен құпия сөзді енгізіңіз",
-  "sign_in": "Кіру"
+  "sign_in": "Кіру",
+  "login_title": "Akimat авторизациясы",
+  "login_error": "Кіру қатесі: {error}",
+  "user_not_found": "Пайдаланушы табылмады",
+  "logged_in_as": "{user} ретінде кірдіңіз",
+  "loading": "Жүктелуде...",
+  "logout": "Шығу",
+  "home_title": "Басты бет",
+  "welcome_back": "Қайта оралдыңыз!",
+  "network_error": "Желі қатесі. Интернет байланысын тексеріңіз",
+  "try_again": "Қайта көру",
+  "login_button": "Киру",
+  "wrong_credentials": "Дурыс емес"
 }
