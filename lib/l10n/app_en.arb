@@ -1,0 +1,7 @@
+{
+  "@@locale": "en",
+  "login": "Login",
+  "password": "Password",
+  "enter_credentials": "Please enter login and password",
+  "sign_in": "Sign In"
+}

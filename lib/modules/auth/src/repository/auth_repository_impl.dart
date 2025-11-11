@@ -1,24 +1,55 @@
+import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/services/auth/collection/auth_collection.dart';
 import 'package:akimat_project/services/auth/model/user.dart';
-
 import 'i_auth_repository.dart';
-// import '../../models/user.dart';
 
 class AuthRepositoryImpl implements IAuthRepository {
+  final AuthCollection authCollection;
+
+  AuthRepositoryImpl({required this.authCollection});
+
   @override
   Future<User> loginAkimat(String login, String password) async {
-    // TODO: API вызов
-    // Проверка login/password, возврат User с ролью AKIMAT_ADMIN
-    return User(id: '1', login: login, role: 'AKIMAT_ADMIN', isActive: true);
+    try {
+
+      final authResponse = await authCollection.login(login, password);
+
+      // Сохраняем токены
+      await TokenStorage.saveAccessToken(authResponse.accessToken);
+      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+
+
+      return authResponse.user;
+    } catch (e) {
+
+      throw Exception('Неверный логин или пароль: $e');
+    }
+    
+  }
+
+  Future<User> meFromToken(String token) async{
+    authCollection.setTempToken(token);
+    final user = await authCollection.me();
+    return user;
   }
 
   @override
   Future<void> sendSms(String phone) async {
-    // TODO: вызвать API для отправки SMS
+    await authCollection.sendSms(phone);
   }
 
   @override
   Future<User> verifySms(String phone, String code) async {
-    // TODO: проверить код и вернуть User с нужной ролью
-    return User(id: '2', login: phone, phone: phone, role: 'TOO_ADMIN', isActive: true);
+    try {
+      final authResponse = await authCollection.verifySms(phone, code);
+
+      // Сохраняем токены
+      await TokenStorage.saveAccessToken(authResponse.accessToken);
+      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+
+      return authResponse.user;
+    } catch (e) {
+      throw Exception('Неверный код или ошибка верификации: $e');
+    }
   }
 }

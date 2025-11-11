@@ -4,8 +4,13 @@ import '../model/auth_response.dart';
 
 class AuthCollection {
   final Dio dio;
-
+  String? _tempToken;
   AuthCollection({required this.dio});
+
+  void setTempToken(String token){
+    _tempToken =token;
+  }
+  
 
   Future<AuthResponse> login(String login, String password) async {
     final response = await dio.post('/auth/login', data: {
@@ -37,7 +42,12 @@ class AuthCollection {
   }
 
   Future<User> me() async {
-    final response = await dio.get('/auth/me');
+    final response = await dio.get(
+      '/auth/me',
+      options: _tempToken != null
+          ? Options(headers: {'Authorization': 'Bearer $_tempToken'})
+          : null,
+    );
     return User.fromJson(response.data['data']);
   }
 }

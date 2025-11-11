@@ -1,22 +1,27 @@
+import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: 'http://localhost:8080', 
-      connectTimeout: const Duration(seconds: 3),
-      receiveTimeout: const Duration(seconds: 3),
+      baseUrl: 'http://10.25.0.200:7080', 
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 5),
     ),
   );
 
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final token = await TokenStorage.getAccessToken();
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token'; // исправил опечатку Berrear -> Bearer
+        }
+        handler.next(options);
+      },
+    ),
+  );
 
-  dio.interceptors.add(LogInterceptor(
-    request: true,
-    requestBody: true,
-    responseBody: true,
-    responseHeader: false,
-  ));
-
-  return dio;
+  return dio; // 🔹 обязательно вернуть Dio
 });
