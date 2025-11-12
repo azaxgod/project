@@ -20,33 +20,40 @@ typedef String MessageIfAbsent(String messageStr, List<dynamic> args);
 class MessageLookup extends MessageLookupByLibrary {
   String get localeName => 'en';
 
-  static String m0(user) => "Logged in as ${user}";
-
-  static String m1(error) => "Login error: ${error}";
+  static String m0(error) => "Login error: ${error}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
-    "enter_credentials": MessageLookupByLibrary.simpleMessage(
-      "Please enter login and password",
+    "areas": MessageLookupByLibrary.simpleMessage("Cleaning Areas"),
+    "dashboard": MessageLookupByLibrary.simpleMessage("Dashboard"),
+    "enter_login_password": MessageLookupByLibrary.simpleMessage(
+      "Enter login and password",
     ),
-    "home_title": MessageLookupByLibrary.simpleMessage("Home"),
+    "home_title": MessageLookupByLibrary.simpleMessage("Home page"),
     "loading": MessageLookupByLibrary.simpleMessage("Loading..."),
-    "logged_in_as": m0,
-    "loggin_button": MessageLookupByLibrary.simpleMessage("Log in"),
+    "logged_in_as": MessageLookupByLibrary.simpleMessage("Logged in as"),
     "login": MessageLookupByLibrary.simpleMessage("Login"),
-    "login_error": m1,
-    "login_title": MessageLookupByLibrary.simpleMessage("Akimat Authorization"),
+    "login_button": MessageLookupByLibrary.simpleMessage("Login"),
+    "login_error": m0,
+    "login_title": MessageLookupByLibrary.simpleMessage("Akimat Login"),
     "logout": MessageLookupByLibrary.simpleMessage("Logout"),
     "network_error": MessageLookupByLibrary.simpleMessage(
-      "Network error. Please check your internet connection",
+      "Network error. Check your internet connection",
     ),
+    "organizations": MessageLookupByLibrary.simpleMessage("Organizations"),
     "password": MessageLookupByLibrary.simpleMessage("Password"),
-    "sign_in": MessageLookupByLibrary.simpleMessage("Sign In"),
+    "polygons": MessageLookupByLibrary.simpleMessage("Polygons & Cameras"),
+    "reports": MessageLookupByLibrary.simpleMessage("Reports"),
+    "sistem_control_sneg": MessageLookupByLibrary.simpleMessage(
+      "sistem control of snow",
+    ),
+    "tickets": MessageLookupByLibrary.simpleMessage("Tasks (Tickets)"),
+    "trips": MessageLookupByLibrary.simpleMessage("Trips & Violations"),
     "try_again": MessageLookupByLibrary.simpleMessage("Try again"),
     "user_not_found": MessageLookupByLibrary.simpleMessage("User not found"),
     "welcome_back": MessageLookupByLibrary.simpleMessage("Welcome back!"),
     "wrong_credentials": MessageLookupByLibrary.simpleMessage(
-      "wrong credentails",
+      "Wrong login or password",
     ),
   };
 }

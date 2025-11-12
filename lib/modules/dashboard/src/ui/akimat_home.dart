@@ -1,15 +1,23 @@
-import 'package:akimat_project/core/navbar/app_navbar.dart';
-import 'package:akimat_project/core/navbar/header_navbar.dart';
+import 'package:akimat_project/core/navbar/drawer_mobile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:akimat_project/core/ui/widgets/card_item.dart';
-// import 'package:akimat_project/core/app_navbar/app_navbar.dart';
+// import 'drawer_mobile.dart'; // твой кастомный DrawerMobile
 
 class AkimatHome extends StatelessWidget {
-  const AkimatHome({super.key});
+  final GlobalKey<ScaffoldState> scaffoldKey;
+  final List<Widget>? webNavbarWidgets;
+  final List<Widget>? mobileNavbarWidgets;
 
-  final _scaffoldKey = GlobalKey<ScaffoldState>;
+  const AkimatHome({
+    super.key,
+    required this.scaffoldKey,
+    this.webNavbarWidgets,
+    this.mobileNavbarWidgets,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,65 +65,32 @@ class AkimatHome extends StatelessWidget {
       );
     }
 
-   final _scaffoldKey = GlobalKey<ScaffoldState>();
-
-return Scaffold(
-  key: _scaffoldKey,
-  drawer: Drawer(
-    child: ListView(
-      padding: EdgeInsets.zero,
-      children: const [
-        DrawerHeader(
-          decoration: BoxDecoration(color: Colors.blue),
-          child: Text('Меню', style: TextStyle(color: Colors.white, fontSize: 20)),
-        ),
-        ListTile(
-          leading: Icon(Icons.dashboard),
-          title: Text('Главная'),
-        ),
-        ListTile(
-          leading: Icon(Icons.business),
-          title: Text('Организации'),
-        ),
-      ],
-    ),
-  ),
-
-  // 1️⃣ добавляем AppNavbar
-  appBar: kIsWeb
-      ? null
-      : PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: HeaderNavbar(
-            scaffoldKey: _scaffoldKey, // ⚡ ключ обязательно передаём
-            mobileWidgets: [
-              IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
-              IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
-            ],
-          ),
-        ),
-
-   body: Column(
+    return Scaffold(
+      key: scaffoldKey,
+      drawer: !kIsWeb ? const DrawerMobile() : null, // кастомный Drawer
+      appBar: kIsWeb
+          ? null
+          : AppBar(
+              title: const Text('Главная'),
+              leading: Builder(
+                builder: (context) {
+                  return IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                  );
+                },
+              ),
+              actions: mobileNavbarWidgets, // твои иконки справа
+            ),
+      body: Column(
         children: [
           if (kIsWeb)
             HeaderNavbar(
-              webWidgets: [
-                TextButton(onPressed: () {}, child: const Text('Главная')),
-                TextButton(onPressed: () {}, child: const Text('Организации')),
-                TextButton(onPressed: () {}, child: const Text('Статистика')),
-              ],
+              webWidgets: webNavbarWidgets,
             ),
           Expanded(
             child: Row(
               children: [
-                if (kIsWeb)
-                  NavigationRail(
-                    selectedIndex: 0,
-                    destinations: const [
-                      NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text('Дашборд')),
-                      NavigationRailDestination(icon: Icon(Icons.business), label: Text('Организации')),
-                    ],
-                  ),
                 if (kIsWeb) const VerticalDivider(thickness: 1, width: 1),
                 Expanded(
                   child: SingleChildScrollView(
@@ -134,8 +109,14 @@ return Scaffold(
                           SizedBox(
                             height: 120,
                             child: config.horizontalScroll
-                                ? ListView(scrollDirection: Axis.horizontal, children: kpiCards)
-                                : Row(mainAxisAlignment: MainAxisAlignment.start, children: kpiCards),
+                                ? ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    children: kpiCards,
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: kpiCards,
+                                  ),
                           ),
                           const SizedBox(height: 16),
                           ...extraWidgets,

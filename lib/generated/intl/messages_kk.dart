@@ -20,32 +20,46 @@ typedef String MessageIfAbsent(String messageStr, List<dynamic> args);
 class MessageLookup extends MessageLookupByLibrary {
   String get localeName => 'kk';
 
-  static String m0(user) => "${user} ретінде кірдіңіз";
-
-  static String m1(error) => "Кіру қатесі: ${error}";
+  static String m0(error) => "Кіру қатесі: ${error}";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
-    "enter_credentials": MessageLookupByLibrary.simpleMessage(
+    "areas": MessageLookupByLibrary.simpleMessage("Тазалау учаскелері"),
+    "dashboard": MessageLookupByLibrary.simpleMessage("Дэшборд"),
+    "enter_login_password": MessageLookupByLibrary.simpleMessage(
       "Логин мен құпия сөзді енгізіңіз",
     ),
     "home_title": MessageLookupByLibrary.simpleMessage("Басты бет"),
     "loading": MessageLookupByLibrary.simpleMessage("Жүктелуде..."),
-    "logged_in_as": m0,
+    "logged_in_as": MessageLookupByLibrary.simpleMessage("Сіз кірдіңіз"),
     "login": MessageLookupByLibrary.simpleMessage("Логин"),
-    "login_error": m1,
-    "login_title": MessageLookupByLibrary.simpleMessage("Akimat авторизациясы"),
+    "login_button": MessageLookupByLibrary.simpleMessage("Кіру"),
+    "login_error": m0,
+    "login_title": MessageLookupByLibrary.simpleMessage(
+      "Akimat-қа авторизация",
+    ),
     "logout": MessageLookupByLibrary.simpleMessage("Шығу"),
     "network_error": MessageLookupByLibrary.simpleMessage(
-      "Желі қатесі. Интернет байланысын тексеріңіз",
+      "Желі қатесі. Интернетке қосылуды тексеріңіз",
     ),
+    "organizations": MessageLookupByLibrary.simpleMessage("Ұйымдар"),
     "password": MessageLookupByLibrary.simpleMessage("Құпия сөз"),
-    "sign_in": MessageLookupByLibrary.simpleMessage("Кіру"),
-    "try_again": MessageLookupByLibrary.simpleMessage("Қайта көру"),
+    "polygons": MessageLookupByLibrary.simpleMessage(
+      "Полигондар және камералар",
+    ),
+    "reports": MessageLookupByLibrary.simpleMessage("Есептер"),
+    "sistem_control_sneg": MessageLookupByLibrary.simpleMessage(
+      "Система контроля снега",
+    ),
+    "tickets": MessageLookupByLibrary.simpleMessage("Тапсырмалар (тикеттер)"),
+    "trips": MessageLookupByLibrary.simpleMessage("Рейс пен бұзушылықтар"),
+    "try_again": MessageLookupByLibrary.simpleMessage("Қайтадан әрекет жасау"),
     "user_not_found": MessageLookupByLibrary.simpleMessage(
       "Пайдаланушы табылмады",
     ),
-    "welcome_back": MessageLookupByLibrary.simpleMessage("Қайта оралдыңыз!"),
-    "wrong_credentials": MessageLookupByLibrary.simpleMessage("Дурыс емес"),
+    "welcome_back": MessageLookupByLibrary.simpleMessage("Қайта қош келдіңіз!"),
+    "wrong_credentials": MessageLookupByLibrary.simpleMessage(
+      "Қате логин немесе құпия сөз",
+    ),
   };
 }

@@ -1,11 +1,9 @@
 {
   "@@locale": "ru",
-
   "login_title": "Авторизация Akimat",
   "login": "Логин",
   "password": "Пароль",
   "enter_login_password": "Введите логин и пароль",
-  "enter_credentials": "Введите логин и пароль",
   "login_button": "Войти",
   "wrong_credentials": "Неверный логин или пароль",
   "login_error": "Ошибка входа: {error}",
@@ -17,6 +15,13 @@
   "welcome_back": "С возвращением!",
   "network_error": "Ошибка сети. Проверьте подключение к интернету",
   "try_again": "Попробовать снова",
-  "loggin_button": "Войти",
-  "wrong_credentials":"неправильно"
+  
+  "dashboard": "Дэшборд",
+  "organizations": "Организации",
+  "areas": "Участки уборки",
+  "polygons": "Полигоны и камеры",
+  "tickets": "Задания (тикеты)",
+  "trips": "Рейсы и нарушения",
+  "reports": "Отчеты",
+  "sistem_control_sneg": "Система контроля снега"
 }

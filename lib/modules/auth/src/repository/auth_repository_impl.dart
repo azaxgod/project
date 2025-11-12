@@ -15,7 +15,7 @@ class AuthRepositoryImpl implements IAuthRepository {
     try {
       final authResponse = await authCollection.login(login, password);
 
-      // Сохраняем токены
+
       await TokenStorage.saveAccessToken(authResponse.accessToken);
       await TokenStorage.saveRefreshToken(authResponse.refreshToken);
 

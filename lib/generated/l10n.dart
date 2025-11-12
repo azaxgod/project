@@ -54,6 +54,16 @@ class S {
     return Localizations.of<S>(context, S);
   }
 
+  /// `Akimat Login`
+  String get login_title {
+    return Intl.message(
+      'Akimat Login',
+      name: 'login_title',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Login`
   String get login {
     return Intl.message('Login', name: 'login', desc: '', args: []);
@@ -64,26 +74,26 @@ class S {
     return Intl.message('Password', name: 'password', desc: '', args: []);
   }
 
-  /// `Please enter login and password`
-  String get enter_credentials {
+  /// `Enter login and password`
+  String get enter_login_password {
     return Intl.message(
-      'Please enter login and password',
-      name: 'enter_credentials',
+      'Enter login and password',
+      name: 'enter_login_password',
       desc: '',
       args: [],
     );
   }
 
-  /// `Sign In`
-  String get sign_in {
-    return Intl.message('Sign In', name: 'sign_in', desc: '', args: []);
+  /// `Login`
+  String get login_button {
+    return Intl.message('Login', name: 'login_button', desc: '', args: []);
   }
 
-  /// `Akimat Authorization`
-  String get login_title {
+  /// `Wrong login or password`
+  String get wrong_credentials {
     return Intl.message(
-      'Akimat Authorization',
-      name: 'login_title',
+      'Wrong login or password',
+      name: 'wrong_credentials',
       desc: '',
       args: [],
     );
@@ -109,13 +119,13 @@ class S {
     );
   }
 
-  /// `Logged in as {user}`
-  String logged_in_as(Object user) {
+  /// `Logged in as`
+  String get logged_in_as {
     return Intl.message(
-      'Logged in as $user',
+      'Logged in as',
       name: 'logged_in_as',
       desc: '',
-      args: [user],
+      args: [],
     );
   }
 
@@ -129,9 +139,9 @@ class S {
     return Intl.message('Logout', name: 'logout', desc: '', args: []);
   }
 
-  /// `Home`
+  /// `Home page`
   String get home_title {
-    return Intl.message('Home', name: 'home_title', desc: '', args: []);
+    return Intl.message('Home page', name: 'home_title', desc: '', args: []);
   }
 
   /// `Welcome back!`
@@ -144,10 +154,10 @@ class S {
     );
   }
 
-  /// `Network error. Please check your internet connection`
+  /// `Network error. Check your internet connection`
   String get network_error {
     return Intl.message(
-      'Network error. Please check your internet connection',
+      'Network error. Check your internet connection',
       name: 'network_error',
       desc: '',
       args: [],
@@ -159,16 +169,61 @@ class S {
     return Intl.message('Try again', name: 'try_again', desc: '', args: []);
   }
 
-  /// `Log in`
-  String get loggin_button {
-    return Intl.message('Log in', name: 'loggin_button', desc: '', args: []);
+  /// `Dashboard`
+  String get dashboard {
+    return Intl.message('Dashboard', name: 'dashboard', desc: '', args: []);
   }
 
-  /// `wrong credentails`
-  String get wrong_credentials {
+  /// `Organizations`
+  String get organizations {
     return Intl.message(
-      'wrong credentails',
-      name: 'wrong_credentials',
+      'Organizations',
+      name: 'organizations',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Cleaning Areas`
+  String get areas {
+    return Intl.message('Cleaning Areas', name: 'areas', desc: '', args: []);
+  }
+
+  /// `Polygons & Cameras`
+  String get polygons {
+    return Intl.message(
+      'Polygons & Cameras',
+      name: 'polygons',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Tasks (Tickets)`
+  String get tickets {
+    return Intl.message('Tasks (Tickets)', name: 'tickets', desc: '', args: []);
+  }
+
+  /// `Trips & Violations`
+  String get trips {
+    return Intl.message(
+      'Trips & Violations',
+      name: 'trips',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Reports`
+  String get reports {
+    return Intl.message('Reports', name: 'reports', desc: '', args: []);
+  }
+
+  /// `sistem control of snow`
+  String get sistem_control_sneg {
+    return Intl.message(
+      'sistem control of snow',
+      name: 'sistem_control_sneg',
       desc: '',
       args: [],
     );

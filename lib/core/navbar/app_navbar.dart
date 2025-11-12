@@ -38,15 +38,23 @@ class AppNavbar extends StatelessWidget {
     } else {
 
       return AppBar(
-        backgroundColor: config.backgroundColor,
-        title: const Text('Логотип / Название'),
-        actions: mobileWidgets, 
-        leading: IconButton(onPressed: (){
-          if (scaffoldKey != null && scaffoldKey!.currentState != null){
+      backgroundColor: config.backgroundColor,
+      elevation: 0,
+      title: const Text('Логотип / Название'),
+      actions: mobileWidgets,
+      leading: IconButton(
+        icon: const Icon(Icons.menu),
+        onPressed: () {
+          if (scaffoldKey?.currentState != null) {
             scaffoldKey!.currentState!.openDrawer();
           }
-        }, icon: Icon(Icons.menu)),
-      );
-    }
+        },
+      ),
+    );
   }
+  }
+
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
