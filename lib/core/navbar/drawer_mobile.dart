@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:akimat_project/generated/l10n.dart';
+import 'package:go_router/go_router.dart';
 
 class DrawerItem {
   final String title;
   final IconData icon;
-  final VoidCallback onTap;
+  // final VoidCallback onTap;
+  final String route;
 
-  DrawerItem({required this.title, required this.icon, required this.onTap});
+  DrawerItem({required this.title, required this.icon, //required this.onTap
+  required this.route});
 }
 
 final mobileDrawerProvider = Provider<List<DrawerItem>>((ref) {
@@ -15,23 +19,21 @@ final mobileDrawerProvider = Provider<List<DrawerItem>>((ref) {
     DrawerItem(
       title: S.current.dashboard,
       icon: Icons.dashboard,
-      onTap: () {
-        print('Dashboard tapped');
-      },
+        route: '/dashboard',
     ),
     DrawerItem(
       title: S.current.organizations,
       icon: Icons.business,
-      onTap: () {
-        print('Organizations tapped');
-      },
+      route: '/organization',
+    
+      
     ),
     DrawerItem(
       title: S.current.areas,
       icon: Icons.area_chart,
-      onTap: () {
-        print('Areas tapped');
-      },
+      route:  
+      'a'
+      
     ),
   ];
 });
@@ -56,8 +58,19 @@ class DrawerMobile extends ConsumerWidget {
             leading: Icon(item.icon),
             title: Text(item.title),
             onTap: () {
-              Navigator.of(context).pop(); // закрываем Drawer
-              item.onTap(); // вызываем действие (например навигацию)
+              Navigator.of(context).pop();
+              Future.microtask(()=> context.go(item.route));
+
+       SchedulerBinding.instance.addPostFrameCallback((_) {
+                  context.go(item.route); 
+                });
+
+
+
+              // Future.delayed(const Duration(milliseconds: 250),(){
+              //   context.go(item.route);
+              // });
+            
             },
           )),
         ],

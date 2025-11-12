@@ -1,6 +1,6 @@
   import 'package:akimat_project/modules/areas/src/ui/contract_home.dart';
   import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
-  import 'package:akimat_project/modules/dashboard/src/ui/akimat_home.dart';
+  import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/akimat_home.dart';
   import 'package:akimat_project/modules/trips/src/ui/driver_home.dart';
   import 'package:flutter/material.dart';
   import 'package:flutter_riverpod/flutter_riverpod.dart';

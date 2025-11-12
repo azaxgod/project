@@ -54,191 +54,53 @@ class S {
     return Localizations.of<S>(context, S);
   }
 
-  /// `Akimat Login`
-  String get login_title {
-    return Intl.message(
-      'Akimat Login',
-      name: 'login_title',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Login`
-  String get login {
-    return Intl.message('Login', name: 'login', desc: '', args: []);
-  }
-
-  /// `Password`
-  String get password {
-    return Intl.message('Password', name: 'password', desc: '', args: []);
-  }
-
-  /// `Enter login and password`
-  String get enter_login_password {
-    return Intl.message(
-      'Enter login and password',
-      name: 'enter_login_password',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Login`
-  String get login_button {
-    return Intl.message('Login', name: 'login_button', desc: '', args: []);
-  }
-
-  /// `Wrong login or password`
-  String get wrong_credentials {
-    return Intl.message(
-      'Wrong login or password',
-      name: 'wrong_credentials',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Login error: {error}`
-  String login_error(Object error) {
-    return Intl.message(
-      'Login error: $error',
-      name: 'login_error',
-      desc: '',
-      args: [error],
-    );
-  }
-
-  /// `User not found`
-  String get user_not_found {
-    return Intl.message(
-      'User not found',
-      name: 'user_not_found',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Logged in as`
-  String get logged_in_as {
-    return Intl.message(
-      'Logged in as',
-      name: 'logged_in_as',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Loading...`
-  String get loading {
-    return Intl.message('Loading...', name: 'loading', desc: '', args: []);
-  }
-
-  /// `Logout`
-  String get logout {
-    return Intl.message('Logout', name: 'logout', desc: '', args: []);
-  }
-
-  /// `Home page`
-  String get home_title {
-    return Intl.message('Home page', name: 'home_title', desc: '', args: []);
-  }
-
-  /// `Welcome back!`
-  String get welcome_back {
-    return Intl.message(
-      'Welcome back!',
-      name: 'welcome_back',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Network error. Check your internet connection`
-  String get network_error {
-    return Intl.message(
-      'Network error. Check your internet connection',
-      name: 'network_error',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Try again`
-  String get try_again {
-    return Intl.message('Try again', name: 'try_again', desc: '', args: []);
-  }
-
-  /// `Dashboard`
-  String get dashboard {
-    return Intl.message('Dashboard', name: 'dashboard', desc: '', args: []);
-  }
-
-  /// `Organizations`
-  String get organizations {
-    return Intl.message(
-      'Organizations',
-      name: 'organizations',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Cleaning Areas`
-  String get areas {
-    return Intl.message('Cleaning Areas', name: 'areas', desc: '', args: []);
-  }
-
-  /// `Polygons & Cameras`
-  String get polygons {
-    return Intl.message(
-      'Polygons & Cameras',
-      name: 'polygons',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Tasks (Tickets)`
-  String get tickets {
-    return Intl.message('Tasks (Tickets)', name: 'tickets', desc: '', args: []);
-  }
-
-  /// `Trips & Violations`
-  String get trips {
-    return Intl.message(
-      'Trips & Violations',
-      name: 'trips',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Reports`
-  String get reports {
-    return Intl.message('Reports', name: 'reports', desc: '', args: []);
-  }
-
-  /// `sistem control of snow`
-  String get sistem_control_sneg {
-    return Intl.message(
-      'sistem control of snow',
-      name: 'sistem_control_sneg',
-      desc: '',
-      args: [],
-    );
-  }
+  // Localization getters - these should be overridden by locale-specific classes
+  String get login_title => Intl.message('Akimat Login', name: 'login_title');
+  String get login => Intl.message('Login', name: 'login');
+  String get password => Intl.message('Password', name: 'password');
+  String get enter_login_password => Intl.message('Enter login and password', name: 'enter_login_password');
+  String get login_button => Intl.message('Login', name: 'login_button');
+  String get wrong_credentials => Intl.message('Wrong login or password', name: 'wrong_credentials');
+  String login_error(Object error) => Intl.message('Login error: $error', name: 'login_error', args: [error]);
+  String get user_not_found => Intl.message('User not found', name: 'user_not_found');
+  String get logged_in_as => Intl.message('Logged in as', name: 'logged_in_as');
+  String get loading => Intl.message('Loading...', name: 'loading');
+  String get logout => Intl.message('Logout', name: 'logout');
+  String get home_title => Intl.message('Home page', name: 'home_title');
+  String get welcome_back => Intl.message('Welcome back!', name: 'welcome_back');
+  String get network_error => Intl.message('Network error. Check your internet connection', name: 'network_error');
+  String get try_again => Intl.message('Try again', name: 'try_again');
+  String get dashboard => Intl.message('Dashboard', name: 'dashboard');
+  String get organizations => Intl.message('Organizations', name: 'organizations');
+  String get areas => Intl.message('Cleaning Areas', name: 'areas');
+  String get polygons => Intl.message('Polygons & Cameras', name: 'polygons');
+  String get tickets => Intl.message('Tasks (Tickets)', name: 'tickets');
+  String get trips => Intl.message('Trips & Violations', name: 'trips');
+  String get reports => Intl.message('Reports', name: 'reports');
+  String get sistem_control_sneg => Intl.message('sistem control of snow', name: 'sistem_control_sneg');
+  String get no_available_tabs => Intl.message('No available tabs', name: 'no_available_tabs');
+  String get contact_admin_for_permissions => Intl.message('Contact administrator for permissions.', name: 'contact_admin_for_permissions');
+  String get role_management => Intl.message('Role management', name: 'role_management');
+  String get organizations_contractors_drivers => Intl.message('Organizations, contractors and drivers', name: 'organizations_contractors_drivers');
+  String get too => Intl.message('TOO', name: 'too');
+  String get contractors => Intl.message('Contractors', name: 'contractors');
+  String get drivers => Intl.message('Drivers', name: 'drivers');
+  String get vehicles => Intl.message('Vehicles', name: 'vehicles');
+  String get main => Intl.message('Main', name: 'main');
+  String get main_panel => Intl.message('Main Panel', name: 'main_panel');
+  String get insufficient_permissions => Intl.message('Insufficient permissions', name: 'insufficient_permissions');
+  String get insufficient_permissions_message => Intl.message('This section is only available to Akimat, TOO or Contractor administrators.', name: 'insufficient_permissions_message');
+  String failed_to_load_data(Object error) => Intl.message('Failed to load data: $error', name: 'failed_to_load_data', args: [error]);
+  String get last_trips => Intl.message('Last trips', name: 'last_trips');
+  String get additional_web_widget => Intl.message('Additional web widget', name: 'additional_web_widget');
+  String get additional_mobile_widget => Intl.message('Additional mobile widget', name: 'additional_mobile_widget');
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
   const AppLocalizationDelegate();
 
   List<Locale> get supportedLocales {
-    return const <Locale>[
-      Locale.fromSubtags(languageCode: 'en'),
-      Locale.fromSubtags(languageCode: 'kk'),
-      Locale.fromSubtags(languageCode: 'ru'),
-    ];
+    return const <Locale>[Locale.fromSubtags(languageCode: 'en')];
   }
 
   @override
