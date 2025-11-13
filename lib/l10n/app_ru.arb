@@ -38,6 +38,7 @@
   "failed_to_load_data": "Не удалось загрузить данные: {error}",
   "last_trips": "Последние рейсы",
   "additional_web_widget": "Дополнительный веб-виджет",
-  "additional_mobile_widget": "Дополнительный мобильный виджет"
+  "additional_mobile_widget": "Дополнительный мобильный виджет",
+  "menu": "Меню"
 }
 

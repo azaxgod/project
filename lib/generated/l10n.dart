@@ -94,6 +94,7 @@ class S {
   String get last_trips => Intl.message('Last trips', name: 'last_trips');
   String get additional_web_widget => Intl.message('Additional web widget', name: 'additional_web_widget');
   String get additional_mobile_widget => Intl.message('Additional mobile widget', name: 'additional_mobile_widget');
+  String get menu => Intl.message('Menu', name: 'menu');
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

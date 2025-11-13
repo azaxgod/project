@@ -1,5 +1,5 @@
+import 'package:akimat_project/core/locale/locale_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:akimat_project/generated/l10n.dart';
 import 'package:go_router/go_router.dart';
@@ -7,72 +7,66 @@ import 'package:go_router/go_router.dart';
 class DrawerItem {
   final String title;
   final IconData icon;
-  // final VoidCallback onTap;
   final String route;
 
-  DrawerItem({required this.title, required this.icon, //required this.onTap
-  required this.route});
+  DrawerItem({
+    required this.title,
+    required this.icon,
+    required this.route,
+  });
 }
 
-final mobileDrawerProvider = Provider<List<DrawerItem>>((ref) {
+final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
   return [
     DrawerItem(
-      title: S.current.dashboard,
+      title: s.dashboard,
       icon: Icons.dashboard,
-        route: '/dashboard',
+      route: '/dashboard',
     ),
     DrawerItem(
-      title: S.current.organizations,
+      title: s.organizations,
       icon: Icons.business,
       route: '/organization',
-    
-      
     ),
     DrawerItem(
-      title: S.current.areas,
+      title: s.areas,
       icon: Icons.area_chart,
-      route:  
-      'a'
-      
+      route: '/areas',
     ),
   ];
 });
+
 class DrawerMobile extends ConsumerWidget {
   const DrawerMobile({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final items = ref.watch(mobileDrawerProvider);
+    // Watch locale to ensure rebuild when language changes
+    ref.watch(localeProvider);
+    final s = S.of(context);
+    final items = ref.watch(mobileDrawerProvider(s));
 
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue),
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Colors.blue),
             child: Center(
-              child: Text('Меню', style: TextStyle(color: Colors.white, fontSize: 20)),
+              child: Text(
+                s.menu,
+                style: const TextStyle(color: Colors.white, fontSize: 20),
+              ),
             ),
           ),
           ...items.map((item) => ListTile(
-            leading: Icon(item.icon),
-            title: Text(item.title),
-            onTap: () {
-              Navigator.of(context).pop();
-              Future.microtask(()=> context.go(item.route));
-
-       SchedulerBinding.instance.addPostFrameCallback((_) {
-                  context.go(item.route); 
-                });
-
-
-
-              // Future.delayed(const Duration(milliseconds: 250),(){
-              //   context.go(item.route);
-              // });
-            
-            },
-          )),
+                leading: Icon(item.icon),
+                title: Text(item.title),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  context.go(item.route);
+                },
+              )),
         ],
       ),
     );

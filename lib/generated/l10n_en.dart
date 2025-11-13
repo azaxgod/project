@@ -126,4 +126,7 @@ class SEn extends S {
 
   @override
   String get additional_mobile_widget => 'Additional mobile widget';
+
+  @override
+  String get menu => 'Menu';
 }

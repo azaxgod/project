@@ -126,4 +126,7 @@ class SRu extends S {
 
   @override
   String get additional_mobile_widget => 'Дополнительный мобильный виджет';
+
+  @override
+  String get menu => 'Меню';
 }

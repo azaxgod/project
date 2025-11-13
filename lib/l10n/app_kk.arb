@@ -38,6 +38,7 @@
   "failed_to_load_data": "Деректерді жүктеу сәтсіз аяқталды: {error}",
   "last_trips": "Соңғы рейстер",
   "additional_web_widget": "Қосымша веб-виджет",
-  "additional_mobile_widget": "Қосымша мобильді виджет"
+  "additional_mobile_widget": "Қосымша мобильді виджет",
+  "menu": "Мәзір"
 }
 

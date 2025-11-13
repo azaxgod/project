@@ -38,5 +38,6 @@
   "failed_to_load_data": "Failed to load data: {error}",
   "last_trips": "Last trips",
   "additional_web_widget": "Additional web widget",
-  "additional_mobile_widget": "Additional mobile widget"
+  "additional_mobile_widget": "Additional mobile widget",
+  "menu": "Menu"
 }

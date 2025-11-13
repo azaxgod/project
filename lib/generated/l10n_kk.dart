@@ -126,4 +126,7 @@ class SKk extends S {
 
   @override
   String get additional_mobile_widget => 'Қосымша мобильді виджет';
+
+  @override
+  String get menu => 'Мәзір';
 }
