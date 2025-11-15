@@ -6,7 +6,7 @@ import 'l10n.dart';
 
 /// The translations for Kazakh (`kk`).
 class SKk extends S {
-  SKk();
+  SKk([String locale = 'kk']) : super(locale);
 
   @override
   String get login_title => 'Akimat-қа авторизация';
@@ -42,6 +42,9 @@ class SKk extends S {
 
   @override
   String get logout => 'Шығу';
+
+  @override
+  String get logout_confirmation => 'Шығуды қалайсыз ба?';
 
   @override
   String get home_title => 'Басты бет';
@@ -83,13 +86,15 @@ class SKk extends S {
   String get no_available_tabs => 'Қолжетімді қойындылар жоқ';
 
   @override
-  String get contact_admin_for_permissions => 'Құқықтар беру үшін әкімшіге хабарласыңыз.';
+  String get contact_admin_for_permissions =>
+      'Құқықтар беру үшін әкімшіге хабарласыңыз.';
 
   @override
   String get role_management => 'Рөлдерді басқару';
 
   @override
-  String get organizations_contractors_drivers => 'Ұйымдар, подрядчиктер және жүргізушілер';
+  String get organizations_contractors_drivers =>
+      'Ұйымдар, подрядчиктер және жүргізушілер';
 
   @override
   String get kgu_zkh => 'КГУ ЖКХ';
@@ -116,10 +121,13 @@ class SKk extends S {
   String get insufficient_permissions => 'Құқықтар жеткіліксіз';
 
   @override
-  String get insufficient_permissions_message => 'Бұл бөлім тек Акимат, ТОО немесе Подрядчик әкімшілеріне қолжетімді.';
+  String get insufficient_permissions_message =>
+      'Бұл бөлім тек Акимат, ТОО немесе Подрядчик әкімшілеріне қолжетімді.';
 
   @override
-  String failed_to_load_data(Object error) => 'Деректерді жүктеу сәтсіз аяқталды: $error';
+  String failed_to_load_data(Object error) {
+    return 'Деректерді жүктеу сәтсіз аяқталды: $error';
+  }
 
   @override
   String get last_trips => 'Соңғы рейстер';
@@ -158,7 +166,8 @@ class SKk extends S {
   String get select_period => 'Кезеңді таңдаңыз';
 
   @override
-  String get end_date_must_be_after_start => 'Аяқталу күні басталу күнінен кейін болуы керек';
+  String get end_date_must_be_after_start =>
+      'Аяқталу күні басталу күнінен кейін болуы керек';
 
   @override
   String get description => 'Сипаттама';
@@ -237,4 +246,52 @@ class SKk extends S {
 
   @override
   String get actions => 'Әрекеттер';
+
+  @override
+  String get contracts => 'Келісімдер';
+
+  @override
+  String get create_contract => 'Келісім құру';
+
+  @override
+  String get active => 'Белсенді';
+
+  @override
+  String get expired => 'Мерзімі өткен';
+
+  @override
+  String get archived => 'Мұрағатталған';
+
+  @override
+  String get period_start => 'Кезең басталуы';
+
+  @override
+  String get period_end => 'Кезең аяқталуы';
+
+  @override
+  String get contract_name => 'Келісім';
+
+  @override
+  String get price_per_m3 => 'м³ бағасы';
+
+  @override
+  String get volume_progress => 'Көлемді игеру';
+
+  @override
+  String get budget_progress => 'Бюджетті игеру';
+
+  @override
+  String get budget_exceeded => 'Бюджетті асу';
+
+  @override
+  String get yes => 'Иә';
+
+  @override
+  String get no => 'Жоқ';
+
+  @override
+  String get open => 'Ашу';
+
+  @override
+  String get no_contracts_found => 'Келісімдер табылмады';
 }

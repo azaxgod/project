@@ -1,5 +1,6 @@
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/polygons_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/polygons_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
@@ -123,7 +124,7 @@ class PolygonsDialogs {
                             value == null || value.isEmpty ? 'Введите имя' : null,
                       ),
                       const SizedBox(height: AppPadding.normal),
-                      DropdownButtonFormField<CameraType>(
+                      SafeDropdownButtonFormField<CameraType>(
                         value: selectedType,
                         decoration: InputDecoration(
                           labelText: 'Тип*',

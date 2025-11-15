@@ -2,6 +2,7 @@ import 'package:akimat_project/core/di.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:akimat_project/modules/auth/src/repository/i_auth_repository.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/services/auth/collection/auth_collection.dart';
 import 'package:akimat_project/services/auth/model/auth_response.dart';
 import 'package:akimat_project/services/auth/model/user.dart';
 
@@ -58,39 +59,70 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> loginAkimat(String login, String password) async {
-    state = state.copyWith(isLoggingIn: true);
+    state = state.copyWith(isLoggingIn: true, error: null);
     try {
       final authResponse = await repo.loginAkimat(login, password);
-      state = state.copyWith(isLoggingIn: false, user: authResponse.user);
+      state = state.copyWith(isLoggingIn: false, user: authResponse.user, error: null);
     } catch (e) {
-      state = state.copyWith(isLoggingIn: false, error: e.toString());
+      final errorMessage = e is AuthException ? e.message : e.toString();
+      state = state.copyWith(isLoggingIn: false, error: errorMessage);
     }
   }
 
   Future<void> sendSms(String phone) async {
-    state = state.copyWith(isLoggingIn: true);
+    state = state.copyWith(isLoggingIn: true, error: null);
     try {
       await repo.sendSms(phone);
-      state = state.copyWith(isLoggingIn: false);
+      state = state.copyWith(isLoggingIn: false, error: null);
     } catch (e) {
-      state = state.copyWith(isLoggingIn: false, error: e.toString());
+      final errorMessage = e is AuthException ? e.message : e.toString();
+      state = state.copyWith(isLoggingIn: false, error: errorMessage);
     }
   }
 
   Future<void> verifySms(String phone, String code) async {
-    state = state.copyWith(isLoggingIn: true);
+    state = state.copyWith(isLoggingIn: true, error: null);
     try {
       final authResponse = await repo.verifySms(phone, code);
-      state = state.copyWith(isLoggingIn: false, user: authResponse.user);
+      state = state.copyWith(isLoggingIn: false, user: authResponse.user, error: null);
     } catch (e) {
-      state = state.copyWith(isLoggingIn: false, error: e.toString());
+      final errorMessage = e is AuthException ? e.message : e.toString();
+      state = state.copyWith(isLoggingIn: false, error: errorMessage);
     }
   }
 
   Future<void> logout() async {
-    await TokenStorage.saveAccessToken('');
-    await TokenStorage.saveRefreshToken('');
-    state = const AuthState();
+    try {
+      final refreshToken = await TokenStorage.getRefreshToken();
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await repo.logout(refreshToken);
+      }
+    } catch (_) {
+      // Игнорируем ошибки при logout, все равно очищаем локально
+    } finally {
+      await TokenStorage.saveAccessToken('');
+      await TokenStorage.saveRefreshToken('');
+      state = const AuthState();
+    }
+  }
+
+  /// Обновление токенов
+  Future<void> refreshTokens() async {
+    final refreshToken = await TokenStorage.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      state = state.copyWith(error: 'Refresh token not found');
+      return;
+    }
+
+    try {
+      final authResponse = await repo.refreshTokens(refreshToken);
+      state = state.copyWith(user: authResponse.user);
+    } catch (e) {
+      // Refresh не удался, очищаем токены и разлогиниваем
+      await TokenStorage.saveAccessToken('');
+      await TokenStorage.saveRefreshToken('');
+      state = const AuthState();
+    }
   }
 }
 

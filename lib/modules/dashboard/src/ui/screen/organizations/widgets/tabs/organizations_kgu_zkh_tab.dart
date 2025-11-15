@@ -1,4 +1,4 @@
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
@@ -24,7 +24,7 @@ class OrganizationsKguZkhTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     final organizations = data.organizations
         .where((organization) => organization.type == OrganizationType.kguZkh)
         .toList();

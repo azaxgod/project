@@ -1,8 +1,6 @@
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/auth/collection/auth_collection.dart';
 import 'package:akimat_project/services/auth/model/auth_response.dart';
-import 'package:akimat_project/services/auth/model/user.dart';
-// import '../model/auth_response.dart';
 import 'i_auth_repository.dart';
 
 class AuthRepositoryImpl implements IAuthRepository {
@@ -12,34 +10,35 @@ class AuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<AuthResponse> loginAkimat(String login, String password) async {
-    try {
-      final authResponse = await authCollection.login(login, password);
-
-
+    final authResponse = await authCollection.login(login, password);
+    
+    // Проверяем, что токены не пустые перед сохранением
+    if (authResponse.accessToken.isNotEmpty) {
       await TokenStorage.saveAccessToken(authResponse.accessToken);
-      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
-
-      return authResponse;
-    } catch (e) {
-      throw Exception('Неверный логин или пароль: $e');
+      // Проверяем, что токен действительно сохранился
+      final savedToken = await TokenStorage.getAccessToken();
+      if (savedToken == null || savedToken.isEmpty) {
+        throw Exception('Failed to save access token');
+      }
     }
+    if (authResponse.refreshToken.isNotEmpty) {
+      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+    }
+
+    return authResponse;
   }
 
   @override
   Future<AuthResponse> meFromToken(String token) async {
-    try {
-      authCollection.setTempToken(token);
-      final user = await authCollection.me();
+    authCollection.setTempToken(token);
+    final user = await authCollection.me();
 
-      // Создаём AuthResponse с пустыми токенами, так как у нас есть только User
-      return AuthResponse(
-        accessToken: token,
-        refreshToken: '', // если нужно, можно сделать отдельный метод для refresh
-        user: user,
-      );
-    } catch (e) {
-      throw Exception('Не удалось получить данные пользователя: $e');
-    }
+    // Создаём AuthResponse с пустыми токенами, так как у нас есть только User
+    return AuthResponse(
+      accessToken: token,
+      refreshToken: '', // если нужно, можно сделать отдельный метод для refresh
+      user: user,
+    );
   }
 
   @override
@@ -49,16 +48,38 @@ class AuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<AuthResponse> verifySms(String phone, String code) async {
-    try {
-      final authResponse = await authCollection.verifySms(phone, code);
+    final authResponse = await authCollection.verifySms(phone, code);
 
-      // Сохраняем токены
+    // Сохраняем токены (проверяем, что они не пустые)
+    if (authResponse.accessToken.isNotEmpty) {
       await TokenStorage.saveAccessToken(authResponse.accessToken);
-      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
-
-      return authResponse;
-    } catch (e) {
-      throw Exception('Неверный код или ошибка верификации: $e');
     }
+    if (authResponse.refreshToken.isNotEmpty) {
+      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+    }
+
+    return authResponse;
+  }
+
+  @override
+  Future<AuthResponse> refreshTokens(String refreshToken) async {
+    final authResponse = await authCollection.refresh(refreshToken);
+    
+    // Сохраняем токены (проверяем, что они не пустые)
+    if (authResponse.accessToken.isNotEmpty) {
+      await TokenStorage.saveAccessToken(authResponse.accessToken);
+    }
+    if (authResponse.refreshToken.isNotEmpty) {
+      await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+    }
+
+    return authResponse;
+  }
+
+  @override
+  Future<void> logout(String refreshToken) async {
+    await authCollection.logout(refreshToken);
+    await TokenStorage.saveAccessToken('');
+    await TokenStorage.saveRefreshToken('');
   }
 }

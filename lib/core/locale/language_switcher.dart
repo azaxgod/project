@@ -1,5 +1,5 @@
 import 'package:akimat_project/core/locale/locale_provider.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

@@ -2,7 +2,7 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -44,7 +44,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
     if (login.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(S.of(context).enter_login_password)),
+        SnackBar(content: Text(S.of(context)!.enter_login_password)),
       );
       return;
     }
@@ -56,9 +56,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
     final authState = ref.read(authNotifierProvider);
     if (authState.user != null) {
       context.go('/home');
+    } else if (authState.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.error!),
+          backgroundColor: Colors.red,
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(S.of(context).wrong_credentials)),
+        SnackBar(content: Text(S.of(context)!.wrong_credentials)),
       );
     }
   }
@@ -102,7 +109,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         ),
                         const SizedBox(height: AppPadding.small),
                         Text(
-                          S.of(context).sistem_control_sneg,
+                          S.of(context)!.sistem_control_sneg,
                           textAlign: TextAlign.center,
                           style: AppTextStyles.title
                               .copyWith(color: Colors.white),
@@ -155,7 +162,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         TextField(
           controller: loginController,
           decoration: InputDecoration(
-            labelText: S.of(context).login_title,
+            labelText: S.of(context)!.login_title,
             labelStyle: AppTextStyles.body,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSize.cardRadius),
@@ -167,7 +174,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           controller: passwordController,
           obscureText: true,
           decoration: InputDecoration(
-            labelText: S.of(context).password,
+            labelText: S.of(context)!.password,
             labelStyle: AppTextStyles.body,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSize.cardRadius),
@@ -189,7 +196,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             BorderRadius.circular(AppSize.cardRadius)),
                   ),
                   child: Text(
-                    S.of(context).login_button,
+                    S.of(context)!.login_button,
                     style: AppTextStyles.button,
                   ),
                 ),

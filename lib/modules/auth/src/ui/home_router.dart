@@ -5,7 +5,7 @@
   import 'package:flutter/material.dart';
   import 'package:flutter_riverpod/flutter_riverpod.dart';
   import 'package:go_router/go_router.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
   class HomeRouter extends ConsumerWidget {
     const HomeRouter({super.key});
 

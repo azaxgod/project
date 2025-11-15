@@ -1,12 +1,12 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-import 'l10n.dart';
+import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
 
 /// The translations for Russian (`ru`).
-class SRu extends S {
-  SRu();
+class AppLocalizationsRu extends AppLocalizations {
+  AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
   String get login_title => 'Авторизация Akimat';
@@ -42,6 +42,9 @@ class SRu extends S {
 
   @override
   String get logout => 'Выйти';
+
+  @override
+  String get logout_confirmation => 'Вы уверены, что хотите выйти?';
 
   @override
   String get home_title => 'Главная страница';
@@ -119,7 +122,9 @@ class SRu extends S {
   String get insufficient_permissions_message => 'Раздел доступен только администраторам Акимата, ТОО или Подрядчика.';
 
   @override
-  String failed_to_load_data(Object error) => 'Не удалось загрузить данные: $error';
+  String failed_to_load_data(Object error) {
+    return 'Не удалось загрузить данные: $error';
+  }
 
   @override
   String get last_trips => 'Последние рейсы';
@@ -237,4 +242,52 @@ class SRu extends S {
 
   @override
   String get actions => 'Действия';
+
+  @override
+  String get contracts => 'Контракты';
+
+  @override
+  String get create_contract => 'Создать контракт';
+
+  @override
+  String get active => 'Активен';
+
+  @override
+  String get expired => 'Истек';
+
+  @override
+  String get archived => 'Архивирован';
+
+  @override
+  String get period_start => 'Период с';
+
+  @override
+  String get period_end => 'Период по';
+
+  @override
+  String get contract_name => 'Договор';
+
+  @override
+  String get price_per_m3 => 'Цена за м³';
+
+  @override
+  String get volume_progress => 'Освоение объёма';
+
+  @override
+  String get budget_progress => 'Освоение бюджета';
+
+  @override
+  String get budget_exceeded => 'Превышение бюджета';
+
+  @override
+  String get yes => 'Да';
+
+  @override
+  String get no => 'Нет';
+
+  @override
+  String get open => 'Открыть';
+
+  @override
+  String get no_contracts_found => 'Контракты не найдены';
 }

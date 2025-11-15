@@ -11,6 +11,7 @@
   "logged_in_as": "Вы вошли как",
   "loading": "Загрузка...",
   "logout": "Выйти",
+  "logout_confirmation": "Вы уверены, что хотите выйти?",
   "home_title": "Главная страница",
   "welcome_back": "С возвращением!",
   "network_error": "Ошибка сети. Проверьте подключение к интернету",
@@ -75,6 +76,22 @@
   "details": "Подробнее",
   "cancel_ticket": "Отменить тикет",
   "close_ticket": "Закрыть тикет",
-  "actions": "Действия"
+  "actions": "Действия",
+  "contracts": "Контракты",
+  "create_contract": "Создать контракт",
+  "active": "Активен",
+  "expired": "Истек",
+  "archived": "Архивирован",
+  "period_start": "Период с",
+  "period_end": "Период по",
+  "contract_name": "Договор",
+  "price_per_m3": "Цена за м³",
+  "volume_progress": "Освоение объёма",
+  "budget_progress": "Освоение бюджета",
+  "budget_exceeded": "Превышение бюджета",
+  "yes": "Да",
+  "no": "Нет",
+  "open": "Открыть",
+  "no_contracts_found": "Контракты не найдены"
 }
 

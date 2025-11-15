@@ -1,7 +1,7 @@
-import 'package:akimat_project/generated/l10n.dart';
-import 'package:akimat_project/generated/l10n_en.dart';
-import 'package:akimat_project/generated/l10n_ru.dart';
-import 'package:akimat_project/generated/l10n_kk.dart';
+import 'package:akimat_project/l10n/l10n.dart';
+import 'package:akimat_project/l10n/l10n_en.dart';
+import 'package:akimat_project/l10n/l10n_ru.dart';
+import 'package:akimat_project/l10n/l10n_kk.dart';
 import 'package:flutter/material.dart';
 
 class CustomLocalizationDelegate extends LocalizationsDelegate<S> {
@@ -22,9 +22,6 @@ class CustomLocalizationDelegate extends LocalizationsDelegate<S> {
 
   @override
   Future<S> load(Locale locale) async {
-    // Initialize messages for the locale
-    await S.loadMessages(locale);
-    
     // Return the appropriate locale-specific class
     S instance;
     switch (locale.languageCode) {
@@ -39,9 +36,6 @@ class CustomLocalizationDelegate extends LocalizationsDelegate<S> {
         instance = SEn();
         break;
     }
-    
-    // Set the current instance for S.current access
-    S.setCurrent(instance);
     
     return instance;
   }

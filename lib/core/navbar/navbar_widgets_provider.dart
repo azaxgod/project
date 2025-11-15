@@ -1,8 +1,10 @@
 import 'package:akimat_project/core/locale/language_switcher.dart';
+import 'package:akimat_project/core/navbar/logout_button.dart';
+import 'package:akimat_project/core/navbar/user_role_badge.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -21,49 +23,59 @@ class NavbarWidgetsProvider {
     
     return [
       _NavbarButton(
-        label: S.of(context).dashboard,
+        label: S.of(context)!.dashboard,
         icon: Icons.dashboard,
         isActive: currentRoute == '/dashboard',
         onPressed: () => context.go('/dashboard'),
       ),
       _NavbarButton(
-        label: S.of(context).organizations,
+        label: S.of(context)!.organizations,
         icon: Icons.business,
         isActive: currentRoute == '/organization',
         onPressed: () => context.go('/organization'),
       ),
       _NavbarButton(
-        label: S.of(context).areas,
+        label: S.of(context)!.areas,
         icon: Icons.area_chart,
         isActive: currentRoute == '/areas',
         onPressed: () => context.go('/areas'),
       ),
       _NavbarButton(
-        label: S.of(context).polygons,
+        label: S.of(context)!.polygons,
         icon: Icons.map,
         isActive: currentRoute == '/polygons',
         onPressed: () => context.go('/polygons'),
       ),
       _NavbarButton(
-        label: S.of(context).tickets,
+        label: S.of(context)!.tickets,
         icon: Icons.assignment,
         isActive: currentRoute == '/tickets',
         onPressed: () => context.go('/tickets'),
       ),
       _NavbarButton(
-        label: S.of(context).trips,
+        label: S.of(context)!.contracts,
+        icon: Icons.receipt_long,
+        isActive: currentRoute == '/kgu/contracts',
+        onPressed: () => context.go('/kgu/contracts'),
+      ),
+      _NavbarButton(
+        label: S.of(context)!.trips,
         icon: Icons.directions_car,
         isActive: false,
         onPressed: () {},
       ),
       _NavbarButton(
-        label: S.of(context).reports,
+        label: S.of(context)!.reports,
         icon: Icons.assessment,
         isActive: false,
         onPressed: () {},
       ),
       const SizedBox(width: AppPadding.small),
+      const UserRoleBadge(), // Отображение роли пользователя
+      const SizedBox(width: AppPadding.small),
       const LanguageSwitcher(),
+      const SizedBox(width: AppPadding.small),
+      const LogoutButtonWeb(), // Кнопка выхода
     ];
   }
 
@@ -72,17 +84,17 @@ class NavbarWidgetsProvider {
     return [
       // IconButton(
       //   icon: const Icon(Icons.dashboard),
-      //   tooltip: S.of(context).dashboard,
+      //   tooltip: S.of(context)!.dashboard,
       //   onPressed: () => context.go('/dashboard'),
       // ),
       // IconButton(
       //   icon: const Icon(Icons.do_not_touch),
-      //   tooltip: S.of(context).organizations,
+      //   tooltip: S.of(context)!.organizations,
       //   onPressed: () => context.go('/organization'),
       // ),
       // IconButton(
       //   icon: const Icon(Icons.area_chart),
-      //   tooltip: S.of(context).areas,
+      //   tooltip: S.of(context)!.areas,
       //   onPressed: () {},
       // ),
       const LanguageSwitcher(),

@@ -1,13 +1,20 @@
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
-import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
-import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/operations_repository_impl.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository_impl.dart';
+import 'package:akimat_project/services/operations/module.dart';
 import 'package:akimat_project/services/organizations/module.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final operationsRepositoryProvider = Provider<OperationsRepository>((ref) {
+  final services = ref.watch(operationsServicesProvider);
+  return OperationsRepositoryImpl(services: services);
+});
 
 final areasControllerProvider = StateNotifierProvider<AreasController, AreasState>((ref) {
   final authState = ref.watch(authNotifierProvider);
@@ -15,7 +22,8 @@ final areasControllerProvider = StateNotifierProvider<AreasController, AreasStat
   final organizationId = authState.user?.organizationId;
   
   return AreasController(
-    repository: OrganizationsRepositoryImpl(
+    operationsRepository: ref.watch(operationsRepositoryProvider),
+    organizationsRepository: OrganizationsRepositoryImpl(
       services: ref.watch(organizationsServicesProvider),
     ),
     initialState: AreasState.initial(
@@ -27,27 +35,33 @@ final areasControllerProvider = StateNotifierProvider<AreasController, AreasStat
 
 class AreasController extends StateNotifier<AreasState> {
   AreasController({
-    required OrganizationsRepository repository,
+    required OperationsRepository operationsRepository,
+    required OrganizationsRepository organizationsRepository,
     required AreasState initialState,
-  })  : _repository = repository,
+  })  : _operationsRepository = operationsRepository,
+        _organizationsRepository = organizationsRepository,
         super(initialState) {
     _loadData();
   }
 
-  final OrganizationsRepository _repository;
+  final OperationsRepository _operationsRepository;
+  final OrganizationsRepository _organizationsRepository;
 
   Future<void> _loadData() async {
     state = state.copyWith(data: const AsyncLoading());
     state = state.copyWith(
       data: await AsyncValue.guard(() async {
         // Load contractors for filter
-        final organizations = await _repository.loadOrganizations();
+        final organizations = await _organizationsRepository.loadOrganizations();
         final contractors = organizations
             .where((org) => org.type == OrganizationType.contractor)
             .toList();
         
-        // TODO: Load areas from repository when implemented
-        final areas = <CleaningArea>[];
+        // Load areas from operations service
+        final areas = await _operationsRepository.loadCleaningAreas(
+          status: state.statusFilter,
+          onlyActive: true,
+        );
         
         return AreasData(
           areas: areas,
@@ -61,8 +75,13 @@ class AreasController extends StateNotifier<AreasState> {
 
   Future<void> createArea(CleaningArea area) async {
     final result = await AsyncValue.guard(() async {
-      // TODO: Implement repository method
-      return area;
+      return await _operationsRepository.createCleaningArea(
+        name: area.name,
+        description: area.description,
+        geometry: area.geometry,
+        city: area.city,
+        defaultContractorId: area.defaultContractorId,
+      );
     });
     
     if (!result.hasError) {
@@ -72,8 +91,13 @@ class AreasController extends StateNotifier<AreasState> {
 
   Future<void> updateArea(CleaningArea area) async {
     final result = await AsyncValue.guard(() async {
-      // TODO: Implement repository method
-      return area;
+      return await _operationsRepository.updateCleaningArea(
+        area.id,
+        name: area.name,
+        description: area.description,
+        status: area.status,
+        defaultContractorId: area.defaultContractorId,
+      );
     });
     
     if (!result.hasError) {

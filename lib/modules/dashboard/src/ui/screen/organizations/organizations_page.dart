@@ -4,7 +4,7 @@ import 'package:akimat_project/core/navbar/drawer_mobile.dart';
 import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
@@ -30,7 +30,7 @@ class OrganizationsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch locale to ensure rebuild when language changes
     ref.watch(localeProvider);
-    final s = S.of(context);
+    final s = S.of(context)!;
     final state = ref.watch(organizationsControllerProvider);
     final controller = ref.watch(organizationsControllerProvider.notifier);
     final config = PlatformConfig.instance;
@@ -103,7 +103,7 @@ class _ForbiddenOrganizationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     return Scaffold(
       key: scaffoldKey,
       drawer: !kIsWeb ? const DrawerMobile() : null,

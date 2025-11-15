@@ -11,6 +11,7 @@
   "logged_in_as": "Сіз кірдіңіз",
   "loading": "Жүктелуде...",
   "logout": "Шығу",
+  "logout_confirmation": "Шығуды қалайсыз ба?",
   "home_title": "Басты бет",
   "welcome_back": "Қайта қош келдіңіз!",
   "network_error": "Желі қатесі. Интернетке қосылуды тексеріңіз",
@@ -75,6 +76,22 @@
   "details": "Толығырақ",
   "cancel_ticket": "Тикетті болдыру",
   "close_ticket": "Тикетті жабу",
-  "actions": "Әрекеттер"
+  "actions": "Әрекеттер",
+  "contracts": "Келісімдер",
+  "create_contract": "Келісім құру",
+  "active": "Белсенді",
+  "expired": "Мерзімі өткен",
+  "archived": "Мұрағатталған",
+  "period_start": "Кезең басталуы",
+  "period_end": "Кезең аяқталуы",
+  "contract_name": "Келісім",
+  "price_per_m3": "м³ бағасы",
+  "volume_progress": "Көлемді игеру",
+  "budget_progress": "Бюджетті игеру",
+  "budget_exceeded": "Бюджетті асу",
+  "yes": "Иә",
+  "no": "Жоқ",
+  "open": "Ашу",
+  "no_contracts_found": "Келісімдер табылмады"
 }
 

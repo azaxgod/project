@@ -2,7 +2,8 @@ import 'dart:math';
 
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/tickets_controller.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
@@ -35,12 +36,14 @@ class TicketDialogs {
     DateTime? endDate;
     
     // Фильтруем контракты по выбранному подрядчику
-    List<Contract> availableContracts = [];
+    List<Contract> availableContracts = contracts
+        .where((c) => c.contractorId == selectedContractorId && c.isActive)
+        .toList();
 
     await showDialog<void>(
       context: context,
       builder: (context) {
-        final s = S.of(context);
+        final s = S.of(context)!;
         return StatefulBuilder(
           builder: (context, setModal) => AlertDialog(
             title: Text(s.create_ticket),
@@ -65,7 +68,7 @@ class TicketDialogs {
                       ),
                       const SizedBox(height: AppPadding.normal),
                       // Подрядчик
-                      DropdownButtonFormField<String>(
+                      SafeDropdownButtonFormField<String?>(
                         value: selectedContractorId,
                         decoration: InputDecoration(
                           labelText: s.contractor,
@@ -73,12 +76,19 @@ class TicketDialogs {
                             borderRadius: BorderRadius.circular(AppSize.smallRadius),
                           ),
                         ),
-                        items: contractors.map(
-                          (contractor) => DropdownMenuItem(
-                            value: contractor.id,
-                            child: Text(contractor.name),
-                          ),
-                        ).toList(),
+                        items: contractors.isEmpty
+                            ? [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text(s.no_contracts_available),
+                                ),
+                              ]
+                            : contractors.map(
+                                (contractor) => DropdownMenuItem(
+                                  value: contractor.id,
+                                  child: Text(contractor.name),
+                                ),
+                              ).toList(),
                         onChanged: (value) {
                           setModal(() {
                             selectedContractorId = value;
@@ -92,7 +102,7 @@ class TicketDialogs {
                       ),
                       const SizedBox(height: AppPadding.normal),
                       // Контракт
-                      DropdownButtonFormField<String>(
+                      SafeDropdownButtonFormField<String?>(
                         value: selectedContractId,
                         decoration: InputDecoration(
                           labelText: s.contract,
@@ -111,12 +121,19 @@ class TicketDialogs {
                                   ),
                                 ),
                               ]
-                            : availableContracts.map(
-                                (contract) => DropdownMenuItem(
-                                  value: contract.id,
-                                  child: Text(contract.contractNumber),
+                            : [
+                                if (selectedContractorId != null)
+                                  DropdownMenuItem(
+                                    value: null,
+                                    child: Text(s.all),
+                                  ),
+                                ...availableContracts.map(
+                                  (contract) => DropdownMenuItem(
+                                    value: contract.id,
+                                    child: Text(contract.name),
+                                  ),
                                 ),
-                              ).toList(),
+                              ],
                         onChanged: selectedContractorId == null
                             ? null
                             : (value) => setModal(() => selectedContractId = value),

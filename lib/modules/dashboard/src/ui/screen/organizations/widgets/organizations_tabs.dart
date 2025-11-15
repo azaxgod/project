@@ -3,15 +3,16 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_contractors_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_drivers_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_kgu_zkh_tab.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_too_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_vehicles_tab.dart';
 import 'package:flutter/material.dart';
 
@@ -61,7 +62,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     final tabs = _getTabs(context);
     
     // Initialize or update TabController
@@ -70,6 +71,13 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
     final tabController = _tabController!;
     
     if (tabs.isEmpty) {
+      // Для KGU ZKH показываем более информативное сообщение
+      if (widget.state.role == UserRole.kguZkhAdmin) {
+        return OrganizationsEmptyState(
+          title: 'Организация KGU ZKH не найдена',
+          message: 'Не удалось определить организацию KGU ZKH. Убедитесь, что вы привязаны к организации типа KGU_ZKH.',
+        );
+      }
       return OrganizationsEmptyState(
         title: s.no_available_tabs,
         message: s.contact_admin_for_permissions,
@@ -214,26 +222,32 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
     String? organizationId,
     OrganizationsData data,
   ) {
-    final s = S.of(context);
+    // Проверяем, что данные загружены
+    if (data.organizations.isEmpty) {
+      // Если данные еще не загружены, возвращаем пустой список
+      // (будет показано состояние загрузки)
+      return [];
+    }
+    
     switch (role) {
       case UserRole.akimatAdmin:
         return [
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(ctx).kgu_zkh,
+            getLabel: (ctx) => S.of(ctx)!.kgu_zkh,
             builder: (context, controller) => OrganizationsKguZkhTab(
               data: data,
               controller: controller,
             ),
           ),
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(ctx).contractors,
+            getLabel: (ctx) => S.of(ctx)!.contractors,
             builder: (context, controller) => OrganizationsContractorsTab(
               data: data,
               controller: controller,
             ),
           ),
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(ctx).drivers,
+            getLabel: (ctx) => S.of(ctx)!.drivers,
             builder: (context, controller) => OrganizationsDriversTab(
               data: data,
               controller: controller,
@@ -243,33 +257,74 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
           ),
         ];
       case UserRole.kguZkhAdmin:
-        if (organizationId != null) {
+        // Для KGU ZKH используем organizationId из auth state
+        // Бэкенд гарантирует, что для KGU_ZKH_ADMIN organizationId указывает на KGU_ZKH организацию
+        String? kguZkhOrgId = organizationId;
+        
+        // Ищем организации типа KGU_ZKH (API возвращает "KGU_ZKH" с подчеркиванием)
+        final kguZkhOrgs = data.organizations
+            .where((org) => org.type == OrganizationType.kguZkh && org.isActive)
+            .toList();
+        
+        // Если organizationId установлен, проверяем, что это действительно KGU_ZKH организация
+        if (kguZkhOrgId != null) {
+          final org = data.organizations.firstWhere(
+            (o) => o.id == kguZkhOrgId,
+            orElse: () => Organization(
+              id: '',
+              type: OrganizationType.kguZkh,
+              name: '',
+              bin: '',
+              isActive: false,
+            ),
+          );
+          
+          // Если организация найдена и является KGU_ZKH, используем её
+          if (org.id.isNotEmpty && org.type == OrganizationType.kguZkh) {
+            // Используем найденную организацию
+          } else if (kguZkhOrgs.isNotEmpty) {
+            // organizationId не указывает на KGU_ZKH, используем первую найденную
+            kguZkhOrgId = kguZkhOrgs.first.id;
+          }
+          // Если organizationId установлен, но организация не найдена в данных,
+          // используем его как есть (может быть еще не загружена)
+        } else {
+          // Если organizationId не установлен, используем первую активную KGU_ZKH организацию
+          if (kguZkhOrgs.isNotEmpty) {
+            kguZkhOrgId = kguZkhOrgs.first.id;
+          }
+        }
+        
+        // Если нашли организацию KGU_ZKH (или organizationId установлен), показываем вкладки
+        if (kguZkhOrgId != null) {
           return [
             _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx).contractors,
+              getLabel: (ctx) => S.of(ctx)!.contractors,
               builder: (context, controller) => OrganizationsContractorsTab(
                 data: data,
                 controller: controller,
-                parentOrganizationId: organizationId,
+                parentOrganizationId: kguZkhOrgId,
               ),
             ),
             _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx).drivers,
+              getLabel: (ctx) => S.of(ctx)!.drivers,
               builder: (context, controller) => OrganizationsDriversTab(
                 data: data,
                 controller: controller,
                 canManage: false,
-                organizationId: organizationId,
+                organizationId: kguZkhOrgId,
               ),
             ),
           ];
         }
+        // Если не удалось найти организацию KGU_ZKH, возвращаем пустой список
+        // (будет показано пустое состояние с сообщением)
         return [];
       case UserRole.tooAdmin:
         if (organizationId != null) {
           return [
             _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx).contractors,
+              getLabel: (ctx) => S.of(ctx)!.contractors,
               builder: (context, controller) => OrganizationsContractorsTab(
                 data: data,
                 controller: controller,
@@ -277,7 +332,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
               ),
             ),
             _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx).drivers,
+              getLabel: (ctx) => S.of(ctx)!.drivers,
               builder: (context, controller) => OrganizationsDriversTab(
                 data: data,
                 controller: controller,
@@ -292,7 +347,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
         if (organizationId != null) {
           return [
             _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx).drivers,
+              getLabel: (ctx) => S.of(ctx)!.drivers,
               builder: (context, controller) => OrganizationsDriversTab(
                 data: data,
                 controller: controller,
@@ -301,7 +356,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
               ),
             ),
             _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx).vehicles,
+              getLabel: (ctx) => S.of(ctx)!.vehicles,
               builder: (context, controller) => OrganizationsVehiclesTab(
                 data: data,
                 controller: controller,

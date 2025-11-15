@@ -5,7 +5,7 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/dashboard_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/kpi_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/map_widget.dart';
@@ -37,7 +37,7 @@ class AkimatHome extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch locale to ensure rebuild when language changes
     ref.watch(localeProvider);
-    final s = S.of(context);
+    final s = S.of(context)!;
     final config = PlatformConfig.instance;
 
     final state = ref.watch(akimatHomeControllerProvider);

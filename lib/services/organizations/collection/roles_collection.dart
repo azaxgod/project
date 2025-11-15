@@ -1,0 +1,509 @@
+import 'package:akimat_project/services/organizations/model/driver_dto.dart';
+import 'package:akimat_project/services/organizations/model/organization_dto.dart';
+import 'package:akimat_project/services/organizations/model/user_dto.dart';
+import 'package:akimat_project/services/organizations/model/vehicle_dto.dart';
+import 'package:dio/dio.dart';
+
+/// Результат создания организации
+class CreateOrganizationResult {
+  final OrganizationDto organization;
+  final UserDto? admin;
+
+  CreateOrganizationResult({
+    required this.organization,
+    this.admin,
+  });
+}
+
+/// Результат создания водителя
+class CreateDriverResult {
+  final DriverDto driver;
+  final UserDto? user;
+
+  CreateDriverResult({
+    required this.driver,
+    this.user,
+  });
+}
+
+/// Ошибки Roles Service
+class RolesException implements Exception {
+  final String message;
+  final int? statusCode;
+
+  RolesException(this.message, [this.statusCode]);
+
+  @override
+  String toString() => message;
+}
+
+class RolesCollection {
+  final Dio dio;
+
+  RolesCollection({required this.dio});
+
+  /// Обработка ошибок API
+  void _handleError(DioException error) {
+    if (error.response != null) {
+      final statusCode = error.response!.statusCode;
+      final errorData = error.response!.data;
+      final errorMessage = errorData is Map && errorData.containsKey('error')
+          ? errorData['error'] as String
+          : error.message ?? 'Unknown error';
+
+      switch (statusCode) {
+        case 400:
+          throw RolesException(errorMessage, 400);
+        case 401:
+          throw RolesException(errorMessage, 401);
+        case 403:
+          throw RolesException(errorMessage, 403);
+        case 404:
+          throw RolesException(errorMessage, 404);
+        default:
+          throw RolesException(errorMessage, statusCode);
+      }
+    } else {
+      throw RolesException(
+        error.message ?? 'Network error: ${error.type}',
+        null,
+      );
+    }
+  }
+
+  // ==================== Organizations ====================
+
+  /// GET /roles/organizations - Получить список организаций
+  Future<List<OrganizationDto>> getOrganizations() async {
+    try {
+      final response = await dio.get('/roles/organizations');
+      // Проверяем формат ответа - может быть обернут в {"data": ...} или прямой массив
+      final responseData = response.data;
+      List<dynamic> organizations;
+      
+      if (responseData is Map<String, dynamic>) {
+        // Если ответ обернут в {"data": ...}
+        if (responseData.containsKey('data')) {
+          final data = responseData['data'];
+          if (data is Map && data.containsKey('organizations')) {
+            organizations = data['organizations'] as List<dynamic>? ?? [];
+          } else if (data is List) {
+            organizations = data;
+          } else {
+            organizations = responseData['organizations'] as List<dynamic>? ?? [];
+          }
+        } else {
+          organizations = responseData['organizations'] as List<dynamic>? ?? [];
+        }
+      } else if (responseData is List) {
+        organizations = responseData;
+      } else {
+        organizations = [];
+      }
+      
+      return organizations
+          .map((json) => OrganizationDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// POST /roles/organizations - Создать организацию и администратора
+  Future<CreateOrganizationResult> createOrganization({
+    required String name,
+    required String type,
+    String? bin,
+    String? headFullName,
+    String? address,
+    String? phone,
+    String? parentOrgId,
+    String? adminFullName,
+    required String adminPhone,
+    String? adminPassword,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/organizations',
+        data: {
+          'name': name,
+          'type': type,
+          if (bin != null) 'bin': bin,
+          if (headFullName != null) 'headFullName': headFullName,
+          if (address != null) 'address': address,
+          if (phone != null) 'phone': phone,
+          if (parentOrgId != null) 'parentOrgID': parentOrgId,
+          if (adminFullName != null) 'adminFullName': adminFullName,
+          'admin_phone': adminPhone, // API ожидает snake_case
+          if (adminPassword != null) 'adminPassword': adminPassword,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      return CreateOrganizationResult(
+        organization: OrganizationDto.fromJson(
+          data['organization'] as Map<String, dynamic>,
+        ),
+        admin: data['admin'] != null
+            ? UserDto.fromJson(data['admin'] as Map<String, dynamic>)
+            : null,
+      );
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/organizations/:id - Получить организацию по ID
+  Future<OrganizationDto> getOrganization(String id) async {
+    try {
+      final response = await dio.get('/roles/organizations/$id');
+      return OrganizationDto.fromJson(
+          response.data['organization'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /roles/organizations/:id - Обновить организацию
+  Future<OrganizationDto> updateOrganization(
+    String id, {
+    String? name,
+    String? type,
+    String? bin,
+    String? headFullName,
+    String? address,
+    String? phone,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (name != null) {
+        data['name'] = name;
+      }
+      if (type != null) {
+        data['type'] = type;
+      }
+      if (bin != null) {
+        data['bin'] = bin;
+      }
+      if (headFullName != null) {
+        data['head_full_name'] = headFullName;
+      }
+      if (address != null) {
+        data['address'] = address;
+      }
+      if (phone != null) {
+        data['phone'] = phone;
+      }
+
+      final response = await dio.put('/roles/organizations/$id', data: data);
+      return OrganizationDto.fromJson(
+          response.data['organization'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// DELETE /roles/organizations/:id - Удалить организацию
+  Future<void> deleteOrganization(String id) async {
+    try {
+      await dio.delete('/roles/organizations/$id');
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Users ====================
+
+  /// GET /roles/users?phone=...&login=... - Найти пользователя
+  Future<UserDto?> findUser({String? phone, String? login}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (phone != null) {
+        queryParams['phone'] = phone;
+      }
+      if (login != null) {
+        queryParams['login'] = login;
+      }
+
+      final response = await dio.get(
+        '/roles/users',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+      final userData = response.data['user'];
+      if (userData == null) {
+        return null;
+      }
+      return UserDto.fromJson(userData as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return null;
+      }
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/users/:id - Получить пользователя по ID
+  Future<UserDto> getUser(String id) async {
+    try {
+      final response = await dio.get('/roles/users/$id');
+      return UserDto.fromJson(
+          response.data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /roles/users/:id - Обновить пользователя
+  Future<UserDto> updateUser(
+    String id, {
+    String? phone,
+    String? login,
+    String? password,
+    String? role,
+    String? organizationId,
+    String? driverId,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (phone != null) {
+        data['phone'] = phone;
+      }
+      if (login != null) {
+        data['login'] = login;
+      }
+      if (password != null) {
+        data['password'] = password;
+      }
+      if (role != null) {
+        data['role'] = role;
+      }
+      if (organizationId != null) {
+        data['organization_id'] = organizationId;
+      }
+      if (driverId != null) {
+        data['driver_id'] = driverId;
+      }
+
+      final response = await dio.put('/roles/users/$id', data: data);
+      return UserDto.fromJson(
+          response.data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Drivers ====================
+
+  /// GET /roles/drivers - Получить список водителей
+  Future<List<DriverDto>> getDrivers() async {
+    try {
+      final response = await dio.get('/roles/drivers');
+      final List<dynamic> drivers = response.data['drivers'] ?? [];
+      return drivers
+          .map((json) => DriverDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// POST /roles/drivers - Создать водителя и пользователя
+  Future<CreateDriverResult> createDriver({
+    required String fullName,
+    required String iin,
+    required int birthYear,
+    required String phone,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/drivers',
+        data: {
+          'fullName': fullName,
+          'iin': iin,
+          'birthYear': birthYear,
+          'phone': phone,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      return CreateDriverResult(
+        driver: DriverDto.fromJson(data['driver'] as Map<String, dynamic>),
+        user: data['user'] != null
+            ? UserDto.fromJson(data['user'] as Map<String, dynamic>)
+            : null,
+      );
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/drivers/:id - Получить водителя по ID
+  Future<DriverDto> getDriver(String id) async {
+    try {
+      final response = await dio.get('/roles/drivers/$id');
+      return DriverDto.fromJson(
+          response.data['driver'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /roles/drivers/:id - Обновить водителя
+  Future<DriverDto> updateDriver(
+    String id, {
+    String? fullName,
+    String? phone,
+    int? birthYear,
+    String? iin,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (fullName != null) {
+        data['fullName'] = fullName;
+      }
+      if (phone != null) {
+        data['phone'] = phone;
+      }
+      if (birthYear != null) {
+        data['birthYear'] = birthYear;
+      }
+      if (iin != null) {
+        data['iin'] = iin;
+      }
+
+      final response = await dio.put('/roles/drivers/$id', data: data);
+      return DriverDto.fromJson(
+          response.data['driver'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// DELETE /roles/drivers/:id - Удалить водителя
+  Future<void> deleteDriver(String id) async {
+    try {
+      await dio.delete('/roles/drivers/$id');
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Vehicles ====================
+
+  /// GET /roles/vehicles?only_active=true - Получить список транспорта
+  Future<List<VehicleDto>> getVehicles({bool? onlyActive}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (onlyActive != null) {
+        queryParams['only_active'] = onlyActive;
+      }
+
+      final response = await dio.get(
+        '/roles/vehicles',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+      final List<dynamic> vehicles = response.data['vehicles'] ?? [];
+      return vehicles
+          .map((json) => VehicleDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// POST /roles/vehicles - Создать транспорт
+  Future<VehicleDto> createVehicle({
+    required String plateNumber,
+    required String brand,
+    required String model,
+    required String color,
+    required int year,
+    required double bodyVolumeM3,
+    String? photoUrl,
+    String? driverId,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/vehicles',
+        data: {
+          'plate_number': plateNumber,
+          'brand': brand,
+          'model': model,
+          'color': color,
+          'year': year,
+          'body_volume_m3': bodyVolumeM3,
+          if (photoUrl != null) 'photo_url': photoUrl,
+          if (driverId != null) 'driver_id': driverId,
+        },
+      );
+      return VehicleDto.fromJson(
+          response.data['vehicle'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/vehicles/:id - Получить транспорт по ID
+  Future<VehicleDto> getVehicle(String id) async {
+    try {
+      final response = await dio.get('/roles/vehicles/$id');
+      return VehicleDto.fromJson(
+          response.data['vehicle'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PATCH /roles/vehicles/:id - Обновить транспорт
+  Future<VehicleDto> updateVehicle(
+    String id, {
+    String? color,
+    double? bodyVolumeM3,
+    String? driverId, // пустая строка для отвязки
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (color != null) {
+        data['color'] = color;
+      }
+      if (bodyVolumeM3 != null) {
+        data['body_volume_m3'] = bodyVolumeM3;
+      }
+      if (driverId != null) {
+        data['driver_id'] = driverId;
+      }
+
+      final response = await dio.patch('/roles/vehicles/$id', data: data);
+      return VehicleDto.fromJson(
+          response.data['vehicle'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// DELETE /roles/vehicles/:id - Удалить транспорт
+  Future<void> deleteVehicle(String id) async {
+    try {
+      await dio.delete('/roles/vehicles/$id');
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+}
+

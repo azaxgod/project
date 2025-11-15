@@ -7,7 +7,8 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/tickets_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/tickets_state.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
@@ -19,7 +20,8 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/user_ro
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_error_state.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/widgets/ticket_dialogs.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/widgets/ticket_create_dialog.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,7 +42,7 @@ class TicketsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(localeProvider);
-    final s = S.of(context);
+    final s = S.of(context)!;
     final state = ref.watch(ticketsControllerProvider);
     final controller = ref.watch(ticketsControllerProvider.notifier);
     final config = PlatformConfig.instance;
@@ -105,7 +107,7 @@ class _TicketsContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     
     // Фильтрация тикетов
     List<Ticket> filteredTickets = data.tickets;
@@ -207,7 +209,13 @@ class _TicketsContent extends ConsumerWidget {
                 if (state.role == UserRole.kguZkhAdmin)
                   FilledButton.icon(
                     onPressed: () {
-                      // TODO: Показать диалог создания тикета (без привязки к участку)
+                      final authState = ref.read(authNotifierProvider);
+                      TicketCreateDialog.show(
+                        context: context,
+                        controller: controller,
+                        data: data,
+                        organizationId: authState.user?.organizationId,
+                      );
                     },
                     icon: const Icon(Icons.add),
                     label: Text(s.create_ticket),
@@ -230,7 +238,7 @@ class _TicketsContent extends ConsumerWidget {
                 // Status filter
                 SizedBox(
                   width: 200,
-                  child: DropdownButtonFormField<TicketStatus?>(
+                  child: SafeDropdownButtonFormField<TicketStatus?>(
                     value: state.statusFilter,
                     decoration: InputDecoration(
                       labelText: s.status,
@@ -271,7 +279,7 @@ class _TicketsContent extends ConsumerWidget {
                 if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin)
                   SizedBox(
                     width: 200,
-                    child: DropdownButtonFormField<String?>(
+                    child: SafeDropdownButtonFormField<String?>(
                       value: state.contractorFilter,
                       decoration: InputDecoration(
                         labelText: s.contractor,
@@ -297,7 +305,7 @@ class _TicketsContent extends ConsumerWidget {
                 // Area filter
                 SizedBox(
                   width: 200,
-                  child: DropdownButtonFormField<String?>(
+                  child: SafeDropdownButtonFormField<String?>(
                     value: state.areaFilter,
                     decoration: InputDecoration(
                       labelText: s.area,
@@ -323,7 +331,7 @@ class _TicketsContent extends ConsumerWidget {
                 // Contract filter
                 SizedBox(
                   width: 200,
-                  child: DropdownButtonFormField<String?>(
+                  child: SafeDropdownButtonFormField<String?>(
                     value: state.contractFilter,
                     decoration: InputDecoration(
                       labelText: s.contract,
@@ -339,7 +347,7 @@ class _TicketsContent extends ConsumerWidget {
                       ...data.contracts.map(
                         (contract) => DropdownMenuItem(
                           value: contract.id,
-                          child: Text(contract.contractNumber),
+                          child: Text(contract.name),
                         ),
                       ),
                     ],
@@ -371,9 +379,12 @@ class _TicketsContent extends ConsumerWidget {
                       ],
                     ),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
+                : kIsWeb
+                    ? SingleChildScrollView(
+                        // Вертикальный скролл для таблицы
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
                       columns: [
                         DataColumn(label: Text(s.ticket_id)),
                         DataColumn(label: Text(s.area)),
@@ -421,12 +432,15 @@ class _TicketsContent extends ConsumerWidget {
                               : Contract(
                                   id: '',
                                   contractorId: '',
-                                  contractNumber: '—',
-                                  startDate: DateTime.now(),
-                                  endDate: DateTime.now(),
+                                  name: '—',
+                                  workType: ContractWorkType.road,
+                                  pricePerM3: 0,
+                                  budgetTotal: 0,
+                                  minimalVolumeM3: 0,
+                                  startAt: DateTime.now(),
+                                  endAt: DateTime.now(),
                                   isActive: false,
                                   createdAt: DateTime.now(),
-                                  updatedAt: DateTime.now(),
                                 ),
                         );
                         
@@ -434,7 +448,7 @@ class _TicketsContent extends ConsumerWidget {
                           DataCell(Text(ticket.id.length >= 8 ? ticket.id.substring(0, 8) : ticket.id)),
                           DataCell(Text(area.name)),
                           DataCell(Text(contractor.name)),
-                          DataCell(Text(contract.contractNumber)),
+                          DataCell(Text(contract.name)),
                           DataCell(Text(
                             '${DateFormat('dd.MM.yyyy').format(ticket.plannedStartAt)} - ${DateFormat('dd.MM.yyyy').format(ticket.plannedEndAt)}',
                           )),
@@ -487,8 +501,10 @@ class _TicketsContent extends ConsumerWidget {
                           cells: cells,
                         );
                       }).toList(),
-                    ),
-                  ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox(), // Для мобильной версии можно добавить ListView с карточками позже
           ),
         ],
       ),
@@ -503,7 +519,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     Color color;
     String label;
     

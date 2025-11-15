@@ -9,7 +9,8 @@ abstract class TokenStorage {
   }
 
   static Future<String?> getAccessToken() async {
-    return html.window.localStorage[_accessTokenKey];
+    final token = html.window.localStorage[_accessTokenKey];
+    return token;
   }
 
   static Future<void> saveRefreshToken(String token) async {

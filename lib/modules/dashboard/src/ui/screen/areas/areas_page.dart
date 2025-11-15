@@ -7,7 +7,8 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
-import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_state.dart';
@@ -39,7 +40,7 @@ class AreasPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(localeProvider);
-    final s = S.of(context);
+    final s = S.of(context)!;
     final state = ref.watch(areasControllerProvider);
     final controller = ref.watch(areasControllerProvider.notifier);
     final config = PlatformConfig.instance;
@@ -122,7 +123,7 @@ class _AreasContentState extends ConsumerState<_AreasContent> {
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     final canEdit = widget.state.role == UserRole.akimatAdmin || 
                     widget.state.role == UserRole.kguZkhAdmin ||
                     widget.state.role == UserRole.tooAdmin;
@@ -341,7 +342,7 @@ class _AreasContentState extends ConsumerState<_AreasContent> {
                   child: Column(
                     children: [
                       // Status filter
-                      DropdownButtonFormField<CleaningAreaStatus?>(
+                      SafeDropdownButtonFormField<CleaningAreaStatus?>(
                         value: widget.state.statusFilter,
                         decoration: InputDecoration(
                           labelText: 'Статус',
@@ -371,7 +372,7 @@ class _AreasContentState extends ConsumerState<_AreasContent> {
                       ),
                       const SizedBox(height: AppPadding.small),
                       // Contractor filter
-                      DropdownButtonFormField<String?>(
+                      SafeDropdownButtonFormField<String?>(
                         value: widget.state.contractorFilter,
                         decoration: InputDecoration(
                           labelText: 'Ответственный',
@@ -724,7 +725,7 @@ class _ForbiddenAreasPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
+    final s = S.of(context)!;
     return Scaffold(
       key: scaffoldKey,
       drawer: !kIsWeb ? const DrawerMobile() : null,

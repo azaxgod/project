@@ -1,5 +1,6 @@
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
@@ -53,7 +54,7 @@ class AreasDialogs {
                         maxLines: 3,
                       ),
                       const SizedBox(height: AppPadding.normal),
-                      DropdownButtonFormField<CleaningAreaStatus>(
+                      SafeDropdownButtonFormField<CleaningAreaStatus>(
                         value: selectedStatus,
                         decoration: InputDecoration(
                           labelText: 'Статус*',
@@ -74,7 +75,7 @@ class AreasDialogs {
                         onChanged: (value) => setModal(() => selectedStatus = value!),
                       ),
                       const SizedBox(height: AppPadding.normal),
-                      DropdownButtonFormField<String?>(
+                      SafeDropdownButtonFormField<String?>(
                         value: selectedContractorId,
                         decoration: InputDecoration(
                           labelText: 'Ответственный подрядчик',

@@ -29,17 +29,17 @@ class VehicleDto {
 
   factory VehicleDto.fromJson(Map<String, dynamic> json) {
     return VehicleDto(
-      id: json['id'] as String,
-      contractorId: json['contractorId'] as String,
-      driverId: json['driverId'] as String?,
-      plateNumber: json['plateNumber'] as String,
-      brand: json['brand'] as String,
-      model: json['model'] as String,
-      color: json['color'] as String,
-      year: json['year'] as int,
-      bodyVolumeM3: (json['bodyVolumeM3'] as num).toDouble(),
-      photoUrl: json['photoUrl'] as String?,
-      isActive: json['isActive'] as bool? ?? true,
+      id: json['id'] as String? ?? '',
+      contractorId: json['contractor_id'] as String? ?? json['contractorId'] as String? ?? '',
+      driverId: json['driver_id'] as String? ?? json['driverId'] as String?,
+      plateNumber: json['plate_number'] as String? ?? json['plateNumber'] as String? ?? '',
+      brand: json['brand'] as String? ?? '',
+      model: json['model'] as String? ?? '',
+      color: json['color'] as String? ?? '',
+      year: json['year'] as int? ?? 0,
+      bodyVolumeM3: (json['body_volume_m3'] as num?)?.toDouble() ?? (json['bodyVolumeM3'] as num?)?.toDouble() ?? 0.0,
+      photoUrl: json['photo_url'] as String? ?? json['photoUrl'] as String?,
+      isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
     );
   }
 

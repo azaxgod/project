@@ -6,6 +6,7 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
 import 'package:flutter/material.dart';
 
@@ -99,7 +100,7 @@ class OrganizationsDialogs {
                         },
                       ),
                       if (type == OrganizationType.contractor)
-                        DropdownButtonFormField<String>(
+                        SafeDropdownButtonFormField<String?>(
                           value: selectedParentOrgId,
                           decoration: const InputDecoration(
                             labelText: 'KGU ZKH*',

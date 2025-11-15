@@ -19,65 +19,111 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
 
   @override
   Future<List<Organization>> loadOrganizations() async {
-    final dtos = await _services.collection.fetchOrganizations();
+    // Используем реальный API roles-service
+    final dtos = await _services.rolesCollection.getOrganizations();
     return dtos.map((dto) => dto.toDomain()).toList();
   }
 
   @override
   Future<List<Driver>> loadDrivers() async {
-    final dtos = await _services.collection.fetchDrivers();
+    // Используем реальный API roles-service
+    final dtos = await _services.rolesCollection.getDrivers();
     return dtos.map((dto) => dto.toDomain()).toList();
   }
 
   @override
   Future<List<Vehicle>> loadVehicles() async {
-    final dtos = await _services.collection.fetchVehicles();
+    // Используем реальный API roles-service
+    final dtos = await _services.rolesCollection.getVehicles(onlyActive: true);
     return dtos.map((dto) => dto.toDomain()).toList();
   }
 
   @override
   Future<Organization> createOrganization(Organization organization) async {
-    final dto = await _services.collection.createOrganization(
-      _organizationToDto(organization, ensureId: true),
+    // Для создания организации нужен телефон администратора
+    // Используем phone организации как adminPhone, если он указан
+    if (organization.phone == null || organization.phone!.isEmpty) {
+      throw Exception('Телефон обязателен для создания организации');
+    }
+    
+    final result = await _services.rolesCollection.createOrganization(
+      name: organization.name,
+      type: OrganizationDto.mapTypeToString(organization.type),
+      bin: organization.bin,
+      headFullName: organization.headFullName,
+      address: organization.address,
+      phone: organization.phone,
+      parentOrgId: organization.parentOrgId, // Передаем parentOrgId для подрядчиков
+      adminPhone: organization.phone!, // Телефон администратора = телефон организации
     );
-    return dto.toDomain();
+    return result.organization.toDomain();
   }
 
   @override
   Future<Organization> updateOrganization(Organization organization) async {
-    final dto = await _services.collection.updateOrganization(
-      _organizationToDto(organization),
+    final dto = await _services.rolesCollection.updateOrganization(
+      organization.id,
+      name: organization.name,
+      type: OrganizationDto.mapTypeToString(organization.type),
+      bin: organization.bin,
+      headFullName: organization.headFullName,
+      address: organization.address,
+      phone: organization.phone,
     );
     return dto.toDomain();
   }
 
   @override
   Future<void> deleteOrganization(String organizationId) {
-    return _services.collection.deleteOrganization(organizationId);
+    return _services.rolesCollection.deleteOrganization(organizationId);
   }
 
   @override
   Future<Driver> createDriver(Driver driver) async {
-    final dto = await _services.collection.createDriver(_driverToDto(driver, ensureId: true));
-    return dto.toDomain();
+    final result = await _services.rolesCollection.createDriver(
+      fullName: driver.fullName,
+      iin: driver.iin,
+      birthYear: driver.birthYear ?? DateTime.now().year - 30,
+      phone: driver.phone,
+    );
+    return result.driver.toDomain();
   }
 
   @override
   Future<Driver> updateDriver(Driver driver) async {
-    final dto = await _services.collection.updateDriver(_driverToDto(driver));
+    final dto = await _services.rolesCollection.updateDriver(
+      driver.id,
+      fullName: driver.fullName,
+      phone: driver.phone,
+      birthYear: driver.birthYear,
+      iin: driver.iin,
+    );
     return dto.toDomain();
   }
 
   @override
   Future<Vehicle> createVehicle(Vehicle vehicle) async {
-    final dto =
-        await _services.collection.createVehicle(_vehicleToDto(vehicle, ensureId: true));
+    final dto = await _services.rolesCollection.createVehicle(
+      plateNumber: vehicle.plateNumber,
+      brand: vehicle.brand,
+      model: vehicle.model,
+      color: vehicle.color,
+      year: vehicle.year,
+      bodyVolumeM3: vehicle.bodyVolumeM3,
+      photoUrl: vehicle.photoUrl,
+      driverId: vehicle.driverId,
+    );
     return dto.toDomain();
   }
 
   @override
   Future<Vehicle> updateVehicle(Vehicle vehicle) async {
-    final dto = await _services.collection.updateVehicle(_vehicleToDto(vehicle));
+    final dto = await _services.rolesCollection.updateVehicle(
+      vehicle.id,
+      color: vehicle.color,
+      bodyVolumeM3: vehicle.bodyVolumeM3,
+      driverId: vehicle.driverId ?? '', // Пустая строка для отвязки, если null
+    );
     return dto.toDomain();
   }
 

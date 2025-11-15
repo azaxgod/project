@@ -21,12 +21,12 @@ class DriverDto {
 
   factory DriverDto.fromJson(Map<String, dynamic> json) {
     return DriverDto(
-      id: json['id'] as String,
-      contractorId: json['contractorId'] as String,
-      fullName: json['fullName'] as String,
-      iin: json['iin'] as String,
+      id: json['id'] as String? ?? '',
+      contractorId: json['contractorID'] as String? ?? json['contractorId'] as String? ?? '',
+      fullName: json['fullName'] as String? ?? '',
+      iin: json['iin'] as String? ?? '',
       birthYear: json['birthYear'] as int?,
-      phone: json['phone'] as String,
+      phone: json['phone'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? true,
     );
   }

@@ -6,7 +6,7 @@ import 'l10n.dart';
 
 /// The translations for English (`en`).
 class SEn extends S {
-  SEn();
+  SEn([String locale = 'en']) : super(locale);
 
   @override
   String get login_title => 'Akimat Login';
@@ -42,6 +42,9 @@ class SEn extends S {
 
   @override
   String get logout => 'Logout';
+
+  @override
+  String get logout_confirmation => 'Are you sure you want to logout?';
 
   @override
   String get home_title => 'Home page';
@@ -83,13 +86,15 @@ class SEn extends S {
   String get no_available_tabs => 'No available tabs';
 
   @override
-  String get contact_admin_for_permissions => 'Contact administrator for permissions.';
+  String get contact_admin_for_permissions =>
+      'Contact administrator for permissions.';
 
   @override
   String get role_management => 'Role management';
 
   @override
-  String get organizations_contractors_drivers => 'Organizations, contractors and drivers';
+  String get organizations_contractors_drivers =>
+      'Organizations, contractors and drivers';
 
   @override
   String get kgu_zkh => 'KGU ZKH';
@@ -116,10 +121,13 @@ class SEn extends S {
   String get insufficient_permissions => 'Insufficient permissions';
 
   @override
-  String get insufficient_permissions_message => 'This section is only available to Akimat, TOO or Contractor administrators.';
+  String get insufficient_permissions_message =>
+      'This section is only available to Akimat, TOO or Contractor administrators.';
 
   @override
-  String failed_to_load_data(Object error) => 'Failed to load data: $error';
+  String failed_to_load_data(Object error) {
+    return 'Failed to load data: $error';
+  }
 
   @override
   String get last_trips => 'Last trips';
@@ -158,7 +166,8 @@ class SEn extends S {
   String get select_period => 'Select period';
 
   @override
-  String get end_date_must_be_after_start => 'End date must be after start date';
+  String get end_date_must_be_after_start =>
+      'End date must be after start date';
 
   @override
   String get description => 'Description';
@@ -237,4 +246,52 @@ class SEn extends S {
 
   @override
   String get actions => 'Actions';
+
+  @override
+  String get contracts => 'Contracts';
+
+  @override
+  String get create_contract => 'Create contract';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get expired => 'Expired';
+
+  @override
+  String get archived => 'Archived';
+
+  @override
+  String get period_start => 'Period from';
+
+  @override
+  String get period_end => 'Period to';
+
+  @override
+  String get contract_name => 'Contract';
+
+  @override
+  String get price_per_m3 => 'Price per m³';
+
+  @override
+  String get volume_progress => 'Volume progress';
+
+  @override
+  String get budget_progress => 'Budget progress';
+
+  @override
+  String get budget_exceeded => 'Budget exceeded';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get open => 'Open';
+
+  @override
+  String get no_contracts_found => 'No contracts found';
 }
