@@ -92,6 +92,9 @@ class SEn extends S {
   String get organizations_contractors_drivers => 'Organizations, contractors and drivers';
 
   @override
+  String get kgu_zkh => 'KGU ZKH';
+
+  @override
   String get too => 'TOO';
 
   @override

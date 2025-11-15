@@ -92,6 +92,7 @@ abstract class S {
   String get contact_admin_for_permissions;
   String get role_management;
   String get organizations_contractors_drivers;
+  String get kgu_zkh;
   String get too;
   String get contractors;
   String get drivers;

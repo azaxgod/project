@@ -38,8 +38,8 @@ class OrganizationsContractorsTab extends StatelessWidget {
         OrganizationsTabHeader(
           title: 'Подрядчики',
           subtitle: parentOrganizationId == null
-              ? 'Управление подрядчиками всех ТОО'
-              : 'Подрядчики текущего ТОО',
+              ? 'Управление подрядчиками всех КГУ ЖКХ'
+              : 'Подрядчики текущего КГУ ЖКХ',
           actionLabel: '+ Добавить подрядчика',
           onAction: () => OrganizationsDialogs.showOrganizationDialog(
             context: context,
@@ -60,7 +60,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
             columns: [
               const DataColumn(label: Text('Название')),
               const DataColumn(label: Text('БИН')),
-              if (_shouldShowParentColumn) const DataColumn(label: Text('Родительское ТОО')),
+              if (_shouldShowParentColumn) const DataColumn(label: Text('Родительская организация KGU ZKH')),
               const DataColumn(label: Text('Руководитель')),
               const DataColumn(label: Text('Телефон')),
               const DataColumn(label: Text('Статус')),
@@ -71,9 +71,9 @@ class OrganizationsContractorsTab extends StatelessWidget {
                   ? '—'
                   : data.organizations
                           .firstWhere(
-                            (too) =>
-                                too.id == contractor.parentOrgId &&
-                                too.type == OrganizationType.too,
+                            (org) =>
+                                org.id == contractor.parentOrgId &&
+                                (org.type == OrganizationType.kguZkh || org.type == OrganizationType.too),
                             orElse: () => contractor,
                           )
                           .name ??

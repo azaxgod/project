@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
@@ -11,6 +10,7 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/user_ro
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_contractors_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_drivers_tab.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_kgu_zkh_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_too_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_vehicles_tab.dart';
 import 'package:flutter/material.dart';
@@ -219,8 +219,8 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       case UserRole.akimatAdmin:
         return [
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(ctx).too,
-            builder: (context, controller) => OrganizationsTooTab(
+            getLabel: (ctx) => S.of(ctx).kgu_zkh,
+            builder: (context, controller) => OrganizationsKguZkhTab(
               data: data,
               controller: controller,
             ),
@@ -242,6 +242,29 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
             ),
           ),
         ];
+      case UserRole.kguZkhAdmin:
+        if (organizationId != null) {
+          return [
+            _OrganizationsTabDefinition(
+              getLabel: (ctx) => S.of(ctx).contractors,
+              builder: (context, controller) => OrganizationsContractorsTab(
+                data: data,
+                controller: controller,
+                parentOrganizationId: organizationId,
+              ),
+            ),
+            _OrganizationsTabDefinition(
+              getLabel: (ctx) => S.of(ctx).drivers,
+              builder: (context, controller) => OrganizationsDriversTab(
+                data: data,
+                controller: controller,
+                canManage: false,
+                organizationId: organizationId,
+              ),
+            ),
+          ];
+        }
+        return [];
       case UserRole.tooAdmin:
         if (organizationId != null) {
           return [
@@ -293,6 +316,8 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       case UserRole.unknown:
         return [];
     }
+    // This should never be reached, but satisfies the analyzer
+    return [];
   }
 }
 
@@ -307,7 +332,9 @@ class _OrganizationsTabDefinition {
 }
 
 IconData _getTabIcon(String label) {
-  if (label.contains('ТОО') || label.contains('TOO')) {
+  if (label.contains('КГУ') || label.contains('KGU')) {
+    return Icons.apartment;
+  } else if (label.contains('ТОО') || label.contains('TOO')) {
     return Icons.business;
   } else if (label.contains('Подрядчик') || label.contains('Contractor')) {
     return Icons.handshake;

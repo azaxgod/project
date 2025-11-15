@@ -29,9 +29,42 @@ class OrganizationsDriversTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Filter drivers based on organizationId
+    // If organizationId is a contractor, show its drivers
+    // If organizationId is a KGU ZKH, show drivers from its contractors
     final drivers = data.drivers.where((driver) {
       if (organizationId == null) return true;
-      return driver.contractorId == organizationId;
+      
+      // Check if organizationId is a contractor
+      final org = data.organizations.firstWhere(
+        (o) => o.id == organizationId,
+        orElse: () => Organization(
+          id: '',
+          type: OrganizationType.contractor,
+          name: '',
+          bin: '',
+          isActive: false,
+        ),
+      );
+      
+      if (org.type == OrganizationType.contractor) {
+        return driver.contractorId == organizationId;
+      } else if (org.type == OrganizationType.kguZkh) {
+        // Show drivers from contractors that belong to this KGU ZKH
+        final contractor = data.organizations.firstWhere(
+          (o) => o.id == driver.contractorId && o.parentOrgId == organizationId,
+          orElse: () => Organization(
+            id: '',
+            type: OrganizationType.contractor,
+            name: '',
+            bin: '',
+            isActive: false,
+          ),
+        );
+        return contractor.id.isNotEmpty;
+      }
+      
+      return false;
     }).toList();
 
     return Column(

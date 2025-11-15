@@ -1,6 +1,4 @@
-import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
-import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/core/ui/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
@@ -40,7 +38,7 @@ class OrganizationsTabHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (actionLabel != null && onAction != null)
+        if (actionLabel != null)
           PrimaryButton(
             label: actionLabel!,
             onPressed: onAction,

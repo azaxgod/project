@@ -92,6 +92,9 @@ class SKk extends S {
   String get organizations_contractors_drivers => 'Ұйымдар, подрядчиктер және жүргізушілер';
 
   @override
+  String get kgu_zkh => 'КГУ ЖКХ';
+
+  @override
   String get too => 'ТОО';
 
   @override

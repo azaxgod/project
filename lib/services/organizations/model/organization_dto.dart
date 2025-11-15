@@ -67,6 +67,8 @@ class OrganizationDto {
     switch (value) {
       case 'AKIMAT':
         return OrganizationType.akimat;
+      case 'KGU_ZKH':
+        return OrganizationType.kguZkh;
       case 'TOO':
         return OrganizationType.too;
       case 'CONTRACTOR':
@@ -80,6 +82,8 @@ class OrganizationDto {
     switch (type) {
       case OrganizationType.akimat:
         return 'AKIMAT';
+      case OrganizationType.kguZkh:
+        return 'KGU_ZKH';
       case OrganizationType.too:
         return 'TOO';
       case OrganizationType.contractor:

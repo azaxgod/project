@@ -92,6 +92,9 @@ class SRu extends S {
   String get organizations_contractors_drivers => 'Организации, подрядчики и водители';
 
   @override
+  String get kgu_zkh => 'КГУ ЖКХ';
+
+  @override
   String get too => 'ТОО';
 
   @override

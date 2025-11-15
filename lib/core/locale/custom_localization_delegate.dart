@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 class CustomLocalizationDelegate extends LocalizationsDelegate<S> {
   const CustomLocalizationDelegate();
 
-  @override
   List<Locale> get supportedLocales {
     return const <Locale>[
       Locale.fromSubtags(languageCode: 'en'),

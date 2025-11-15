@@ -24,14 +24,20 @@ class OrganizationsDialogs {
     final headController = TextEditingController();
     final addressController = TextEditingController();
     final phoneController = TextEditingController();
-    String? selectedTooId = parentOrganizationId;
+    String? selectedParentOrgId = parentOrganizationId;
 
     await showDialog<void>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModal) => AlertDialog(
-            title: Text(type == OrganizationType.too ? 'Добавить ТОО' : 'Добавить подрядчика'),
+            title: Text(
+              type == OrganizationType.kguZkh
+                  ? 'Добавить КГУ ЖКХ'
+                  : type == OrganizationType.too
+                      ? 'Добавить ТОО'
+                      : 'Добавить подрядчика',
+            ),
             content: SizedBox(
               width: min(MediaQuery.sizeOf(context).width * 0.8, 420),
               child: Form(
@@ -93,13 +99,14 @@ class OrganizationsDialogs {
                       ),
                       if (type == OrganizationType.contractor)
                         DropdownButtonFormField<String>(
-                          value: selectedTooId,
+                          value: selectedParentOrgId,
                           decoration: const InputDecoration(
-                            labelText: 'ТОО*',
+                            labelText: 'KGU ZKH*',
                             border: OutlineInputBorder(),
                           ),
                           items: data.organizations
-                              .where((org) => org.type == OrganizationType.too)
+                              .where((org) =>
+                                  org.type == OrganizationType.kguZkh && org.isActive)
                               .map(
                                 (org) => DropdownMenuItem(
                                   value: org.id,
@@ -109,9 +116,9 @@ class OrganizationsDialogs {
                               .toList(),
                           onChanged: parentOrganizationId != null
                               ? null
-                              : (value) => setModal(() => selectedTooId = value),
+                              : (value) => setModal(() => selectedParentOrgId = value),
                           validator: (value) =>
-                              value == null ? 'Выберите родительское ТОО' : null,
+                              value == null ? 'Выберите родительскую организацию KGU ZKH' : null,
                         ),
                     ],
                   ),
@@ -138,7 +145,7 @@ class OrganizationsDialogs {
                         ? null
                         : addressController.text.trim(),
                     phone: phoneController.text.trim(),
-                    parentOrgId: type == OrganizationType.contractor ? selectedTooId : null,
+                    parentOrgId: type == OrganizationType.contractor ? selectedParentOrgId : null,
                     isActive: true,
                   );
                   controller.createOrganization(organization);

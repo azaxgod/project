@@ -35,14 +35,14 @@ class NavbarWidgetsProvider {
       _NavbarButton(
         label: S.of(context).areas,
         icon: Icons.area_chart,
-        isActive: false,
-        onPressed: () {},
+        isActive: currentRoute == '/areas',
+        onPressed: () => context.go('/areas'),
       ),
       _NavbarButton(
         label: S.of(context).polygons,
         icon: Icons.map,
-        isActive: false,
-        onPressed: () {},
+        isActive: currentRoute == '/polygons',
+        onPressed: () => context.go('/polygons'),
       ),
       _NavbarButton(
         label: S.of(context).tickets,

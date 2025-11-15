@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum OrganizationType { akimat, too, contractor }
+enum OrganizationType { akimat, kguZkh, too, contractor }
 
 class Organization extends Equatable {
   final String id;
@@ -68,6 +68,8 @@ extension OrganizationTypeX on OrganizationType {
     switch (this) {
       case OrganizationType.akimat:
         return 'AKIMAT';
+      case OrganizationType.kguZkh:
+        return 'KGU_ZKH';
       case OrganizationType.too:
         return 'TOO';
       case OrganizationType.contractor:
