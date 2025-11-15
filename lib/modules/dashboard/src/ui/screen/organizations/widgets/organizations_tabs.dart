@@ -1,5 +1,9 @@
 import 'dart:math';
 import 'package:akimat_project/core/platform/platform_utils.dart';
+import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_padding.dart';
+import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/generated/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
@@ -76,46 +80,128 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.config.topOffset > 0) SizedBox(height: widget.config.topOffset),
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: widget.config.padding,
-            vertical: 8,
+        Container(
+          margin: EdgeInsets.all(widget.config.padding),
+          padding: const EdgeInsets.all(AppPadding.large),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(AppSize.cardRadius),
+            border: Border.all(
+              color: AppColors.divider,
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: AppSize.shadowBlur,
+                offset: const Offset(0, 2),
+                spreadRadius: 0,
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                s.role_management,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                s.organizations_contractors_drivers,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppPadding.normal),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                    ),
+                    child: Icon(
+                      Icons.business_center,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: AppPadding.normal),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.role_management,
+                          style: AppTextStyles.title1,
+                        ),
+                        const SizedBox(height: AppPadding.xs),
+                        Text(
+                          s.organizations_contractors_drivers,
+                          style: AppTextStyles.footnote,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        TabBar(
-          controller: tabController,
-          isScrollable: true,
-          labelColor: Theme.of(context).colorScheme.primary,
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          tabs: tabs.map((tab) => Tab(text: tab.getLabel(context))).toList(),
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: widget.config.padding),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppSize.cardRadius)),
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.separator,
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: TabBar(
+            controller: tabController,
+            isScrollable: true,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primary,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.normal,
+              fontSize: 15,
+            ),
+            tabs: tabs.map((tab) => Tab(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getTabIcon(tab.getLabel(context)),
+                          size: AppSize.iconSize - 6,
+                        ),
+                        const SizedBox(width: AppPadding.small),
+                        Text(tab.getLabel(context)),
+                      ],
+                    ),
+                  ),
+                )).toList(),
+          ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: tabController,
-            children: tabs
-                .map(
-                  (tab) => Padding(
-                    padding: EdgeInsets.all(
-                      max(widget.config.padding, 16),
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: widget.config.padding),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppSize.cardRadius)),
+            ),
+            child: TabBarView(
+              controller: tabController,
+              children: tabs
+                  .map(
+                    (tab) => Padding(
+                      padding: const EdgeInsets.all(AppPadding.large),
+                      child: tab.builder(context, widget.controller),
                     ),
-                    child: tab.builder(context, widget.controller),
-                  ),
-                )
-                .toList(),
+                  )
+                  .toList(),
+            ),
           ),
         ),
       ],
@@ -218,5 +304,18 @@ class _OrganizationsTabDefinition {
 
   final String Function(BuildContext context) getLabel;
   final Widget Function(BuildContext context, OrganizationsController controller) builder;
+}
+
+IconData _getTabIcon(String label) {
+  if (label.contains('ТОО') || label.contains('TOO')) {
+    return Icons.business;
+  } else if (label.contains('Подрядчик') || label.contains('Contractor')) {
+    return Icons.handshake;
+  } else if (label.contains('Водител') || label.contains('Driver')) {
+    return Icons.person;
+  } else if (label.contains('Транспорт') || label.contains('Vehicle')) {
+    return Icons.directions_car;
+  }
+  return Icons.list;
 }
 

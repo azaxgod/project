@@ -1,52 +1,83 @@
+import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_padding.dart';
+import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/ui/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsErrorState extends StatelessWidget {
   const OrganizationsErrorState({
     super.key,
     required this.message,
-    this.onRetry,
+    required this.onRetry,
   });
 
   final String message;
-  final VoidCallback? onRetry;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red.shade600,
+        padding: const EdgeInsets.all(AppPadding.large),
+        child: Container(
+          padding: const EdgeInsets.all(AppPadding.xl),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(AppSize.cardRadius),
+            border: Border.all(
+              color: AppColors.divider,
+              width: 0.5,
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Ошибка',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.red.shade600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Повторить'),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: AppSize.shadowBlur,
+                offset: const Offset(0, 2),
+                spreadRadius: 0,
               ),
             ],
-          ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppPadding.normal),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppColors.error,
+                ),
+              ),
+              const SizedBox(height: AppPadding.large),
+              Text(
+                'Ошибка',
+                style: AppTextStyles.title2.copyWith(
+                  color: AppColors.error,
+                ),
+              ),
+              const SizedBox(height: AppPadding.normal),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: AppPadding.xl),
+                PrimaryButton(
+                  label: 'Повторить',
+                  onPressed: onRetry,
+                  icon: Icons.refresh,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

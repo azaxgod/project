@@ -24,18 +24,27 @@ class CustomLocalizationDelegate extends LocalizationsDelegate<S> {
   @override
   Future<S> load(Locale locale) async {
     // Initialize messages for the locale
-    await S.load(locale);
+    await S.loadMessages(locale);
     
     // Return the appropriate locale-specific class
+    S instance;
     switch (locale.languageCode) {
       case 'ru':
-        return SRu();
+        instance = SRu();
+        break;
       case 'kk':
-        return SKk();
+        instance = SKk();
+        break;
       case 'en':
       default:
-        return SEn();
+        instance = SEn();
+        break;
     }
+    
+    // Set the current instance for S.current access
+    S.setCurrent(instance);
+    
+    return instance;
   }
 
   @override

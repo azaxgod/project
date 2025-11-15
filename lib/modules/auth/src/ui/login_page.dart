@@ -85,7 +85,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
                   Container(
                     decoration: const BoxDecoration(
-                      color: AppColors.blue,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.vertical(
                           top: Radius.circular(AppSize.cardRadius)),
                     ),
@@ -114,9 +114,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
                   TabBar(
                     controller: tabController,
-                    labelColor: AppColors.blue,
+                    labelColor: AppColors.primary,
                     unselectedLabelColor: Colors.grey,
-                    indicatorColor: AppColors.blue,
+                    indicatorColor: AppColors.primary,
                     tabs: [
                       Tab(text: 'Авторизация руководителя'),
                       Tab(text: 'Авторизация пользователя'),
@@ -162,7 +162,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ),
           ),
         ),
-        const SizedBox(height: AppPadding.normall),
+        const SizedBox(height: AppPadding.normal),
         TextField(
           controller: passwordController,
           obscureText: true,
@@ -183,7 +183,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               : ElevatedButton(
                   onPressed: handleLogin,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
+                    backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                         borderRadius:
                             BorderRadius.circular(AppSize.cardRadius)),

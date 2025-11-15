@@ -25,6 +25,7 @@ class OrganizationsDriversTab extends StatelessWidget {
   final OrganizationsController controller;
   final bool canManage;
   final String? organizationId;
+  
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +50,7 @@ class OrganizationsDriversTab extends StatelessWidget {
                     data: data,
                     contractorId: organizationId!,
                   )
-              : null,
+              : (){},
         ),
         const SizedBox(height: 12),
         if (drivers.isEmpty)

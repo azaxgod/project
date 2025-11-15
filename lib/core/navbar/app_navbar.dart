@@ -1,6 +1,9 @@
+import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_padding.dart';
+import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../platform/platform_utils.dart'; 
+import '../platform/platform_utils.dart';
 
 class AppNavbar extends StatelessWidget {
   final List<Widget> webWidgets;
@@ -9,51 +12,111 @@ class AppNavbar extends StatelessWidget {
 
   const AppNavbar({
     super.key,
-  this.scaffoldKey,
+    this.scaffoldKey,
     this.webWidgets = const [],
     this.mobileWidgets = const [],
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final config = PlatformConfig.instance;
 
     if (kIsWeb) {
-
       return Container(
         height: 60,
-        color: config.backgroundColor,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: AppColors.separator,
+              width: 0.5,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: AppSize.shadowBlur,
+              offset: const Offset(0, 1),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
         padding: EdgeInsets.symmetric(horizontal: config.padding),
         child: Row(
           children: [
-            const Text(
-              'Логотип / Название',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.snowing,
+                  color: AppColors.primary,
+                  size: AppSize.iconSize,
+                ),
+                const SizedBox(width: AppPadding.small),
+                Text(
+                  'SnowOps',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 20,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 32),
-            ...webWidgets, 
+            const Spacer(),
+            ...webWidgets.map((widget) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: widget,
+                )),
           ],
         ),
       );
     } else {
-
       return AppBar(
-      backgroundColor: config.backgroundColor,
-      elevation: 0,
-      title: const Text('Логотип / Название'),
-      actions: mobileWidgets,
-      leading: IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () {
-          if (scaffoldKey?.currentState != null) {
-            scaffoldKey!.currentState!.openDrawer();
-          }
-        },
-      ),
-    );
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        title: Row(
+          children: [
+            Icon(
+              Icons.snowing,
+              color: AppColors.primary,
+              size: AppSize.iconSize,
+            ),
+            const SizedBox(width: AppPadding.small),
+            Text(
+              'SnowOps',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
+        actions: mobileWidgets,
+        leading: IconButton(
+          icon: Icon(Icons.menu, color: AppColors.textPrimary),
+          onPressed: () {
+            if (scaffoldKey?.currentState != null) {
+              scaffoldKey!.currentState!.openDrawer();
+            }
+          },
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(0.5),
+          child: Container(
+            color: AppColors.separator,
+            height: 0.5,
+          ),
+        ),
+      );
+    }
   }
-  }
-
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);

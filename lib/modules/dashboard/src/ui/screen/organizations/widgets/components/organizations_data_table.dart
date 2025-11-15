@@ -1,3 +1,6 @@
+import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_padding.dart';
+import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsDataTable extends StatelessWidget {
@@ -12,15 +15,56 @@ class OrganizationsDataTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppSize.cardRadius),
+        border: Border.all(
+          color: AppColors.divider,
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: AppSize.shadowBlur,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          columns: columns,
+          columns: columns.map((col) {
+            // Extract text from the label widget if it's a Text widget
+            Widget styledLabel = col.label;
+            if (col.label is Text) {
+              final textWidget = col.label as Text;
+              styledLabel = Text(
+                textWidget.data ?? '',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                ).merge(textWidget.style),
+              );
+            }
+            return DataColumn(label: styledLabel);
+          }).toList(),
           rows: rows,
-          columnSpacing: 24,
+          columnSpacing: AppPadding.large + 8,
+          headingRowHeight: 56,
+          dataRowMinHeight: 64,
+          dataRowMaxHeight: 80,
           headingRowColor: MaterialStateProperty.all(
-            Theme.of(context).colorScheme.surfaceVariant,
+            AppColors.secondaryBackground,
+          ),
+          dividerThickness: 0.5,
+          border: TableBorder(
+            horizontalInside: BorderSide(
+              color: AppColors.separator,
+              width: 0.5,
+            ),
           ),
         ),
       ),

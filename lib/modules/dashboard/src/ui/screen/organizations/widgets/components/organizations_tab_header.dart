@@ -1,3 +1,8 @@
+import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_padding.dart';
+import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/ui/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsTabHeader extends StatelessWidget {
@@ -6,13 +11,13 @@ class OrganizationsTabHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.actionLabel,
-    this.onAction,
+    required this.onAction,
   });
 
   final String title;
   final String subtitle;
   final String? actionLabel;
-  final VoidCallback? onAction;
+  final VoidCallback onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -25,21 +30,21 @@ class OrganizationsTabHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: AppTextStyles.title2,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppPadding.xs),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
+                style: AppTextStyles.footnote,
               ),
             ],
           ),
         ),
         if (actionLabel != null && onAction != null)
-          FilledButton.icon(
+          PrimaryButton(
+            label: actionLabel!,
             onPressed: onAction,
-            icon: const Icon(Icons.add),
-            label: Text(actionLabel!),
+            icon: Icons.add,
           ),
       ],
     );
