@@ -1,6 +1,7 @@
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_info_row.dart';
 import 'package:flutter/material.dart';

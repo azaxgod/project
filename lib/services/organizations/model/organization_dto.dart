@@ -1,4 +1,5 @@
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 
 class OrganizationDto {
   OrganizationDto({

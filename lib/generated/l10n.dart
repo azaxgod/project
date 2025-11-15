@@ -106,6 +106,41 @@ abstract class S {
   String get additional_web_widget;
   String get additional_mobile_widget;
   String get menu;
+  String get create_ticket;
+  String get area;
+  String get contractor;
+  String get select_contractor;
+  String get start_date;
+  String get end_date;
+  String get select_date;
+  String get select_period;
+  String get end_date_must_be_after_start;
+  String get description;
+  String get save;
+  String get cancel;
+  String get active_tickets;
+  String get ticket_id;
+  String get period;
+  String get trips_count;
+  String get volume_shipped;
+  String get volume_normative;
+  String get violations;
+  String get status;
+  String get pending;
+  String get planned;
+  String get in_progress;
+  String get completed;
+  String get closed;
+  String get cancelled;
+  String get all;
+  String get contract;
+  String get select_contract;
+  String get select_contractor_first;
+  String get no_contracts_available;
+  String get details;
+  String get cancel_ticket;
+  String get close_ticket;
+  String get actions;
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

@@ -7,12 +7,14 @@ class OrganizationsTextField extends StatelessWidget {
     required this.label,
     this.keyboardType,
     this.validator,
+    this.maxLines = 1,
   });
 
   final TextEditingController controller;
   final String label;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,7 @@ class OrganizationsTextField extends StatelessWidget {
         controller: controller,
         keyboardType: keyboardType,
         validator: validator,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

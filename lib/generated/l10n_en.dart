@@ -132,4 +132,109 @@ class SEn extends S {
 
   @override
   String get menu => 'Menu';
+
+  @override
+  String get create_ticket => 'Create Ticket';
+
+  @override
+  String get area => 'Area';
+
+  @override
+  String get contractor => 'Contractor';
+
+  @override
+  String get select_contractor => 'Select contractor';
+
+  @override
+  String get start_date => 'Start Date';
+
+  @override
+  String get end_date => 'End Date';
+
+  @override
+  String get select_date => 'Select date';
+
+  @override
+  String get select_period => 'Select period';
+
+  @override
+  String get end_date_must_be_after_start => 'End date must be after start date';
+
+  @override
+  String get description => 'Description';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get active_tickets => 'Active Tickets';
+
+  @override
+  String get ticket_id => 'Ticket ID';
+
+  @override
+  String get period => 'Period';
+
+  @override
+  String get trips_count => 'Trips Count';
+
+  @override
+  String get volume_shipped => 'Volume Shipped';
+
+  @override
+  String get volume_normative => 'Volume Normative';
+
+  @override
+  String get violations => 'Violations';
+
+  @override
+  String get status => 'Status';
+
+  @override
+  String get pending => 'Pending';
+
+  @override
+  String get planned => 'Planned';
+
+  @override
+  String get in_progress => 'In Progress';
+
+  @override
+  String get completed => 'Completed';
+
+  @override
+  String get closed => 'Closed';
+
+  @override
+  String get cancelled => 'Cancelled';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get contract => 'Contract';
+
+  @override
+  String get select_contract => 'Select contract';
+
+  @override
+  String get select_contractor_first => 'Select contractor first';
+
+  @override
+  String get no_contracts_available => 'No contracts available';
+
+  @override
+  String get details => 'Details';
+
+  @override
+  String get cancel_ticket => 'Cancel ticket';
+
+  @override
+  String get close_ticket => 'Close ticket';
+
+  @override
+  String get actions => 'Actions';
 }

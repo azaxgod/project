@@ -1,6 +1,7 @@
 import 'package:akimat_project/modules/dashboard/src/controller/areas_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';

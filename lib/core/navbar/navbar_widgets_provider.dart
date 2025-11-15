@@ -47,8 +47,8 @@ class NavbarWidgetsProvider {
       _NavbarButton(
         label: S.of(context).tickets,
         icon: Icons.assignment,
-        isActive: false,
-        onPressed: () {},
+        isActive: currentRoute == '/tickets',
+        onPressed: () => context.go('/tickets'),
       ),
       _NavbarButton(
         label: S.of(context).trips,

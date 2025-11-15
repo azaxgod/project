@@ -8,13 +8,17 @@ import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/generated/l10n.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/tickets_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/widgets/areas_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/widgets/areas_map_widget.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/widgets/ticket_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_error_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -521,7 +525,7 @@ class _AreasContentState extends ConsumerState<_AreasContent> {
   }
 }
 
-class _AreaInfoPanel extends StatelessWidget {
+class _AreaInfoPanel extends ConsumerWidget {
   const _AreaInfoPanel({
     required this.area,
     required this.contractors,
@@ -535,7 +539,7 @@ class _AreaInfoPanel extends StatelessWidget {
   final AreasController controller;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final contractor = contractors.firstWhere(
       (c) => c.id == area.defaultContractorId,
       orElse: () => contractors.isNotEmpty ? contractors.first : Organization(
@@ -648,9 +652,46 @@ class _AreaInfoPanel extends StatelessWidget {
                   style: AppTextStyles.body,
                 ),
                 const SizedBox(height: AppPadding.normal),
+                // Активные тикеты
+                const Divider(),
+                const SizedBox(height: AppPadding.normal),
+                Text(
+                  'Активные тикеты',
+                  style: AppTextStyles.headline,
+                ),
+                const SizedBox(height: AppPadding.small),
+                // TODO: Загрузить и отобразить активные тикеты для этого участка
+                Text(
+                  '0',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppPadding.normal),
                 if (canEdit) ...[
                   const Divider(),
                   const SizedBox(height: AppPadding.normal),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        final ticketsController = ref.read(ticketsControllerProvider.notifier);
+                        final authState = ref.read(authNotifierProvider);
+                        final ticketsState = ref.read(ticketsControllerProvider);
+                        TicketDialogs.showCreateTicketDialog(
+                          context: context,
+                          controller: ticketsController,
+                          area: area,
+                          contractors: contractors,
+                          contracts: ticketsState.data.value?.contracts ?? [],
+                          organizationId: authState.user?.organizationId,
+                        );
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Создать тикет на этот участок'),
+                    ),
+                  ),
+                  const SizedBox(height: AppPadding.small),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(

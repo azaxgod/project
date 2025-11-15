@@ -132,4 +132,109 @@ class SKk extends S {
 
   @override
   String get menu => 'Мәзір';
+
+  @override
+  String get create_ticket => 'Тикет құру';
+
+  @override
+  String get area => 'Аудан';
+
+  @override
+  String get contractor => 'Подрядчик';
+
+  @override
+  String get select_contractor => 'Подрядчикті таңдаңыз';
+
+  @override
+  String get start_date => 'Басталу күні';
+
+  @override
+  String get end_date => 'Аяқталу күні';
+
+  @override
+  String get select_date => 'Күнді таңдаңыз';
+
+  @override
+  String get select_period => 'Кезеңді таңдаңыз';
+
+  @override
+  String get end_date_must_be_after_start => 'Аяқталу күні басталу күнінен кейін болуы керек';
+
+  @override
+  String get description => 'Сипаттама';
+
+  @override
+  String get save => 'Сақтау';
+
+  @override
+  String get cancel => 'Болдырмау';
+
+  @override
+  String get active_tickets => 'Белсенді тикеттер';
+
+  @override
+  String get ticket_id => 'Тикет ID';
+
+  @override
+  String get period => 'Кезең';
+
+  @override
+  String get trips_count => 'Рейстер саны';
+
+  @override
+  String get volume_shipped => 'Шығарылған көлем';
+
+  @override
+  String get volume_normative => 'Норматив';
+
+  @override
+  String get violations => 'Бұзушылықтар';
+
+  @override
+  String get status => 'Статус';
+
+  @override
+  String get pending => 'Күтуде';
+
+  @override
+  String get planned => 'Жоспарланған';
+
+  @override
+  String get in_progress => 'Жұмыс істеп жатыр';
+
+  @override
+  String get completed => 'Аяқталды';
+
+  @override
+  String get closed => 'Жабылды';
+
+  @override
+  String get cancelled => 'Болдырылды';
+
+  @override
+  String get all => 'Барлығы';
+
+  @override
+  String get contract => 'Келісім';
+
+  @override
+  String get select_contract => 'Келісімді таңдаңыз';
+
+  @override
+  String get select_contractor_first => 'Алдымен подрядчикті таңдаңыз';
+
+  @override
+  String get no_contracts_available => 'Қолжетімді келісімдер жоқ';
+
+  @override
+  String get details => 'Толығырақ';
+
+  @override
+  String get cancel_ticket => 'Тикетті болдыру';
+
+  @override
+  String get close_ticket => 'Тикетті жабу';
+
+  @override
+  String get actions => 'Әрекеттер';
 }

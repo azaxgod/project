@@ -1,4 +1,5 @@
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/services/organizations/model/driver_dto.dart';
 import 'package:akimat_project/services/organizations/model/organization_dto.dart';
 import 'package:akimat_project/services/organizations/model/vehicle_dto.dart';
@@ -78,7 +79,7 @@ class OrganizationsCollection {
     const contractor2 = 'org_contractor_2';
 
     _organizations
-      ..addAll([
+      .addAll([
         OrganizationDto(
           id: akimatId,
           type: OrganizationDto.mapTypeToString(OrganizationType.akimat),
@@ -126,7 +127,7 @@ class OrganizationsCollection {
       ]);
 
     _drivers
-      ..addAll([
+      .addAll([
         DriverDto(
           id: 'driver_1',
           contractorId: contractor1,
@@ -148,7 +149,7 @@ class OrganizationsCollection {
       ]);
 
     _vehicles
-      ..addAll([
+      .addAll([
         VehicleDto(
           id: 'vehicle_1',
           contractorId: contractor1,

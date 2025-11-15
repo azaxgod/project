@@ -132,4 +132,109 @@ class SRu extends S {
 
   @override
   String get menu => 'Меню';
+
+  @override
+  String get create_ticket => 'Создать тикет';
+
+  @override
+  String get area => 'Участок';
+
+  @override
+  String get contractor => 'Подрядчик';
+
+  @override
+  String get select_contractor => 'Выберите подрядчика';
+
+  @override
+  String get start_date => 'Дата начала';
+
+  @override
+  String get end_date => 'Дата окончания';
+
+  @override
+  String get select_date => 'Выберите дату';
+
+  @override
+  String get select_period => 'Выберите период';
+
+  @override
+  String get end_date_must_be_after_start => 'Дата окончания должна быть после даты начала';
+
+  @override
+  String get description => 'Описание';
+
+  @override
+  String get save => 'Сохранить';
+
+  @override
+  String get cancel => 'Отмена';
+
+  @override
+  String get active_tickets => 'Активные тикеты';
+
+  @override
+  String get ticket_id => 'ID тикета';
+
+  @override
+  String get period => 'Период';
+
+  @override
+  String get trips_count => 'Кол-во рейсов';
+
+  @override
+  String get volume_shipped => 'Объем вывезен';
+
+  @override
+  String get volume_normative => 'Норматив';
+
+  @override
+  String get violations => 'Нарушения';
+
+  @override
+  String get status => 'Статус';
+
+  @override
+  String get pending => 'Ожидает';
+
+  @override
+  String get planned => 'Запланирован';
+
+  @override
+  String get in_progress => 'В работе';
+
+  @override
+  String get completed => 'Выполнен';
+
+  @override
+  String get closed => 'Закрыт';
+
+  @override
+  String get cancelled => 'Отменен';
+
+  @override
+  String get all => 'Все';
+
+  @override
+  String get contract => 'Контракт';
+
+  @override
+  String get select_contract => 'Выберите контракт';
+
+  @override
+  String get select_contractor_first => 'Сначала выберите подрядчика';
+
+  @override
+  String get no_contracts_available => 'Нет доступных контрактов';
+
+  @override
+  String get details => 'Подробнее';
+
+  @override
+  String get cancel_ticket => 'Отменить тикет';
+
+  @override
+  String get close_ticket => 'Закрыть тикет';
+
+  @override
+  String get actions => 'Действия';
 }

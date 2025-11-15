@@ -1,6 +1,5 @@
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:equatable/equatable.dart';
-
-enum OrganizationType { akimat, kguZkh, too, contractor }
 
 class Organization extends Equatable {
   final String id;
@@ -62,19 +61,3 @@ class Organization extends Equatable {
         isActive,
       ];
 }
-
-extension OrganizationTypeX on OrganizationType {
-  String get label {
-    switch (this) {
-      case OrganizationType.akimat:
-        return 'AKIMAT';
-      case OrganizationType.kguZkh:
-        return 'KGU_ZKH';
-      case OrganizationType.too:
-        return 'TOO';
-      case OrganizationType.contractor:
-        return 'CONTRACTOR';
-    }
-  }
-}
-

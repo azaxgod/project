@@ -4,6 +4,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/
 import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/areas_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/organizations_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/polygons/polygons_page.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/tickets_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,6 +52,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           scaffoldKey: GlobalKey<ScaffoldState>(),
         ),
       ),
+      GoRoute(
+        path: '/tickets',
+        builder: (context, state) => TicketsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
+      ),
     ],
    redirect: (context, state) {
   final loggedIn = authState.user != null;
@@ -60,7 +67,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   if (loggedIn && loggingIn) return '/dashboard';
 
 
-  final validRoutes = ['/login', '/home', '/dashboard', '/organization', '/areas', '/polygons'];
+  final validRoutes = ['/login', '/home', '/dashboard', '/organization', '/areas', '/polygons', '/tickets'];
   if (!validRoutes.contains(state.matchedLocation)) return '/dashboard';
 
   return null;

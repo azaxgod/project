@@ -41,6 +41,11 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
       icon: Icons.map,
       route: '/polygons',
     ),
+    DrawerItem(
+      title: s.tickets,
+      icon: Icons.assignment,
+      route: '/tickets',
+    ),
   ];
 });
 
