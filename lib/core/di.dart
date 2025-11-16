@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/auth/src/repository/auth_repository_impl.
 import 'package:akimat_project/modules/auth/src/repository/i_auth_repository.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/auth/collection/auth_collection.dart';
+import 'package:akimat_project/services/auth/firebase_auth_service.dart';
 import 'package:akimat_project/services/organizations/collection/roles_collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,4 +121,8 @@ final rolesDioProvider = Provider<Dio>((ref) {
 final rolesCollectionProvider = Provider<RolesCollection>((ref) {
   final dio = ref.read(rolesDioProvider);
   return RolesCollection(dio: dio);
+});
+
+final firebaseAuthServiceProvider = Provider<FirebaseAuthService>((ref) {
+  return FirebaseAuthService();
 });

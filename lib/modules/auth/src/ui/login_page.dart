@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controller/auth_notifier.dart';
+import 'phone_login_widget.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -125,8 +126,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     unselectedLabelColor: Colors.grey,
                     indicatorColor: AppColors.primary,
                     tabs: [
-                      Tab(text: 'Авторизация руководителя'),
-                      Tab(text: 'Авторизация пользователя'),
+                      Tab(text: S.of(context)!.login_title),
+                      const Tab(text: 'По номеру телефона'),
                     ],
                   ),
 
@@ -134,14 +135,34 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   Padding(
                     padding: const EdgeInsets.all(AppPadding.large),
                     child: SizedBox(
-                      height: 250,
+                      height: 350,
                       child: TabBarView(
                         controller: tabController,
                         children: [
-                          // Таб 1: Руководитель
+                          // Таб 1: Авторизация по логину/паролю
                           buildLoginForm(isLoggingIn),
-                          // Таб 2: Пользователь (можно сделать отдельную форму или ту же)
-                          buildLoginForm(isLoggingIn),
+                          // Таб 2: Авторизация по номеру телефона
+                          PhoneLoginWidget(
+                            onCodeSent: (phone) {
+                              // Код отправлен, можно показать сообщение
+                            },
+                            onVerified: (phone, code) async {
+                              // После верификации Firebase, авторизуемся через наш API
+                              await ref.read(authNotifierProvider.notifier).verifySms(phone, code);
+                              if (!mounted) return;
+                              final authState = ref.read(authNotifierProvider);
+                              if (authState.user != null) {
+                                context.go('/home');
+                              } else if (authState.error != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(authState.error!),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ),
