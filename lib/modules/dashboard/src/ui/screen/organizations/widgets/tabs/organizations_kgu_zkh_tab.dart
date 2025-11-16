@@ -31,6 +31,7 @@ class OrganizationsKguZkhTab extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         OrganizationsTabHeader(
           title: s.kgu_zkh,

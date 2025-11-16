@@ -31,6 +31,7 @@ class OrganizationsVehiclesTab extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         OrganizationsTabHeader(
           title: 'Транспорт',

@@ -203,9 +203,11 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
               controller: tabController,
               children: tabs
                   .map(
-                    (tab) => Padding(
-                      padding: const EdgeInsets.all(AppPadding.large),
-                      child: tab.builder(context, widget.controller),
+                    (tab) => SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppPadding.large),
+                        child: tab.builder(context, widget.controller),
+                      ),
                     ),
                   )
                   .toList(),
