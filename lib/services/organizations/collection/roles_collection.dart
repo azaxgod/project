@@ -60,14 +60,52 @@ class RolesCollection {
           throw RolesException(errorMessage, 403);
         case 404:
           throw RolesException(errorMessage, 404);
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          throw RolesException('Сервер временно недоступен. Попробуйте позже.', statusCode);
         default:
           throw RolesException(errorMessage, statusCode);
       }
     } else {
-      throw RolesException(
-        error.message ?? 'Network error: ${error.type}',
-        null,
-      );
+      // Обработка ошибок подключения (network errors)
+      String errorMessage;
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+          errorMessage = 'Превышено время ожидания подключения. Проверьте интернет-соединение.';
+          break;
+        case DioExceptionType.sendTimeout:
+          errorMessage = 'Превышено время отправки данных. Попробуйте снова.';
+          break;
+        case DioExceptionType.receiveTimeout:
+          errorMessage = 'Превышено время получения данных. Попробуйте снова.';
+          break;
+        case DioExceptionType.badCertificate:
+          errorMessage = 'Ошибка сертификата. Обратитесь в поддержку.';
+          break;
+        case DioExceptionType.badResponse:
+          errorMessage = 'Некорректный ответ от сервера.';
+          break;
+        case DioExceptionType.cancel:
+          errorMessage = 'Запрос отменён.';
+          break;
+        case DioExceptionType.connectionError:
+          errorMessage = 'Ошибка подключения. Проверьте интернет-соединение и попробуйте снова.';
+          break;
+        case DioExceptionType.unknown:
+        default:
+          final message = error.message ?? 'Неизвестная ошибка';
+          if (message.contains('Failed host lookup') || 
+              message.contains('failed host lookup') ||
+              message.contains('getaddrinfo failed')) {
+            errorMessage = 'Не удалось подключиться к серверу. Проверьте интернет-соединение и попробуйте снова.';
+          } else {
+            errorMessage = message;
+          }
+          break;
+      }
+      throw RolesException(errorMessage, null);
     }
   }
 

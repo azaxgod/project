@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:akimat_project/modules/auth/src/repository/i_auth_repository.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/auth/collection/auth_collection.dart';
-import 'package:akimat_project/services/auth/model/auth_response.dart';
 import 'package:akimat_project/services/auth/model/user.dart';
 
 class AuthState {

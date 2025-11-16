@@ -1,6 +1,7 @@
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/auth/collection/auth_collection.dart';
 import 'package:akimat_project/services/auth/model/auth_response.dart';
+import 'package:akimat_project/services/auth/model/send_code_response.dart';
 import 'i_auth_repository.dart';
 
 class AuthRepositoryImpl implements IAuthRepository {
@@ -42,8 +43,8 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   @override
-  Future<void> sendSms(String phone) async {
-    await authCollection.sendSms(phone);
+  Future<SendCodeResponse> sendSms(String phone) async {
+    return await authCollection.sendSms(phone);
   }
 
   @override

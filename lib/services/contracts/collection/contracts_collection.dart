@@ -43,10 +43,43 @@ class ContractsCollection {
           throw ContractException(errorMessage, statusCode);
       }
     } else {
-      throw ContractException(
-        error.message ?? 'Network error: ${error.type}',
-        null,
-      );
+      // Обработка ошибок подключения (network errors)
+      String errorMessage;
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+          errorMessage = 'Connection timeout. Please check your internet connection.';
+          break;
+        case DioExceptionType.sendTimeout:
+          errorMessage = 'Send timeout. Please try again.';
+          break;
+        case DioExceptionType.receiveTimeout:
+          errorMessage = 'Receive timeout. Please try again.';
+          break;
+        case DioExceptionType.badCertificate:
+          errorMessage = 'Certificate error. Please contact support.';
+          break;
+        case DioExceptionType.badResponse:
+          errorMessage = 'Bad response from server.';
+          break;
+        case DioExceptionType.cancel:
+          errorMessage = 'Request cancelled.';
+          break;
+        case DioExceptionType.connectionError:
+          errorMessage = 'Connection error. Please check your internet connection and try again.';
+          break;
+        case DioExceptionType.unknown:
+        default:
+          final message = error.message ?? 'Unknown error';
+          if (message.contains('Failed host lookup') || 
+              message.contains('failed host lookup') ||
+              message.contains('getaddrinfo failed')) {
+            errorMessage = 'Cannot connect to server. Please check your internet connection and try again.';
+          } else {
+            errorMessage = message;
+          }
+          break;
+      }
+      throw ContractException(errorMessage, null);
     }
   }
 
@@ -120,7 +153,13 @@ class ContractsCollection {
         },
       );
 
-      return ContractDto.fromJson(response.data as Map<String, dynamic>);
+      // POST /contracts возвращает 201 Created с контрактом, возможно обёрнутым в data
+      final responseData = response.data;
+      if (responseData is Map && responseData.containsKey('data')) {
+        return ContractDto.fromJson(responseData['data'] as Map<String, dynamic>);
+      } else {
+        return ContractDto.fromJson(responseData as Map<String, dynamic>);
+      }
     } on DioException catch (e) {
       _handleError(e);
       rethrow;

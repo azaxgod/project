@@ -1,4 +1,6 @@
 import 'package:akimat_project/services/auth/model/user.dart';
+import 'package:akimat_project/services/auth/model/send_code_response.dart';
+import 'package:akimat_project/services/auth/model/logout_response.dart';
 import 'package:dio/dio.dart';
 import '../model/auth_response.dart';
 
@@ -46,19 +48,56 @@ class AuthCollection {
           throw AuthException(errorMessage, statusCode);
       }
     } else {
-      throw AuthException(
-        error.message ?? 'Network error: ${error.type}',
-        null,
-      );
+      // Обработка ошибок подключения (network errors)
+      String errorMessage;
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+          errorMessage = 'Connection timeout. Please check your internet connection.';
+          break;
+        case DioExceptionType.sendTimeout:
+          errorMessage = 'Send timeout. Please try again.';
+          break;
+        case DioExceptionType.receiveTimeout:
+          errorMessage = 'Receive timeout. Please try again.';
+          break;
+        case DioExceptionType.badCertificate:
+          errorMessage = 'Certificate error. Please contact support.';
+          break;
+        case DioExceptionType.badResponse:
+          errorMessage = 'Bad response from server.';
+          break;
+        case DioExceptionType.cancel:
+          errorMessage = 'Request cancelled.';
+          break;
+        case DioExceptionType.connectionError:
+          errorMessage = 'Connection error. Please check your internet connection and try again.';
+          break;
+        case DioExceptionType.unknown:
+        default:
+          final message = error.message ?? 'Unknown error';
+          if (message.contains('Failed host lookup') || 
+              message.contains('failed host lookup') ||
+              message.contains('getaddrinfo failed')) {
+            errorMessage = 'Cannot connect to server. Please check your internet connection and try again.';
+          } else {
+            errorMessage = message;
+          }
+          break;
+      }
+      throw AuthException(errorMessage, null);
     }
   }
 
+  /// POST /auth/login
+  /// Авторизация по логину/паролю.
+  /// Ответ оборачивается в {"data": ...}
   Future<AuthResponse> login(String login, String password) async {
     try {
       final response = await dio.post('/auth/login', data: {
         'login': login,
         'password': password,
       });
+      // Ответ оборачивается в {"data": ...}
       return AuthResponse.fromJson(response.data['data']);
     } on DioException catch (e) {
       _handleError(e);
@@ -66,23 +105,30 @@ class AuthCollection {
     }
   }
 
-  Future<Map<String, dynamic>> sendSms(String phone) async {
+  /// POST /auth/send-code
+  /// Отправка одноразового SMS-кода для входа по номеру телефона.
+  /// Ответ НЕ оборачивается в {"data": ...}
+  Future<SendCodeResponse> sendSms(String phone) async {
     try {
       final response = await dio.post('/auth/send-code', data: {'phone': phone});
       // /auth/send-code не оборачивается в {"data": ...}
-      return response.data;
+      return SendCodeResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
       rethrow;
     }
   }
 
+  /// POST /auth/verify-code
+  /// Ввод SMS-кода, создаёт сессию и выдаёт токены.
+  /// Ответ оборачивается в {"data": ...}
   Future<AuthResponse> verifySms(String phone, String code) async {
     try {
       final response = await dio.post(
         '/auth/verify-code',
         data: {'phone': phone, 'code': code},
       );
+      // Ответ оборачивается в {"data": ...}
       return AuthResponse.fromJson(response.data['data']);
     } on DioException catch (e) {
       _handleError(e);
@@ -90,21 +136,30 @@ class AuthCollection {
     }
   }
 
-  Future<void> logout(String refreshToken) async {
+  /// POST /auth/logout
+  /// Инвалидирует refresh-токен.
+  /// Ответ НЕ оборачивается в {"data": ...}, возвращает {"success": true}
+  Future<LogoutResponse> logout(String refreshToken) async {
     try {
-      await dio.post('/auth/logout', data: {'refresh_token': refreshToken});
+      final response = await dio.post('/auth/logout', data: {'refresh_token': refreshToken});
+      // /auth/logout не оборачивается в {"data": ...}
+      return LogoutResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
       rethrow;
     }
   }
 
+  /// POST /auth/refresh
+  /// Обновление пары токенов. Требует действующий refresh.
+  /// Ответ оборачивается в {"data": ...}
   Future<AuthResponse> refresh(String refreshToken) async {
     try {
       final response = await dio.post(
         '/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
+      // Ответ оборачивается в {"data": ...}
       return AuthResponse.fromJson(response.data['data']);
     } on DioException catch (e) {
       _handleError(e);
@@ -112,6 +167,10 @@ class AuthCollection {
     }
   }
 
+  /// GET /auth/me
+  /// Информация о текущем пользователе (по access JWT).
+  /// Требуется заголовок Authorization: Bearer <access_token>.
+  /// Ответ оборачивается в {"data": ...}
   Future<User> me() async {
     try {
       final response = await dio.get(
@@ -120,6 +179,7 @@ class AuthCollection {
             ? Options(headers: {'Authorization': 'Bearer $_tempToken'})
             : null,
       );
+      // Ответ оборачивается в {"data": ...}
       return User.fromJson(response.data['data']);
     } on DioException catch (e) {
       _handleError(e);

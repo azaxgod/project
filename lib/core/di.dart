@@ -10,8 +10,9 @@ final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
       baseUrl: 'https://snowops-auth-service.onrender.com',
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 15), // Уменьшено с 30 до 15 секунд
+      receiveTimeout: const Duration(seconds: 15), // Уменьшено с 30 до 15 секунд
+      sendTimeout: const Duration(seconds: 15), // Добавлен таймаут отправки
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -19,7 +20,7 @@ final dioProvider = Provider<Dio>((ref) {
     ),
   );
 
-  // Interceptor для автоматического добавления токена
+
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -39,6 +40,9 @@ final dioProvider = Provider<Dio>((ref) {
               final tempDio = Dio(
                 BaseOptions(
                   baseUrl: dio.options.baseUrl,
+                  connectTimeout: const Duration(seconds: 10),
+                  receiveTimeout: const Duration(seconds: 10),
+                  sendTimeout: const Duration(seconds: 10),
                   headers: dio.options.headers,
                 ),
               );
@@ -88,8 +92,9 @@ final rolesDioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
       baseUrl: 'https://snowops-roles.onrender.com',
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 15), // Уменьшено с 30 до 15 секунд
+      receiveTimeout: const Duration(seconds: 15), // Уменьшено с 30 до 15 секунд
+      sendTimeout: const Duration(seconds: 15), // Добавлен таймаут отправки
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

@@ -26,8 +26,10 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    // Поддержка обоих вариантов: organizationID и organizationId
-    final orgId = json['organizationID'] as String? ?? json['organizationId'] as String?;
+    // Поддержка разных вариантов: organizationID, organizationId, organization_id
+    final orgId = json['organizationID'] as String? ?? 
+                  json['organizationId'] as String? ?? 
+                  json['organization_id'] as String?;
     return User(
       id: json['id'] as String,
       organizationId: orgId,
@@ -35,8 +37,8 @@ class User {
       role: json['role'] as String,
       login: json['login'] as String?,
       phone: json['phone'] as String?,
-      isNew: json['isNew'] as bool?,
-      isActive: json['isActive'] as bool?,
+      isNew: json['isNew'] as bool? ?? json['is_new'] as bool?,
+      isActive: json['isActive'] as bool? ?? json['is_active'] as bool?,
     );
   }
 
