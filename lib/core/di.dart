@@ -1,9 +1,15 @@
+import 'package:akimat_project/modules/analytics/src/repository/analytics_repository_impl.dart';
+import 'package:akimat_project/modules/analytics/src/repository/i_analytics_repository.dart';
 import 'package:akimat_project/modules/auth/src/repository/auth_repository_impl.dart';
 import 'package:akimat_project/modules/auth/src/repository/i_auth_repository.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/modules/violations/src/repository/i_violations_repository.dart';
+import 'package:akimat_project/modules/violations/src/repository/violations_repository_impl.dart';
+import 'package:akimat_project/services/analytics/module.dart';
 import 'package:akimat_project/services/auth/collection/auth_collection.dart';
 import 'package:akimat_project/services/auth/firebase_auth_service.dart';
 import 'package:akimat_project/services/organizations/collection/roles_collection.dart';
+import 'package:akimat_project/services/violations/module.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -125,4 +131,16 @@ final rolesCollectionProvider = Provider<RolesCollection>((ref) {
 
 final firebaseAuthServiceProvider = Provider<FirebaseAuthService>((ref) {
   return FirebaseAuthService();
+});
+
+// Analytics providers
+final iAnalyticsRepositoryProvider = Provider<IAnalyticsRepository>((ref) {
+  final collection = ref.read(analyticsCollectionProvider);
+  return AnalyticsRepositoryImpl(collection: collection);
+});
+
+// Violations providers
+final iViolationsRepositoryProvider = Provider<IViolationsRepository>((ref) {
+  final collection = ref.read(violationsCollectionProvider);
+  return ViolationsRepositoryImpl(collection: collection);
 });

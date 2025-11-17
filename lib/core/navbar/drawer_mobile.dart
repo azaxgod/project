@@ -55,6 +55,16 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
       icon: Icons.receipt_long,
       route: '/kgu/contracts',
     ),
+    DrawerItem(
+      title: s.analytics,
+      icon: Icons.analytics,
+      route: '/analytics',
+    ),
+    DrawerItem(
+      title: s.violations,
+      icon: Icons.gavel,
+      route: '/violations',
+    ),
   ];
 });
 

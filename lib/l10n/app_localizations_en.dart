@@ -290,4 +290,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get no_contracts_found => 'No contracts found';
+
+  @override
+  String get analytics => 'Analytics';
 }

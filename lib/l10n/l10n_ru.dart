@@ -294,4 +294,7 @@ class SRu extends S {
 
   @override
   String get no_contracts_found => 'Контракты не найдены';
+
+  @override
+  String get analytics => 'Аналитика';
 }

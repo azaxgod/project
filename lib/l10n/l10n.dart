@@ -656,6 +656,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'No contracts found'**
   String get no_contracts_found;
+
+  /// No description provided for @analytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get analytics;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

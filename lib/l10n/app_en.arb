@@ -92,5 +92,6 @@
   "yes": "Yes",
   "no": "No",
   "open": "Open",
-  "no_contracts_found": "No contracts found"
+  "no_contracts_found": "No contracts found",
+  "analytics": "Analytics"
 }

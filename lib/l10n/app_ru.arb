@@ -92,6 +92,7 @@
   "yes": "Да",
   "no": "Нет",
   "open": "Открыть",
-  "no_contracts_found": "Контракты не найдены"
+  "no_contracts_found": "Контракты не найдены",
+  "analytics": "Аналитика"
 }
 

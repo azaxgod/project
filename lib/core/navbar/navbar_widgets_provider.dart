@@ -59,6 +59,18 @@ class NavbarWidgetsProvider {
         onPressed: () => context.go('/kgu/contracts'),
       ),
       _NavbarButton(
+        label: S.of(context)!.analytics,
+        icon: Icons.analytics,
+        isActive: currentRoute == '/analytics' || currentRoute.startsWith('/analytics/'),
+        onPressed: () => context.go('/analytics'),
+      ),
+      _NavbarButton(
+        label: S.of(context)!.violations,
+        icon: Icons.gavel,
+        isActive: currentRoute == '/violations' || currentRoute.startsWith('/violations/'),
+        onPressed: () => context.go('/violations'),
+      ),
+      _NavbarButton(
         label: S.of(context)!.trips,
         icon: Icons.directions_car,
         isActive: false,

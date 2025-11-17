@@ -294,4 +294,7 @@ class SKk extends S {
 
   @override
   String get no_contracts_found => 'Келісімдер табылмады';
+
+  @override
+  String get analytics => 'Аналитика';
 }

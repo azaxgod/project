@@ -294,4 +294,7 @@ class SEn extends S {
 
   @override
   String get no_contracts_found => 'No contracts found';
+
+  @override
+  String get analytics => 'Analytics';
 }

@@ -113,8 +113,78 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
             _isLoading = false;
           });
           
+          debugPrint('=== FIREBASE PHONE AUTH ERROR ===');
+          debugPrint('Error code: ${e.code}');
+          debugPrint('Error message: ${e.message}');
+          debugPrint('Error details: ${e.toString()}');
+          debugPrint('================================');
+          
           String errorMessage = 'Ошибка отправки SMS';
-          if (e.code == 'billing_not_enabled') {
+          
+          // Обработка ошибки 39 (internal error)
+          if (e.code == 'internal-error' || 
+              e.message?.contains('error code 39') == true ||
+              e.message?.contains('error code: 39') == true ||
+              e.message?.contains('ERROR_39') == true ||
+              e.code == 'ERROR_INTERNAL_ERROR') {
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Ошибка 39: Внутренняя ошибка'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Произошла внутренняя ошибка Firebase (код 39).\n'),
+                        const Text('На реальном устройстве эта ошибка чаще всего связана с App Check.\n'),
+                        const Text('Возможные причины:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        const Text('1. ⚠️ App Check включен в Firebase Console (самая частая причина)'),
+                        const Text('2. Проблемы с Play Integrity API (Android)'),
+                        const Text('3. Неправильные SHA отпечатки для release build'),
+                        const Text('4. Проблемы с reCAPTCHA на реальном устройстве'),
+                        const Text('5. Проблемы с биллингом Firebase'),
+                        const SizedBox(height: 12),
+                        const Text('Решение (в порядке приоритета):', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        const Text('1. Отключите App Check в Firebase Console:'),
+                        const Text('   https://console.firebase.google.com/project/smsakimat/appcheck', 
+                            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.blue)),
+                        const Text('   App Check → APIs → Phone Auth → Unenforced', 
+                            style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                        const SizedBox(height: 4),
+                        const Text('2. Проверьте SHA отпечатки в Firebase Console:'),
+                        const Text('   Project settings → Android app → SHA certificates', 
+                            style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                        const Text('3. Убедитесь, что биллинг включен'),
+                        const Text('4. Попробуйте debug build для тестирования'),
+                        const Text('5. Перезапустите приложение'),
+                        const SizedBox(height: 8),
+                        const Text('Если проблема сохраняется, обратитесь в поддержку.'),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Понятно'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        // Попробовать снова
+                        _sendSmsCode();
+                      },
+                      child: const Text('Попробовать снова'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return;
+          } else if (e.code == 'billing_not_enabled') {
             errorMessage = 'Биллинг не включен в Firebase. Включите биллинг в Firebase Console для использования Phone Authentication.';
           } else if (e.code == 'invalid-phone-number') {
             errorMessage = 'Некорректный номер телефона. Проверьте формат номера.';
