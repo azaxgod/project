@@ -8,4 +8,6 @@ abstract class IAuthRepository {
   Future<AuthResponse> verifySms(String phone, String code);
   Future<AuthResponse> refreshTokens(String refreshToken);
   Future<void> logout(String refreshToken);
+  /// Авторизация через Firebase ID Token
+  Future<AuthResponse> loginWithFirebaseToken(String firebaseIdToken, String phoneNumber);
 }

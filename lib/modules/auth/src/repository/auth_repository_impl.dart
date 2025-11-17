@@ -83,4 +83,28 @@ class AuthRepositoryImpl implements IAuthRepository {
     await TokenStorage.saveAccessToken('');
     await TokenStorage.saveRefreshToken('');
   }
+
+  @override
+  Future<AuthResponse> loginWithFirebaseToken(String firebaseIdToken, String phoneNumber) async {
+    // Пробуем отправить Firebase ID Token на бэкенд
+    // Если бэкенд поддерживает Firebase auth, используем его
+    // Иначе выбрасываем исключение, чтобы создать User из Firebase User
+    try {
+      final authResponse = await authCollection.loginWithFirebaseToken(firebaseIdToken, phoneNumber);
+      
+      // Сохраняем токены
+      if (authResponse.accessToken.isNotEmpty) {
+        await TokenStorage.saveAccessToken(authResponse.accessToken);
+      }
+      if (authResponse.refreshToken.isNotEmpty) {
+        await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+      }
+      
+      return authResponse;
+    } catch (e) {
+      // Если бэкенд не поддерживает Firebase token, выбрасываем исключение
+      // чтобы в auth_notifier создать User из Firebase User
+      rethrow;
+    }
+  }
 }

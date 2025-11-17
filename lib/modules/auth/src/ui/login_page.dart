@@ -146,9 +146,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             onCodeSent: (phone) {
                               // Код отправлен, можно показать сообщение
                             },
-                            onVerified: (phone, code) async {
-                              // После верификации Firebase, авторизуемся через наш API
-                              await ref.read(authNotifierProvider.notifier).verifySms(phone, code);
+                            onVerified: (userCredential, phone) async {
+                              // После успешной верификации Firebase, авторизуемся через Firebase Phone Auth
+                              await ref.read(authNotifierProvider.notifier).loginWithFirebasePhone(userCredential, phone);
                               if (!mounted) return;
                               final authState = ref.read(authNotifierProvider);
                               if (authState.user != null) {

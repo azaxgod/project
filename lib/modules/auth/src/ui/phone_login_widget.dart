@@ -12,7 +12,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 
 class PhoneLoginWidget extends ConsumerStatefulWidget {
   final Function(String phoneNumber) onCodeSent;
-  final Function(String phoneNumber, String code) onVerified;
+  final Function(UserCredential userCredential, String phoneNumber) onVerified;
 
   const PhoneLoginWidget({
     super.key,
@@ -41,7 +41,7 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
     super.dispose();
   }
 
-  Future<void> _sendSmsCode() async {
+  Future<void> _sendSmsCode({bool isResend = false}) async {
     if (_fullPhoneNumber == null || _fullPhoneNumber!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Введите номер телефона')),
@@ -72,7 +72,7 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
       return;
     }
     
-    debugPrint('Sending SMS to: $phoneNumber'); // Для отладки
+    debugPrint('${isResend ? "Resending" : "Sending"} SMS to: $phoneNumber'); // Для отладки
 
     setState(() {
       _isLoading = true;
@@ -83,6 +83,7 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
 
       await auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
+        forceResendingToken: isResend ? _resendToken : null,
         verificationCompleted: (PhoneAuthCredential credential) async {
           // Автоматическая верификация (Android) - происходит без ввода кода
           debugPrint('Auto verification completed'); // Для отладки
@@ -97,7 +98,7 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
             
             if (userCredential.user != null && mounted) {
               // Используем сохраненный полный номер
-              widget.onVerified(_fullPhoneNumber ?? phoneNumber, '');
+              widget.onVerified(userCredential, _fullPhoneNumber ?? phoneNumber);
             }
           } catch (e) {
             debugPrint('Auto verification error: $e'); // Для отладки
@@ -218,6 +219,17 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
     // Очищаем код от пробелов и других символов, оставляем только цифры
     String code = _codeController.text.trim().replaceAll(RegExp(r'[^\d]'), '');
     
+    debugPrint('=== VERIFICATION DEBUG ===');
+    debugPrint('Raw code from input: "${_codeController.text}"');
+    debugPrint('Cleaned code: "$code"');
+    debugPrint('Code length: ${code.length}');
+    debugPrint('Verification ID exists: ${_verificationId != null}');
+    if (_verificationId != null) {
+      debugPrint('Verification ID: ${_verificationId!.substring(0, _verificationId!.length > 30 ? 30 : _verificationId!.length)}...');
+    }
+    debugPrint('Phone number: $_fullPhoneNumber');
+    debugPrint('========================');
+    
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Введите код из SMS')),
@@ -225,15 +237,32 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
       return;
     }
 
-    if (_verificationId == null) {
+    // Проверяем длину кода (обычно 6 цифр, но может быть и другая)
+    if (code.length < 4 || code.length > 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Сначала отправьте SMS-код')),
+        const SnackBar(
+          content: Text('Код должен содержать от 4 до 10 цифр. Проверьте код из SMS.'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
-    debugPrint('Verifying code: $code'); // Для отладки
-    debugPrint('Verification ID: ${_verificationId?.substring(0, 20)}...'); // Для отладки
+    if (_verificationId == null || _verificationId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ошибка: не найден ID верификации. Запросите новый код.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      // Сбрасываем состояние
+      setState(() {
+        _isCodeSent = false;
+        _codeController.clear();
+        _verificationId = null;
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -241,66 +270,110 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
 
     try {
       final auth = FirebaseAuth.instance;
+      
+      debugPrint('Creating credential with code: $code');
+      
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: code,
       );
 
-      debugPrint('Credential created, signing in...'); // Для отладки
+      debugPrint('Credential created, attempting sign in...');
 
       final userCredential = await auth.signInWithCredential(credential);
       
-      debugPrint('Sign in successful, user: ${userCredential.user?.phoneNumber}'); // Для отладки
+      debugPrint('Sign in successful!');
+      debugPrint('User phone: ${userCredential.user?.phoneNumber}');
+      debugPrint('User ID: ${userCredential.user?.uid}');
       
       if (userCredential.user != null) {
         // Используем сохраненный полный номер в формате E.164
         final phoneNumber = _fullPhoneNumber ?? _phoneController.text.trim();
-        widget.onVerified(phoneNumber, code);
+        widget.onVerified(userCredential, phoneNumber);
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _isLoading = false;
       });
       
+      debugPrint('=== FIREBASE AUTH ERROR ===');
+      debugPrint('Error code: ${e.code}');
+      debugPrint('Error message: ${e.message}');
+      debugPrint('Error details: ${e.toString()}');
+      debugPrint('==========================');
+      
       String errorMessage = 'Неверный код';
+      bool shouldReset = false;
+      
       if (e.code == 'invalid-verification-code') {
-        errorMessage = 'Неверный код. Проверьте код и попробуйте снова.';
+        errorMessage = 'Неверный код. Убедитесь, что вы ввели код правильно из SMS.\n\n'
+            'Проверьте:\n'
+            '• Код должен содержать только цифры\n'
+            '• Код не должен содержать пробелов\n'
+            '• Введите код точно как в SMS';
       } else if (e.code == 'session-expired') {
-        errorMessage = 'Сессия истекла. Запросите новый код.';
-        // Сбрасываем состояние, чтобы пользователь мог запросить новый код
-        setState(() {
-          _isCodeSent = false;
-          _codeController.clear();
-          _verificationId = null;
-        });
+        errorMessage = 'Сессия истекла (таймаут 60 секунд). Запросите новый код.';
+        shouldReset = true;
       } else if (e.code == 'invalid-verification-id') {
-        errorMessage = 'Ошибка верификации. Запросите новый код.';
-        setState(() {
-          _isCodeSent = false;
-          _codeController.clear();
-          _verificationId = null;
-        });
+        errorMessage = 'Ошибка верификации. ID верификации недействителен. Запросите новый код.';
+        shouldReset = true;
+      } else if (e.code == 'code-expired') {
+        errorMessage = 'Код истек. Запросите новый код.';
+        shouldReset = true;
+      } else if (e.code == 'too-many-requests') {
+        errorMessage = 'Слишком много попыток. Подождите немного и попробуйте снова.';
       } else {
-        errorMessage = 'Ошибка: ${e.message ?? e.code}';
+        errorMessage = 'Ошибка верификации: ${e.message ?? e.code}\n\n'
+            'Код ошибки: ${e.code}';
       }
       
-      debugPrint('Verification error: ${e.code} - ${e.message}'); // Для отладки
+      if (shouldReset) {
+        setState(() {
+          _isCodeSent = false;
+          _codeController.clear();
+          _verificationId = null;
+          _resendToken = null;
+        });
+      }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    } catch (e) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Ошибка верификации'),
+            content: SingleChildScrollView(
+              child: Text(errorMessage),
+            ),
+            actions: [
+              if (shouldReset)
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    // Автоматически запрашиваем новый код
+                    _sendSmsCode();
+                  },
+                  child: const Text('Запросить новый код'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Понятно'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
       setState(() {
         _isLoading = false;
       });
-      debugPrint('Unexpected error during verification: $e'); // Для отладки
+      debugPrint('=== UNEXPECTED ERROR ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('=======================');
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ошибка верификации: $e'),
+          content: Text('Неожиданная ошибка: $e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
@@ -359,7 +432,7 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
           TextField(
             controller: _codeController,
             keyboardType: TextInputType.number,
-            maxLength: 6, // Обычно SMS коды состоят из 6 цифр
+            maxLength: 10, // SMS коды могут быть от 4 до 10 цифр
             inputFormatters: [
               // Разрешаем только цифры
               FilteringTextInputFormatter.digitsOnly,
@@ -400,18 +473,34 @@ class _PhoneLoginWidgetState extends ConsumerState<PhoneLoginWidget> {
                   ),
           ),
           const SizedBox(height: AppPadding.small),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _isCodeSent = false;
-                _isAutoVerified = false;
-                _codeController.clear();
-                _verificationId = null;
-                _resendToken = null;
-                _fullPhoneNumber = null; // Сбрасываем сохраненный номер
-              });
-            },
-            child: const Text('Изменить номер'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isCodeSent = false;
+                    _isAutoVerified = false;
+                    _codeController.clear();
+                    _verificationId = null;
+                    _resendToken = null;
+                    _fullPhoneNumber = null; // Сбрасываем сохраненный номер
+                  });
+                },
+                child: const Text('Изменить номер'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Повторная отправка кода
+                  setState(() {
+                    _codeController.clear();
+                    _isCodeSent = false;
+                  });
+                  _sendSmsCode(isResend: true);
+                },
+                child: const Text('Отправить код повторно'),
+              ),
+            ],
           ),
         ],
       ],

@@ -186,4 +186,30 @@ class AuthCollection {
       rethrow;
     }
   }
+
+  /// POST /auth/firebase-login
+  /// Авторизация через Firebase ID Token.
+  /// Если бэкенд не поддерживает этот endpoint, выбрасывает исключение.
+  /// Ответ оборачивается в {"data": ...}
+  Future<AuthResponse> loginWithFirebaseToken(String firebaseIdToken, String phoneNumber) async {
+    try {
+      final response = await dio.post(
+        '/auth/firebase-login',
+        data: {
+          'firebase_id_token': firebaseIdToken,
+          'phone': phoneNumber,
+        },
+      );
+      // Ответ оборачивается в {"data": ...}
+      return AuthResponse.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      // Если endpoint не найден (404), выбрасываем исключение
+      // чтобы в auth_notifier создать User из Firebase User
+      if (e.response?.statusCode == 404) {
+        throw AuthException('Firebase login endpoint not found', 404);
+      }
+      _handleError(e);
+      rethrow;
+    }
+  }
 }
