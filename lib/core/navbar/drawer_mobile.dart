@@ -36,14 +36,9 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
       route: '/organization',
     ),
     DrawerItem(
-      title: s.areas,
-      icon: Icons.area_chart,
-      route: '/areas',
-    ),
-    DrawerItem(
-      title: s.polygons,
+      title: 'Мониторинг',
       icon: Icons.map,
-      route: '/polygons',
+      route: '/monitoring',
     ),
     DrawerItem(
       title: s.tickets,

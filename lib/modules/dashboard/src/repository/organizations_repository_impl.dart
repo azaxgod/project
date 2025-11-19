@@ -69,6 +69,7 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
       headFullName: organization.headFullName,
       address: organization.address,
       phone: organization.phone,
+      isActive: organization.isActive,
     );
     return dto.toDomain();
   }

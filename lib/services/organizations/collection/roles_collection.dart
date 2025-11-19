@@ -213,6 +213,7 @@ class RolesCollection {
     String? headFullName,
     String? address,
     String? phone,
+    bool? isActive,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -233,6 +234,9 @@ class RolesCollection {
       }
       if (phone != null) {
         data['phone'] = phone;
+      }
+      if (isActive != null) {
+        data['is_active'] = isActive;
       }
 
       final response = await dio.put('/roles/organizations/$id', data: data);

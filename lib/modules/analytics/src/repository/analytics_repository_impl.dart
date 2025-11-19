@@ -70,8 +70,11 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
   }
 
   @override
-  Future<ContractsAnalyticsResponse> getContractsAnalytics() async {
-    return await collection.getContractsAnalytics();
+  Future<ContractsAnalyticsResponse> getContractsAnalytics({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    return await collection.getContractsAnalytics(from: from, to: to);
   }
 
   @override
@@ -126,4 +129,5 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
     );
   }
 }
+
 

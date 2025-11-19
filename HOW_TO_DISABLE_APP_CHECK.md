@@ -45,3 +45,4 @@ https://console.firebase.google.com/project/smsakimat/appcheck
 - Для разработки можно отключить
 - Для production рекомендуется правильно настроить App Check
 
+

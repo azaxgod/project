@@ -19,9 +19,8 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/organiz
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_error_state.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
+import 'package:akimat_project/core/ui/widgets/date_range_picker.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/widgets/ticket_create_dialog.dart';
-import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,69 +108,53 @@ class _TicketsContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = S.of(context)!;
     
+    debugPrint('_TicketsContent.build: data.tickets.length = ${data.tickets.length}');
+    debugPrint('_TicketsContent.build: state.statusFilter = ${state.statusFilter}');
+    debugPrint('_TicketsContent.build: state.contractorFilter = ${state.contractorFilter}');
+    debugPrint('_TicketsContent.build: state.areaFilter = ${state.areaFilter}');
+    debugPrint('_TicketsContent.build: state.contractFilter = ${state.contractFilter}');
+    
     // Фильтрация тикетов
+    // ВАЖНО: Фильтры status, contractor, area, contract, planned period уже применяются на сервере
+    // через query параметры в loadTickets(), поэтому НЕ нужно фильтровать их на клиенте повторно.
+    // Сервер уже вернул отфильтрованные данные.
+    // Применяем только фильтры, которые НЕ поддерживаются сервером (например, fact period).
     List<Ticket> filteredTickets = data.tickets;
     
-    if (state.statusFilter != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.status == state.statusFilter)
-          .toList();
-    }
+    // Фильтры по статусу, подрядчику, участку, контракту и плановому периоду
+    // уже применены на сервере через query параметры, поэтому НЕ применяем их повторно.
     
-    if (state.contractorFilter != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.contractorId == state.contractorFilter)
-          .toList();
-    }
-    
-    if (state.areaFilter != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.cleaningAreaId == state.areaFilter)
-          .toList();
-    }
-    
-    if (state.contractFilter != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.contractId == state.contractFilter)
-          .toList();
-    }
-    
-    // Фильтр по плановому периоду
-    if (state.periodStart != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.plannedStartAt.isAfter(state.periodStart!) || 
-                            ticket.plannedStartAt.isAtSameMomentAs(state.periodStart!))
-          .toList();
-    }
-    if (state.periodEnd != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.plannedEndAt.isBefore(state.periodEnd!) || 
-                            ticket.plannedEndAt.isAtSameMomentAs(state.periodEnd!))
-          .toList();
-    }
-    
-    // Фильтр по фактическому периоду
+    // Фильтр по фактическому периоду - может не поддерживаться на сервере,
+    // поэтому применяем на клиенте
     if (state.factPeriodStart != null) {
       filteredTickets = filteredTickets
           .where((ticket) => ticket.factStartAt != null && 
-                            ticket.factStartAt!.isAfter(state.factPeriodStart!) || 
-                            ticket.factStartAt!.isAtSameMomentAs(state.factPeriodStart!))
+                            (ticket.factStartAt!.isAfter(state.factPeriodStart!) || 
+                             ticket.factStartAt!.isAtSameMomentAs(state.factPeriodStart!)))
           .toList();
     }
     if (state.factPeriodEnd != null) {
       filteredTickets = filteredTickets
           .where((ticket) => ticket.factEndAt != null && 
-                            ticket.factEndAt!.isBefore(state.factPeriodEnd!) || 
-                            ticket.factEndAt!.isAtSameMomentAs(state.factPeriodEnd!))
+                            (ticket.factEndAt!.isBefore(state.factPeriodEnd!) || 
+                             ticket.factEndAt!.isAtSameMomentAs(state.factPeriodEnd!)))
           .toList();
     }
     
-    // Фильтр по роли: подрядчик видит только свои тикеты
-    if (state.role == UserRole.contractorAdmin && state.organizationId != null) {
-      filteredTickets = filteredTickets
-          .where((ticket) => ticket.contractorId == state.organizationId)
-          .toList();
+    // Фильтр по роли:
+    // - Подрядчик: сервер уже фильтрует тикеты по contractor_id из JWT токена через /contractor/tickets,
+    //   поэтому НЕ нужно фильтровать на клиенте повторно
+    // - Водитель видит только тикеты, где он назначен (TODO: реализовать через ticket_assignment)
+    // - Акимат и KGU ZKH видят все тикеты - сервер возвращает все тикеты через /akimat/tickets или /kgu/tickets
+    // 
+    // ВАЖНО: Не применяем дополнительную фильтрацию по contractorId для подрядчика,
+    // так как сервер уже вернул только его тикеты через endpoint /contractor/tickets
+    if (state.role == UserRole.driver && state.organizationId != null) {
+      // TODO: Фильтровать по ticket_assignment, когда будет реализована загрузка назначений
+      // Пока водитель видит все тикеты (временное решение)
+      filteredTickets = filteredTickets;
     }
+    // Подрядчик, Акимат и KGU ZKH - сервер уже применил фильтрацию, не фильтруем на клиенте
 
     return Container(
       margin: EdgeInsets.all(config.padding),
@@ -181,7 +164,7 @@ class _TicketsContent extends ConsumerWidget {
         border: Border.all(color: AppColors.divider, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: AppSize.shadowBlur,
             offset: const Offset(0, 2),
           ),
@@ -231,130 +214,163 @@ class _TicketsContent extends ConsumerWidget {
                 bottom: BorderSide(color: AppColors.divider, width: 0.5),
               ),
             ),
-            child: Wrap(
-              spacing: AppPadding.normal,
-              runSpacing: AppPadding.small,
-              children: [
-                // Status filter
-                SizedBox(
-                  width: 200,
-                  child: SafeDropdownButtonFormField<TicketStatus?>(
-                    value: state.statusFilter,
-                    decoration: InputDecoration(
-                      labelText: s.status,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                      ),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(s.all),
-                      ),
-                      DropdownMenuItem(
-                        value: TicketStatus.planned,
-                        child: Text(s.planned),
-                      ),
-                      DropdownMenuItem(
-                        value: TicketStatus.inProgress,
-                        child: Text(s.in_progress),
-                      ),
-                      DropdownMenuItem(
-                        value: TicketStatus.completed,
-                        child: Text(s.completed),
-                      ),
-                      DropdownMenuItem(
-                        value: TicketStatus.closed,
-                        child: Text(s.closed),
-                      ),
-                      DropdownMenuItem(
-                        value: TicketStatus.cancelled,
-                        child: Text(s.cancelled),
-                      ),
-                    ],
-                    onChanged: controller.setStatusFilter,
-                  ),
-                ),
-                // Contractor filter (только для KGU ZKH и Акимата)
-                if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin)
-                  SizedBox(
-                    width: 200,
-                    child: SafeDropdownButtonFormField<String?>(
-                      value: state.contractorFilter,
-                      decoration: InputDecoration(
-                        labelText: s.contractor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text(s.all),
-                        ),
-                        ...data.contractors.map(
-                          (contractor) => DropdownMenuItem(
-                            value: contractor.id,
-                            child: Text(contractor.name),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Адаптивная ширина для фильтров
+                final filterWidth = constraints.maxWidth > 800 
+                    ? 200.0 
+                    : (constraints.maxWidth - AppPadding.normal * 3) / 2;
+                
+                return Wrap(
+                  spacing: AppPadding.normal,
+                  runSpacing: AppPadding.small,
+                  children: [
+                    // Status filter
+                    SizedBox(
+                      width: filterWidth,
+                      child: SafeDropdownButtonFormField<TicketStatus?>(
+                        value: state.statusFilter,
+                        decoration: InputDecoration(
+                          labelText: s.status,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
                           ),
                         ),
-                      ],
-                      onChanged: controller.setContractorFilter,
-                  ),
-                ),
-                // Area filter
-                SizedBox(
-                  width: 200,
-                  child: SafeDropdownButtonFormField<String?>(
-                    value: state.areaFilter,
-                    decoration: InputDecoration(
-                      labelText: s.area,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                        items: [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text(s.all),
+                          ),
+                          DropdownMenuItem(
+                            value: TicketStatus.planned,
+                            child: Text(s.planned),
+                          ),
+                          DropdownMenuItem(
+                            value: TicketStatus.inProgress,
+                            child: Text(s.in_progress),
+                          ),
+                          DropdownMenuItem(
+                            value: TicketStatus.completed,
+                            child: Text(s.completed),
+                          ),
+                          DropdownMenuItem(
+                            value: TicketStatus.closed,
+                            child: Text(s.closed),
+                          ),
+                          DropdownMenuItem(
+                            value: TicketStatus.cancelled,
+                            child: Text(s.cancelled),
+                          ),
+                        ],
+                        onChanged: controller.setStatusFilter,
                       ),
                     ),
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(s.all),
-                      ),
-                      ...data.areas.map(
-                        (area) => DropdownMenuItem(
-                          value: area.id,
-                          child: Text(area.name),
+                    // Contractor filter (только для KGU ZKH и Акимата)
+                    if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin)
+                      SizedBox(
+                        width: filterWidth,
+                        child: SafeDropdownButtonFormField<String?>(
+                          value: state.contractorFilter,
+                          decoration: InputDecoration(
+                            labelText: s.contractor,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                            ),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: null,
+                              child: Text(s.all),
+                            ),
+                            ...data.contractors.map(
+                              (contractor) => DropdownMenuItem(
+                                value: contractor.id,
+                                child: Text(contractor.name),
+                              ),
+                            ),
+                          ],
+                          onChanged: controller.setContractorFilter,
                         ),
                       ),
-                    ],
-                    onChanged: controller.setAreaFilter,
-                  ),
-                ),
-                // Contract filter
-                SizedBox(
-                  width: 200,
-                  child: SafeDropdownButtonFormField<String?>(
-                    value: state.contractFilter,
-                    decoration: InputDecoration(
-                      labelText: s.contract,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                    // Area filter
+                    SizedBox(
+                      width: filterWidth,
+                      child: SafeDropdownButtonFormField<String?>(
+                        value: state.areaFilter,
+                        decoration: InputDecoration(
+                          labelText: s.area,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          ),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text(s.all),
+                          ),
+                          ...data.areas.map(
+                            (area) => DropdownMenuItem(
+                              value: area.id,
+                              child: Text(area.name),
+                            ),
+                          ),
+                        ],
+                        onChanged: controller.setAreaFilter,
                       ),
                     ),
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(s.all),
-                      ),
-                      ...data.contracts.map(
-                        (contract) => DropdownMenuItem(
-                          value: contract.id,
-                          child: Text(contract.name),
+                    // Contract filter
+                    SizedBox(
+                      width: filterWidth,
+                      child: SafeDropdownButtonFormField<String?>(
+                        value: state.contractFilter,
+                        decoration: InputDecoration(
+                          labelText: s.contract,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          ),
                         ),
+                        items: [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text(s.all),
+                          ),
+                          ...data.contracts.map(
+                            (contract) => DropdownMenuItem(
+                              value: contract.id,
+                              child: Text(contract.name),
+                            ),
+                          ),
+                        ],
+                        onChanged: controller.setContractFilter,
                       ),
-                    ],
-                    onChanged: controller.setContractFilter,
-                  ),
-                ),
-              ],
+                    ),
+                    // Фильтр по плановому периоду
+                    SizedBox(
+                      width: filterWidth * 2, // Шире для дат
+                      child: CustomDateRangePicker(
+                        label: 'Плановый период',
+                        initialStartDate: state.periodStart,
+                        initialEndDate: state.periodEnd,
+                        onDateRangeSelected: (start, end) {
+                          controller.setPeriodFilter(start, end);
+                        },
+                      ),
+                    ),
+                    // Фильтр по фактическому периоду
+                    SizedBox(
+                      width: filterWidth * 2, // Шире для дат
+                      child: CustomDateRangePicker(
+                        label: 'Фактический период',
+                        initialStartDate: state.factPeriodStart,
+                        initialEndDate: state.factPeriodEnd,
+                        onDateRangeSelected: (start, end) {
+                          controller.setFactPeriodFilter(start, end);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           // Table
@@ -371,11 +387,28 @@ class _TicketsContent extends ConsumerWidget {
                         ),
                         const SizedBox(height: AppPadding.normal),
                         Text(
-                          'Нет тикетов',
+                          data.tickets.isEmpty 
+                              ? 'Нет тикетов'
+                              : 'Нет тикетов, соответствующих фильтрам',
                           style: AppTextStyles.headline.copyWith(
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        if (data.tickets.isNotEmpty && filteredTickets.isEmpty) ...[
+                          const SizedBox(height: AppPadding.small),
+                          TextButton(
+                            onPressed: () {
+                              // Сбрасываем все фильтры
+                              controller.setStatusFilter(null);
+                              controller.setContractorFilter(null);
+                              controller.setAreaFilter(null);
+                              controller.setContractFilter(null);
+                              controller.setPeriodFilter(null, null);
+                              controller.setFactPeriodFilter(null, null);
+                            },
+                            child: const Text('Сбросить фильтры'),
+                          ),
+                        ],
                       ],
                     ),
                   )
@@ -392,6 +425,9 @@ class _TicketsContent extends ConsumerWidget {
                         DataColumn(label: Text(s.contract)),
                         DataColumn(label: Text(s.period)),
                         DataColumn(label: Text(s.status)),
+                        // Колонка "Назначено водителей" только для Подрядчика
+                        if (state.role == UserRole.contractorAdmin)
+                          DataColumn(label: Text('Назначено')),
                         DataColumn(label: Text(s.trips_count)),
                         DataColumn(label: Text(s.volume_shipped)),
                         DataColumn(label: Text(s.violations)),
@@ -453,6 +489,9 @@ class _TicketsContent extends ConsumerWidget {
                             '${DateFormat('dd.MM.yyyy').format(ticket.plannedStartAt)} - ${DateFormat('dd.MM.yyyy').format(ticket.plannedEndAt)}',
                           )),
                           DataCell(_StatusChip(status: ticket.status)),
+                          // Колонка "Назначено водителей" только для Подрядчика
+                          if (state.role == UserRole.contractorAdmin)
+                            DataCell(Text('${data.assignments[ticket.id]?.length ?? 0}')),
                           DataCell(Text('${ticket.tripsCount ?? 0}')),
                           DataCell(Text('${ticket.volumeShipped ?? 0} м³')),
                           DataCell(
@@ -491,6 +530,29 @@ class _TicketsContent extends ConsumerWidget {
                                         tooltip: s.close_ticket,
                                       ),
                                   ],
+                                  // Для Подрядчика: кнопка "Назначить" водителей/технику
+                                  if (state.role == UserRole.contractorAdmin && ticket.status != TicketStatus.cancelled && ticket.status != TicketStatus.closed)
+                                    IconButton(
+                                      icon: const Icon(Icons.person_add, size: 20),
+                                      onPressed: () {
+                                        _TicketsContent._showAssignmentDialog(context, ticket, data, controller);
+                                      },
+                                      tooltip: 'Назначить водителей/технику',
+                                    ),
+                                  // Для Подрядчика: перевод в IN_PROGRESS
+                                  if (state.role == UserRole.contractorAdmin && ticket.status == TicketStatus.planned)
+                                    IconButton(
+                                      icon: const Icon(Icons.play_arrow, size: 20, color: Colors.blue),
+                                      onPressed: () => controller.startTicket(ticket),
+                                      tooltip: 'Начать работы',
+                                    ),
+                                  // Для Подрядчика: перевод в COMPLETED
+                                  if (state.role == UserRole.contractorAdmin && ticket.status == TicketStatus.inProgress)
+                                    IconButton(
+                                      icon: const Icon(Icons.check_circle_outline, size: 20, color: Colors.green),
+                                      onPressed: () => controller.completeTicket(ticket),
+                                      tooltip: 'Завершить работы',
+                                    ),
                                 ],
                               ),
                             ),
@@ -505,6 +567,30 @@ class _TicketsContent extends ConsumerWidget {
                         ),
                       )
                     : const SizedBox(), // Для мобильной версии можно добавить ListView с карточками позже
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Диалог назначения водителей/техники на тикет
+  static void _showAssignmentDialog(
+    BuildContext context,
+    Ticket ticket,
+    TicketsData data,
+    TicketsController controller,
+  ) {
+    // TODO: Реализовать диалог назначения
+    // Пока показываем заглушку
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Назначить водителей/технику'),
+        content: const Text('Функция назначения будет реализована в следующей версии'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Закрыть'),
           ),
         ],
       ),
@@ -549,7 +635,7 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppPadding.small, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

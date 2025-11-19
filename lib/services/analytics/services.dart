@@ -8,3 +8,4 @@ class AnalyticsServices {
   final AnalyticsCollection collection;
 }
 
+

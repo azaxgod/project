@@ -11,7 +11,7 @@ class OrganizationsStatusChip extends StatelessWidget {
     return Chip(
       backgroundColor: color,
       label: Text(
-        isActive ? 'ACTIVE' : 'BLOCKED',
+        isActive ? 'Активен' : 'Заблокировано',
         style: const TextStyle(color: Colors.white),
       ),
     );

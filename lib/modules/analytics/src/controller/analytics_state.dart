@@ -88,3 +88,4 @@ class AnalyticsState extends Equatable {
       ];
 }
 
+

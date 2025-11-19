@@ -118,14 +118,19 @@ class AnalyticsController extends StateNotifier<AnalyticsState> {
   }
 
   /// Загрузить аналитику по контрактам
-  Future<void> loadContractsAnalytics() async {
+  Future<void> loadContractsAnalytics({DateTime? from, DateTime? to}) async {
     state = state.copyWith(
       contractsAnalytics: const AsyncLoading(),
+      dateFrom: from ?? state.dateFrom,
+      dateTo: to ?? state.dateTo,
     );
 
     state = state.copyWith(
       contractsAnalytics: await AsyncValue.guard(() async {
-        return await _repository.getContractsAnalytics();
+        return await _repository.getContractsAnalytics(
+          from: from ?? state.dateFrom,
+          to: to ?? state.dateTo,
+        );
       }),
     );
   }

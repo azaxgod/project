@@ -42,15 +42,19 @@ class ContractsState extends Equatable {
     ContractStatus? statusFilter,
     DateTime? periodStart,
     DateTime? periodEnd,
+    bool clearContractorFilter = false,
+    bool clearStatusFilter = false,
+    bool clearPeriodStart = false,
+    bool clearPeriodEnd = false,
   }) {
     return ContractsState(
       data: data ?? this.data,
       role: role ?? this.role,
       organizationId: organizationId ?? this.organizationId,
-      contractorFilter: contractorFilter ?? this.contractorFilter,
-      statusFilter: statusFilter ?? this.statusFilter,
-      periodStart: periodStart ?? this.periodStart,
-      periodEnd: periodEnd ?? this.periodEnd,
+      contractorFilter: clearContractorFilter ? null : (contractorFilter ?? this.contractorFilter),
+      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
+      periodStart: clearPeriodStart ? null : (periodStart ?? this.periodStart),
+      periodEnd: clearPeriodEnd ? null : (periodEnd ?? this.periodEnd),
     );
   }
 

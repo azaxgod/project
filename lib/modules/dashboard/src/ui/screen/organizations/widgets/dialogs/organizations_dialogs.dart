@@ -62,19 +62,16 @@ class OrganizationsDialogs {
                           if (value == null || value.isEmpty) {
                             return 'Введите БИН';
                           }
-                          if (data.organizations.any((org) => org.bin == value)) {
+                          // Валидация формата БИН: должен содержать только цифры и быть длиной 12 символов
+                          final binDigits = value.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (binDigits.length != 12) {
+                            return 'БИН должен содержать 12 цифр';
+                          }
+                          if (data.organizations.any((org) => org.bin == binDigits)) {
                             return 'Организация с таким БИН уже существует';
                           }
                           return null;
                         },
-                      ),
-                      OrganizationsTextField(
-                        controller: headController,
-                        label: 'ФИО руководителя',
-                      ),
-                      OrganizationsTextField(
-                        controller: addressController,
-                        label: 'Адрес',
                       ),
                       OrganizationsTextField(
                         controller: phoneController,
@@ -84,14 +81,54 @@ class OrganizationsDialogs {
                           if (value == null || value.isEmpty) {
                             return 'Введите номер телефона';
                           }
-                          final normalized = value.replaceAll(RegExp(r'\\s+'), '');
+                          // Нормализация номера: удаляем все пробелы, дефисы и скобки
+                          final normalized = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                          
+                          // Валидация формата казахстанского номера
+                          // Форматы: +7XXXXXXXXXX, 8XXXXXXXXXX, 7XXXXXXXXXX (10-11 цифр после кода страны)
+                          final phonePattern = RegExp(r'^(\+?7|8)?[0-9]{10}$');
+                          if (!phonePattern.hasMatch(normalized)) {
+                            return 'Введите корректный номер телефона (формат: +7XXXXXXXXXX или 8XXXXXXXXXX)';
+                          }
+                          
+                          // Нормализуем к формату +7XXXXXXXXXX для проверки дубликатов
+                          String normalizedForCheck = normalized;
+                          if (normalizedForCheck.startsWith('8')) {
+                            normalizedForCheck = '+7${normalizedForCheck.substring(1)}';
+                          } else if (normalizedForCheck.startsWith('7')) {
+                            normalizedForCheck = '+7${normalizedForCheck.substring(1)}';
+                          } else if (!normalizedForCheck.startsWith('+7')) {
+                            normalizedForCheck = '+7$normalizedForCheck';
+                          }
+                          
                           final occupied = data.organizations.any(
-                                (org) =>
-                                    org.phone?.replaceAll(RegExp(r'\\s+'), '') == normalized,
+                                (org) {
+                                  if (org.phone == null) return false;
+                                  final orgNormalized = org.phone!.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                                  String orgNormalizedForCheck = orgNormalized;
+                                  if (orgNormalizedForCheck.startsWith('8')) {
+                                    orgNormalizedForCheck = '+7${orgNormalizedForCheck.substring(1)}';
+                                  } else if (orgNormalizedForCheck.startsWith('7')) {
+                                    orgNormalizedForCheck = '+7${orgNormalizedForCheck.substring(1)}';
+                                  } else if (!orgNormalizedForCheck.startsWith('+7')) {
+                                    orgNormalizedForCheck = '+7$orgNormalizedForCheck';
+                                  }
+                                  return orgNormalizedForCheck == normalizedForCheck;
+                                },
                               ) ||
                               data.drivers.any(
-                                (driver) =>
-                                    driver.phone.replaceAll(RegExp(r'\\s+'), '') == normalized,
+                                (driver) {
+                                  final driverNormalized = driver.phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                                  String driverNormalizedForCheck = driverNormalized;
+                                  if (driverNormalizedForCheck.startsWith('8')) {
+                                    driverNormalizedForCheck = '+7${driverNormalizedForCheck.substring(1)}';
+                                  } else if (driverNormalizedForCheck.startsWith('7')) {
+                                    driverNormalizedForCheck = '+7${driverNormalizedForCheck.substring(1)}';
+                                  } else if (!driverNormalizedForCheck.startsWith('+7')) {
+                                    driverNormalizedForCheck = '+7$driverNormalizedForCheck';
+                                  }
+                                  return driverNormalizedForCheck == normalizedForCheck;
+                                },
                               );
                           if (occupied) {
                             return 'Номер уже используется';
@@ -99,6 +136,22 @@ class OrganizationsDialogs {
                           return null;
                         },
                       ),
+                      // Поле "Руководитель" для КГУ ЖКХ после телефона
+                      if (type == OrganizationType.kguZkh)
+                        OrganizationsTextField(
+                          controller: headController,
+                          label: 'Руководитель',
+                        ),
+                      if (type != OrganizationType.kguZkh) ...[
+                        OrganizationsTextField(
+                          controller: headController,
+                          label: 'ФИО руководителя',
+                        ),
+                        OrganizationsTextField(
+                          controller: addressController,
+                          label: 'Адрес',
+                        ),
+                      ],
                       if (type == OrganizationType.contractor)
                         SafeDropdownButtonFormField<String?>(
                           value: selectedParentOrgId,
@@ -135,18 +188,34 @@ class OrganizationsDialogs {
               FilledButton(
                 onPressed: () {
                   if (!formKey.currentState!.validate()) return;
+                  
+                  // Нормализация БИН: оставляем только цифры
+                  final binNormalized = binController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+                  
+                  // Нормализация телефона
+                  String phoneNormalized = phoneController.text.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                  if (phoneNormalized.startsWith('8')) {
+                    phoneNormalized = '+7${phoneNormalized.substring(1)}';
+                  } else if (phoneNormalized.startsWith('7') && !phoneNormalized.startsWith('+7')) {
+                    phoneNormalized = '+7${phoneNormalized.substring(1)}';
+                  } else if (!phoneNormalized.startsWith('+7')) {
+                    phoneNormalized = '+7$phoneNormalized';
+                  }
+                  
                   final organization = Organization(
                     id: '',
                     type: type,
                     name: nameController.text.trim(),
-                    bin: binController.text.trim(),
+                    bin: binNormalized,
                     headFullName: headController.text.trim().isEmpty
                         ? null
                         : headController.text.trim(),
-                    address: addressController.text.trim().isEmpty
+                    address: type == OrganizationType.kguZkh
                         ? null
-                        : addressController.text.trim(),
-                    phone: phoneController.text.trim(),
+                        : (addressController.text.trim().isEmpty
+                            ? null
+                            : addressController.text.trim()),
+                    phone: phoneNormalized,
                     parentOrgId: type == OrganizationType.contractor ? selectedParentOrgId : null,
                     isActive: true,
                   );

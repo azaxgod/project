@@ -96,3 +96,4 @@ flutter run
 - Роль `CONTRACTOR_ADMIN` установлена по умолчанию
 - Для получения Custom Claims можно добавить декодирование JWT токена
 
+

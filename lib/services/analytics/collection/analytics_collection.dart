@@ -23,21 +23,49 @@ class AnalyticsCollection {
     if (error.response != null) {
       final statusCode = error.response!.statusCode;
       final errorData = error.response!.data;
-      final errorMessage = errorData is Map && errorData.containsKey('error')
-          ? errorData['error'] as String
-          : error.message ?? 'Unknown error';
+      
+      // Пытаемся извлечь детальное сообщение об ошибке
+      String errorMessage;
+      if (errorData is Map) {
+        if (errorData.containsKey('error')) {
+          errorMessage = errorData['error'] is String 
+              ? errorData['error'] as String
+              : errorData['error'].toString();
+        } else if (errorData.containsKey('message')) {
+          errorMessage = errorData['message'] is String
+              ? errorData['message'] as String
+              : errorData['message'].toString();
+        } else {
+          errorMessage = errorData.toString();
+        }
+      } else if (errorData is String) {
+        errorMessage = errorData;
+      } else {
+        errorMessage = error.message ?? 'Unknown error';
+      }
+      
+      // Добавляем статус код к сообщению для 500 ошибок
+      if (statusCode == 500) {
+        errorMessage = 'Internal Server Error (500): $errorMessage\n\n'
+            'This is a server-side error. Please check:\n'
+            '- Server logs\n'
+            '- Database connection\n'
+            '- API endpoint implementation';
+      }
 
       switch (statusCode) {
         case 400:
-          throw AnalyticsException(errorMessage, 400);
+          throw AnalyticsException('Bad Request (400): $errorMessage', 400);
         case 401:
-          throw AnalyticsException(errorMessage, 401);
+          throw AnalyticsException('Unauthorized (401): Please check your authentication token', 401);
         case 403:
-          throw AnalyticsException(errorMessage, 403);
+          throw AnalyticsException('Forbidden (403): $errorMessage', 403);
         case 404:
-          throw AnalyticsException(errorMessage, 404);
+          throw AnalyticsException('Not Found (404): $errorMessage', 404);
+        case 500:
+          throw AnalyticsException(errorMessage, 500);
         default:
-          throw AnalyticsException(errorMessage, statusCode);
+          throw AnalyticsException('Error ($statusCode): $errorMessage', statusCode);
       }
     } else {
       String errorMessage;
@@ -97,6 +125,7 @@ class AnalyticsCollection {
 
       debugPrint('Analytics Dashboard - Request URL: /analytics/dashboard');
       debugPrint('Analytics Dashboard - Query params: $queryParams');
+      debugPrint('Analytics Dashboard - Full URL: ${dio.options.baseUrl}/analytics/dashboard');
       
       final response = await dio.get(
         '/analytics/dashboard',
@@ -104,10 +133,26 @@ class AnalyticsCollection {
       );
       
       debugPrint('Analytics Dashboard - Response status: ${response.statusCode}');
+      debugPrint('Analytics Dashboard - Response headers: ${response.headers}');
+      
+      if (response.statusCode != 200) {
+        debugPrint('Analytics Dashboard - Error response: ${response.data}');
+      }
       
       return DashboardResponse.fromJson(response.data);
     } on DioException catch (e) {
+      debugPrint('Analytics Dashboard - DioException: ${e.type}');
+      debugPrint('Analytics Dashboard - Error message: ${e.message}');
+      if (e.response != null) {
+        debugPrint('Analytics Dashboard - Error status: ${e.response!.statusCode}');
+        debugPrint('Analytics Dashboard - Error data: ${e.response!.data}');
+        debugPrint('Analytics Dashboard - Error headers: ${e.response!.headers}');
+      }
       _handleError(e);
+      rethrow;
+    } catch (e, stackTrace) {
+      debugPrint('Analytics Dashboard - Unexpected error: $e');
+      debugPrint('Analytics Dashboard - Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -239,9 +284,23 @@ class AnalyticsCollection {
 
   /// GET /analytics/contracts
   /// Получить аналитику по контрактам
-  Future<ContractsAnalyticsResponse> getContractsAnalytics() async {
+  Future<ContractsAnalyticsResponse> getContractsAnalytics({
+    DateTime? from,
+    DateTime? to,
+  }) async {
     try {
-      final response = await dio.get('/analytics/contracts');
+      final queryParams = <String, dynamic>{};
+      if (from != null) {
+        queryParams['from'] = _formatDateTime(from);
+      }
+      if (to != null) {
+        queryParams['to'] = _formatDateTime(to);
+      }
+
+      final response = await dio.get(
+        '/analytics/contracts',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
       return ContractsAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);

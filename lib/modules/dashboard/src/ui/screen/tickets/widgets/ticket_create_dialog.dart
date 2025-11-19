@@ -362,8 +362,9 @@ class TicketCreateDialog {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Тикет успешно создан'),
+                          content: const Text('Тикет успешно создан. Список обновлен.'),
                           backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 2),
                         ),
                       );
                       // TODO: Переход в карточку тикета после реализации

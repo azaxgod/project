@@ -6,12 +6,14 @@ import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_drivers
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_performance_page.dart';
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_technical_page.dart';
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_trips_page.dart';
+import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_trip_detail_page.dart';
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_violations_page.dart';
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_vehicles_page.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/auth/src/ui/login_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/akimat_home.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/areas_page.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/monitoring_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/organizations_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/polygons/polygons_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/tickets_page.dart';
@@ -49,11 +51,11 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
     final savedRoute = await RouteStorage.getLastRoute();
     if (savedRoute != null && savedRoute != '/login') {
       final validRoutes = [
-        '/home', '/dashboard', '/organization', '/areas', 
+        '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
         '/polygons', '/tickets', '/kgu/contracts', '/analytics',
         '/analytics/trips', '/analytics/violations', '/analytics/performance',
         '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
-        '/analytics/vehicles', '/analytics/technical', '/violations'
+        '/analytics/vehicles', '/analytics/technical', '/analytics/trips/:id', '/violations'
       ];
       if (validRoutes.contains(savedRoute)) {
         initialLocation = savedRoute;
@@ -100,6 +102,42 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
         ),
       ),
       GoRoute(
+        path: '/monitoring',
+        builder: (context, state) {
+          debugPrint('=== GoRoute /monitoring builder called ===');
+          try {
+            debugPrint('GoRoute /monitoring: Creating MonitoringPage');
+            final page = MonitoringPage(
+              scaffoldKey: GlobalKey<ScaffoldState>(),
+            );
+            debugPrint('GoRoute /monitoring: MonitoringPage created successfully, returning page');
+            return page;
+          } catch (e, stackTrace) {
+            debugPrint('=== GoRoute /monitoring builder ERROR: $e ===');
+            debugPrint('GoRoute /monitoring builder stack: $stackTrace');
+            // Возвращаем простую страницу с ошибкой вместо rethrow
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Ошибка создания страницы: $e'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => GoRouter.of(context).go('/dashboard'),
+                      child: const Text('Вернуться на главную'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+        },
+      ),
+      // Старые роуты оставляем для обратной совместимости
+      GoRoute(
         path: '/areas',
         builder: (context, state) => AreasPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
@@ -131,35 +169,61 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
       ),
       GoRoute(
         path: '/analytics/trips',
-        builder: (context, state) => const AnalyticsTripsPage(),
+        builder: (context, state) => AnalyticsTripsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/violations',
-        builder: (context, state) => const AnalyticsViolationsPage(),
+        builder: (context, state) => AnalyticsViolationsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/performance',
-        builder: (context, state) => const AnalyticsPerformancePage(),
+        builder: (context, state) => AnalyticsPerformancePage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/contracts',
-        builder: (context, state) => const AnalyticsContractsPage(),
+        builder: (context, state) => AnalyticsContractsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/areas',
-        builder: (context, state) => const AnalyticsAreasPage(),
+        builder: (context, state) => AnalyticsAreasPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/drivers',
-        builder: (context, state) => const AnalyticsDriversPage(),
+        builder: (context, state) => AnalyticsDriversPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/vehicles',
-        builder: (context, state) => const AnalyticsVehiclesPage(),
+        builder: (context, state) => AnalyticsVehiclesPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
       ),
       GoRoute(
         path: '/analytics/technical',
-        builder: (context, state) => const AnalyticsTechnicalPage(),
+        builder: (context, state) => AnalyticsTechnicalPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        ),
+      ),
+      GoRoute(
+        path: '/analytics/trips/:id',
+        builder: (context, state) {
+          final tripId = state.pathParameters['id']!;
+          return AnalyticsTripDetailPage(
+            tripId: tripId,
+            scaffoldKey: GlobalKey<ScaffoldState>(),
+          );
+        },
       ),
       GoRoute(
         path: '/violations',
@@ -179,12 +243,28 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
       ),
     ],
    redirect: (context, state) async {
+  debugPrint('=== GoRouter redirect called: ${state.matchedLocation} ===');
+  
+  // Получаем authState через Container из контекста
+  final container = ProviderScope.containerOf(context);
+  final authState = container.read(authNotifierProvider);
+  
+  debugPrint('GoRouter redirect: loggedIn=${authState.user != null}, location=${state.matchedLocation}');
+  
   final loggedIn = authState.user != null;
   final currentLocation = state.matchedLocation;
   final isLoggingIn = currentLocation == '/login';
 
+  // Сохраняем роут при каждой навигации (если пользователь авторизован и не на логине)
+  if (loggedIn && !isLoggingIn && currentLocation != '/login') {
+    RouteStorage.saveLastRoute(currentLocation).catchError((e) {
+      debugPrint('Error saving route in redirect: $e');
+    });
+  }
+
   // Если не авторизован и не на странице логина - перенаправить на логин
   if (!loggedIn && !isLoggingIn) {
+    debugPrint('GoRouter redirect: Not logged in, redirecting to /login');
     await RouteStorage.clearLastRoute();
     return '/login';
   }
@@ -193,7 +273,7 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
   if (loggedIn && isLoggingIn) {
     final savedRoute = await RouteStorage.getLastRoute();
     final validRoutes = [
-      '/home', '/dashboard', '/organization', '/areas', 
+      '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
       '/polygons', '/tickets', '/kgu/contracts', '/analytics',
       '/analytics/trips', '/analytics/violations', '/analytics/performance',
       '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
@@ -202,19 +282,22 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
     
     // Проверяем динамические роуты
     if (savedRoute != null && savedRoute.startsWith('/violations/')) {
+      debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
       return savedRoute;
     }
     
     if (savedRoute != null && validRoutes.contains(savedRoute)) {
+      debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
       return savedRoute;
     }
+    debugPrint('GoRouter redirect: No valid saved route, redirecting to /dashboard');
     return '/dashboard';
   }
 
   // Если авторизован - проверить валидность роута
   if (loggedIn) {
     final validRoutes = [
-      '/login', '/home', '/dashboard', '/organization', '/areas', 
+      '/login', '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
       '/polygons', '/tickets', '/kgu/contracts', '/analytics',
       '/analytics/trips', '/analytics/violations', '/analytics/performance',
       '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
@@ -223,22 +306,28 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
     
     // Проверяем динамические роуты (с параметрами)
     if (currentLocation.startsWith('/violations/')) {
+      debugPrint('GoRouter redirect: Allowing violations detail route');
       return null; // Разрешаем доступ к детальным страницам нарушений
     }
     
-    // Если роут валидный - оставить как есть (сохранение происходит через listener)
+    // Если роут валидный - оставить как есть
     if (validRoutes.contains(currentLocation)) {
+      debugPrint('GoRouter redirect: Route is valid, allowing: $currentLocation');
       return null;
     }
     
+    debugPrint('GoRouter redirect: Route is not valid: $currentLocation');
     // Если роут не валидный - перенаправить на сохраненный роут или dashboard
     final savedRoute = await RouteStorage.getLastRoute();
     if (savedRoute != null && validRoutes.contains(savedRoute)) {
+      debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
       return savedRoute;
     }
+    debugPrint('GoRouter redirect: Redirecting to /dashboard');
     return '/dashboard';
   }
 
+  debugPrint('GoRouter redirect: No redirect needed');
   return null;
 },
   );
@@ -246,7 +335,7 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
   // Сохраняем роут при навигации через listener
   router.routerDelegate.addListener(() {
     final currentLocation = router.routerDelegate.currentConfiguration.uri.path;
-    if (authState.user != null && currentLocation != '/login') {
+    if (finalAuthState.user != null && currentLocation != '/login') {
       // Сохраняем асинхронно, не блокируя навигацию
       RouteStorage.saveLastRoute(currentLocation).catchError((e) {
         debugPrint('Error saving route: $e');

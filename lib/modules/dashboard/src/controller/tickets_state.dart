@@ -3,6 +3,7 @@ import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.da
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
+import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -74,10 +75,10 @@ class TicketsState extends Equatable {
       role: role ?? this.role,
       organizationId: organizationId ?? this.organizationId,
       selectedTicket: selectedTicket,
-      statusFilter: statusFilter ?? this.statusFilter,
-      contractorFilter: contractorFilter ?? this.contractorFilter,
-      areaFilter: areaFilter ?? this.areaFilter,
-      contractFilter: contractFilter ?? this.contractFilter,
+      statusFilter: statusFilter,
+      contractorFilter: contractorFilter,
+      areaFilter: areaFilter,
+      contractFilter: contractFilter,
       periodStart: periodStart ?? this.periodStart,
       periodEnd: periodEnd ?? this.periodEnd,
       factPeriodStart: factPeriodStart ?? this.factPeriodStart,
@@ -110,28 +111,32 @@ class TicketsData extends Equatable {
     required this.contractors,
     required this.areas,
     required this.contracts,
+    this.assignments = const {},
   });
 
   final List<Ticket> tickets;
   final List<Organization> contractors;
   final List<CleaningArea> areas;
   final List<Contract> contracts;
+  final Map<String, List<TicketAssignment>> assignments; // ticketId -> assignments
 
   TicketsData copyWith({
     List<Ticket>? tickets,
     List<Organization>? contractors,
     List<CleaningArea>? areas,
     List<Contract>? contracts,
+    Map<String, List<TicketAssignment>>? assignments,
   }) {
     return TicketsData(
       tickets: tickets ?? this.tickets,
       contractors: contractors ?? this.contractors,
       areas: areas ?? this.areas,
       contracts: contracts ?? this.contracts,
+      assignments: assignments ?? this.assignments,
     );
   }
 
   @override
-  List<Object?> get props => [tickets, contractors, areas, contracts];
+  List<Object?> get props => [tickets, contractors, areas, contracts, assignments];
 }
 

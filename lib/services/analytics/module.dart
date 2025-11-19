@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/analytics/collection/analytics_collection.dart';
 import 'package:akimat_project/services/analytics/services.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provider для Dio с настройкой для analytics-service
@@ -25,8 +26,26 @@ final analyticsDioProvider = Provider<Dio>((ref) {
         final token = await TokenStorage.getAccessToken();
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
+          debugPrint('Analytics API - JWT token added (length: ${token.length})');
+        } else {
+          debugPrint('Analytics API - WARNING: No JWT token found!');
         }
+        debugPrint('Analytics API - Request: ${options.method} ${options.baseUrl}${options.path}');
+        debugPrint('Analytics API - Query params: ${options.queryParameters}');
+        debugPrint('Analytics API - Headers: ${options.headers}');
         handler.next(options);
+      },
+      onResponse: (response, handler) {
+        debugPrint('Analytics API - Response: ${response.statusCode} ${response.requestOptions.path}');
+        handler.next(response);
+      },
+      onError: (error, handler) {
+        debugPrint('Analytics API - Error: ${error.type}');
+        if (error.response != null) {
+          debugPrint('Analytics API - Error status: ${error.response!.statusCode}');
+          debugPrint('Analytics API - Error data: ${error.response!.data}');
+        }
+        handler.next(error);
       },
     ),
   );

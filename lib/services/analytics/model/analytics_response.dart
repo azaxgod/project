@@ -1,4 +1,5 @@
 // Модели ответов API аналитики
+import 'package:flutter/foundation.dart';
 
 class DashboardResponse {
   final DashboardData data;
@@ -114,20 +115,50 @@ class DashboardContract {
   final String? uiStatus;
   final double? budgetProgress;
   final double? volumeProgress;
+  final DateTime? startAt;
+  final DateTime? endAt;
 
   DashboardContract({
     required this.contractId,
     this.uiStatus,
     this.budgetProgress,
     this.volumeProgress,
+    this.startAt,
+    this.endAt,
   });
 
   factory DashboardContract.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        try {
+          return DateTime.parse(value).toLocal();
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    final contractId = json['contract_id'] as String;
+    final startAt = parseDateTime(json['start_at'] ?? json['startAt']);
+    final endAt = parseDateTime(json['end_at'] ?? json['endAt']);
+    
+    // Логирование для отладки
+    if (startAt == null || endAt == null) {
+      debugPrint('DashboardContract ($contractId): start_at or end_at is missing');
+      debugPrint('  JSON keys: ${json.keys.toList()}');
+      debugPrint('  start_at: ${json['start_at']}, startAt: ${json['startAt']}');
+      debugPrint('  end_at: ${json['end_at']}, endAt: ${json['endAt']}');
+    }
+
     return DashboardContract(
-      contractId: json['contract_id'] as String,
+      contractId: contractId,
       uiStatus: json['ui_status'] as String?,
       budgetProgress: (json['budget_progress'] as num?)?.toDouble(),
       volumeProgress: (json['volume_progress'] as num?)?.toDouble(),
+      startAt: startAt,
+      endAt: endAt,
     );
   }
 }

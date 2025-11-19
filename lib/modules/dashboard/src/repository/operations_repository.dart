@@ -1,6 +1,9 @@
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
+import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_monitoring.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
+import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 
 /// Результат получения камеры и полигона
 class CameraPolygonResult {
@@ -120,4 +123,88 @@ abstract class OperationsRepository {
 
   /// Получить камеру и связанный полигон
   Future<CameraPolygonResult> getCameraPolygon(String cameraId);
+
+  // ==================== Monitoring ====================
+
+  /// Получить список техники с последними GPS-координатами
+  Future<List<VehicleMonitoring>> getVehiclesLive({
+    double? minLat,
+    double? minLon,
+    double? maxLat,
+    double? maxLon,
+    String? contractorId,
+  });
+
+  /// Получить трек машины за период
+  Future<VehicleTrack> getVehicleTrack(
+    String vehicleId, {
+    DateTime? from,
+    DateTime? to,
+  });
+
+  // ==================== Tickets ====================
+
+  /// Получить список тикетов
+  Future<List<Ticket>> loadTickets({
+    TicketStatus? status,
+    String? contractorId,
+    String? cleaningAreaId,
+    String? contractId,
+    DateTime? plannedStartFrom,
+    DateTime? plannedStartTo,
+    DateTime? plannedEndFrom,
+    DateTime? plannedEndTo,
+    DateTime? factStartFrom,
+    DateTime? factStartTo,
+    DateTime? factEndFrom,
+    DateTime? factEndTo,
+    String? driverId,
+  });
+
+  /// Получить тикет по ID
+  Future<Ticket> getTicket(String id);
+
+  /// Создать тикет
+  Future<Ticket> createTicket({
+    required String cleaningAreaId,
+    required String contractorId,
+    required String contractId,
+    required DateTime plannedStartAt,
+    required DateTime plannedEndAt,
+    String? description,
+    String? createdByOrgId,
+  });
+
+  /// Обновить тикет
+  Future<Ticket> updateTicket(
+    String id, {
+    String? cleaningAreaId,
+    String? contractorId,
+    String? contractId,
+    DateTime? plannedStartAt,
+    DateTime? plannedEndAt,
+    String? description,
+    TicketStatus? status,
+  });
+
+  /// Изменить статус тикета
+  Future<Ticket> updateTicketStatus(
+    String id, {
+    required TicketStatus status,
+  });
+
+  // ==================== Ticket Assignments ====================
+
+  /// Получить назначения тикета
+  Future<List<TicketAssignment>> getTicketAssignments(String ticketId);
+
+  /// Создать назначение
+  Future<TicketAssignment> createTicketAssignment(
+    String ticketId, {
+    String? driverId,
+    String? vehicleId,
+  });
+
+  /// Удалить назначение
+  Future<void> deleteTicketAssignment(String ticketId, String assignmentId);
 }

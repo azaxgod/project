@@ -38,3 +38,4 @@ class ViolationsState extends Equatable {
       ];
 }
 
+

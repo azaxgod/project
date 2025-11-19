@@ -5,6 +5,7 @@ import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.da
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
+import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/contracts_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/contracts_repository_impl.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
@@ -14,6 +15,8 @@ import 'package:akimat_project/modules/dashboard/src/repository/organizations_re
 import 'package:akimat_project/services/contracts/module.dart';
 import 'package:akimat_project/services/operations/module.dart';
 import 'package:akimat_project/services/organizations/module.dart';
+import 'package:akimat_project/services/tickets/module.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final contractsRepositoryProvider = Provider<ContractsRepository>((ref) {
@@ -34,6 +37,8 @@ final ticketsControllerProvider = StateNotifierProvider<TicketsController, Ticke
     contractsRepository: ref.watch(contractsRepositoryProvider),
     operationsRepository: OperationsRepositoryImpl(
       services: ref.watch(operationsServicesProvider),
+      ticketsServices: ref.watch(ticketsServicesProvider),
+      userRole: role,
     ),
     initialState: TicketsState.initial(
       role: role,
@@ -70,7 +75,16 @@ class TicketsController extends StateNotifier<TicketsState> {
             .toList();
 
         // Load areas from operations repository
-        final areas = await _operationsRepository.loadCleaningAreas(onlyActive: true);
+        // Обрабатываем ошибки загрузки участков отдельно, чтобы не ломать всю страницу
+        List<CleaningArea> areas = [];
+        try {
+          areas = await _operationsRepository.loadCleaningAreas(onlyActive: true);
+        } catch (e) {
+          // Если не удалось загрузить участки, продолжаем с пустым списком
+          // Пользователь все равно сможет работать с тикетами
+          debugPrint('TicketsController: Failed to load cleaning areas: $e');
+          // Можно показать предупреждение пользователю, но не блокировать работу
+        }
 
         // Load contracts from contract-service
         List<Contract> contracts = [];
@@ -86,18 +100,93 @@ class TicketsController extends StateNotifier<TicketsState> {
           }
         } catch (e) {
           // Игнорируем ошибки загрузки контрактов, продолжаем работу
-          // Ошибка будет видна в UI через AsyncValue
+          debugPrint('TicketsController: Failed to load contracts: $e');
         }
 
-        // TODO: Load tickets from repository when implemented
-        final tickets = <Ticket>[];
+        // Load tickets from operations repository
+        List<Ticket> tickets = [];
+        try {
+          // Фильтруем по роли
+          // ВАЖНО: Для подрядчика НЕ передаем contractorId в loadTickets(),
+          // так как endpoint /contractor/tickets автоматически фильтрует по contractor_id из JWT токена
+          String? contractorFilter;
+          String? driverFilter;
+          
+          // Для подрядчика НЕ устанавливаем contractorFilter, так как сервер сам фильтрует по JWT
+          // Для других ролей (Akimat, KGU ZKH) можно передать contractorFilter для фильтрации
+          if (state.role != UserRole.contractorAdmin && state.role != UserRole.driver) {
+            contractorFilter = state.contractorFilter;
+          } else if (state.role == UserRole.driver && state.organizationId != null) {
+            // TODO: Получить driverId из organizationId или из authState
+            // Пока используем organizationId как driverId (временное решение)
+            driverFilter = state.organizationId;
+          }
 
-        return TicketsData(
+          debugPrint('TicketsController._loadData: Loading tickets with filters:');
+          debugPrint('  - role: ${state.role}');
+          debugPrint('  - organizationId: ${state.organizationId}');
+          debugPrint('  - statusFilter: ${state.statusFilter}');
+          debugPrint('  - contractorFilter: ${contractorFilter ?? state.contractorFilter} (will be ignored for contractor)');
+          debugPrint('  - areaFilter: ${state.areaFilter}');
+          debugPrint('  - contractFilter: ${state.contractFilter}');
+          debugPrint('  - periodStart: ${state.periodStart}');
+          debugPrint('  - periodEnd: ${state.periodEnd}');
+
+          tickets = await _operationsRepository.loadTickets(
+            status: state.statusFilter,
+            contractorId: contractorFilter ?? state.contractorFilter,
+            cleaningAreaId: state.areaFilter,
+            contractId: state.contractFilter,
+            plannedStartFrom: state.periodStart,
+            plannedStartTo: state.periodEnd,
+            factStartFrom: state.factPeriodStart,
+            factStartTo: state.factPeriodEnd,
+            driverId: driverFilter,
+          );
+          
+          debugPrint('TicketsController._loadData: Loaded ${tickets.length} tickets');
+          if (tickets.isNotEmpty) {
+            debugPrint('TicketsController._loadData: First ticket status: ${tickets.first.status}');
+            debugPrint('TicketsController._loadData: First ticket ID: ${tickets.first.id}');
+            debugPrint('TicketsController._loadData: First ticket contractorId: ${tickets.first.contractorId}');
+            debugPrint('TicketsController._loadData: Expected organizationId: ${state.organizationId}');
+          } else {
+            debugPrint('TicketsController._loadData: No tickets loaded!');
+          }
+        } catch (e, stackTrace) {
+          // Если не удалось загрузить тикеты, продолжаем с пустым списком
+          debugPrint('TicketsController: Failed to load tickets: $e');
+          debugPrint('TicketsController: Stack trace: $stackTrace');
+        }
+
+        // Загружаем назначения для всех тикетов (только для Подрядчика, Акимата и KGU ZKH)
+        Map<String, List<TicketAssignment>> assignments = {};
+        if (state.role == UserRole.contractorAdmin || state.role == UserRole.akimatAdmin || state.role == UserRole.kguZkhAdmin) {
+          for (final ticket in tickets) {
+            try {
+              final ticketAssignments = await _operationsRepository.getTicketAssignments(ticket.id);
+              assignments[ticket.id] = ticketAssignments;
+            } catch (e) {
+              debugPrint('TicketsController: Failed to load assignments for ticket ${ticket.id}: $e');
+              assignments[ticket.id] = [];
+            }
+          }
+        }
+
+        final ticketsData = TicketsData(
           tickets: tickets,
           contractors: contractors,
           areas: areas,
           contracts: contracts,
+          assignments: assignments,
         );
+        
+        debugPrint('TicketsController._loadData: Created TicketsData with ${ticketsData.tickets.length} tickets');
+        debugPrint('TicketsController._loadData: TicketsData contractors: ${ticketsData.contractors.length}');
+        debugPrint('TicketsController._loadData: TicketsData areas: ${ticketsData.areas.length}');
+        debugPrint('TicketsController._loadData: TicketsData contracts: ${ticketsData.contracts.length}');
+        
+        return ticketsData;
       }),
     );
   }
@@ -110,18 +199,22 @@ class TicketsController extends StateNotifier<TicketsState> {
 
   void setStatusFilter(TicketStatus? status) {
     state = state.copyWith(statusFilter: status);
+    _loadData();
   }
 
   void setContractorFilter(String? contractorId) {
     state = state.copyWith(contractorFilter: contractorId);
+    _loadData();
   }
 
   void setAreaFilter(String? areaId) {
     state = state.copyWith(areaFilter: areaId);
+    _loadData();
   }
 
   void setContractFilter(String? contractId) {
     state = state.copyWith(contractFilter: contractId);
+    _loadData();
   }
 
   void setPeriodFilter(DateTime? start, DateTime? end) {
@@ -129,6 +222,7 @@ class TicketsController extends StateNotifier<TicketsState> {
       periodStart: start,
       periodEnd: end,
     );
+    _loadData();
   }
 
   void setFactPeriodFilter(DateTime? start, DateTime? end) {
@@ -136,27 +230,29 @@ class TicketsController extends StateNotifier<TicketsState> {
       factPeriodStart: start,
       factPeriodEnd: end,
     );
+    _loadData();
   }
 
   Future<void> cancelTicket(Ticket ticket) async {
-    // Отмена тикета возможна только если нет фактов
+    // Отмена тикета возможна только если нет фактов:
+    // - нет trip с этим ticket_id
+    // - fact_start_at IS NULL
     if (ticket.factStartAt != null || (ticket.tripsCount ?? 0) > 0) {
       state = state.copyWith(
-        message: 'Невозможно отменить тикет с фактами работ',
+        message: 'Невозможно отменить тикет с фактами работ. Убедитесь, что нет рейсов и фактического начала работ.',
       );
       return;
     }
 
     final result = await AsyncValue.guard(() async {
-      // TODO: Implement repository method
-      return ticket.copyWith(
+      return await _operationsRepository.updateTicketStatus(
+        ticket.id,
         status: TicketStatus.cancelled,
-        updatedAt: DateTime.now(),
       );
     });
 
     state = state.copyWith(
-      lastAction: result.whenData((_) => null),
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
       message: result.hasError ? 'Ошибка при отмене тикета' : 'Тикет отменен',
     );
 
@@ -175,15 +271,15 @@ class TicketsController extends StateNotifier<TicketsState> {
     }
 
     final result = await AsyncValue.guard(() async {
-      // TODO: Implement repository method
-      return ticket.copyWith(
+      // TODO: Добавить проверки перед закрытием (все рейсы закрыты, объем на выезде ≈ 0)
+      return await _operationsRepository.updateTicketStatus(
+        ticket.id,
         status: TicketStatus.closed,
-        updatedAt: DateTime.now(),
       );
     });
 
     state = state.copyWith(
-      lastAction: result.whenData((_) => null),
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
       message: result.hasError ? 'Ошибка при закрытии тикета' : 'Тикет закрыт',
     );
 
@@ -194,13 +290,62 @@ class TicketsController extends StateNotifier<TicketsState> {
 
   Future<void> createTicket(Ticket ticket) async {
     final result = await AsyncValue.guard(() async {
-      // TODO: Implement repository method
-      return ticket;
+      return await _operationsRepository.createTicket(
+        cleaningAreaId: ticket.cleaningAreaId,
+        contractorId: ticket.contractorId,
+        contractId: ticket.contractId,
+        plannedStartAt: ticket.plannedStartAt,
+        plannedEndAt: ticket.plannedEndAt,
+        description: ticket.description,
+        createdByOrgId: ticket.createdByOrgId,
+      );
+    });
+
+    if (!result.hasError) {
+      // ВАЖНО: Сбрасываем фильтры ПЕРЕД загрузкой данных, чтобы новый тикет был виден
+      state = state.copyWith(
+        statusFilter: null,
+        contractorFilter: null,
+        areaFilter: null,
+        contractFilter: null,
+        periodStart: null,
+        periodEnd: null,
+        factPeriodStart: null,
+        factPeriodEnd: null,
+        lastAction: result.whenData((_) => const AsyncValue.data(null)),
+        message: 'Тикет создан',
+      );
+      // Обновляем данные после сброса фильтров
+      await _loadData();
+    } else {
+      state = state.copyWith(
+        lastAction: result.whenData((_) => const AsyncValue.data(null)),
+        message: 'Ошибка при создании тикета',
+      );
+    }
+  }
+
+  Future<void> updateTicket(Ticket ticket) async {
+    final result = await AsyncValue.guard(() async {
+      // KGU ZKH может редактировать только до начала фактов
+      if (ticket.factStartAt != null || (ticket.tripsCount ?? 0) > 0) {
+        throw Exception('Невозможно редактировать тикет с фактами работ');
+      }
+      
+      return await _operationsRepository.updateTicket(
+        ticket.id,
+        cleaningAreaId: ticket.cleaningAreaId,
+        contractorId: ticket.contractorId,
+        contractId: ticket.contractId,
+        plannedStartAt: ticket.plannedStartAt,
+        plannedEndAt: ticket.plannedEndAt,
+        description: ticket.description,
+      );
     });
 
     state = state.copyWith(
-      lastAction: result.whenData((_) => null),
-      message: result.hasError ? 'Ошибка при создании тикета' : 'Тикет создан',
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при обновлении тикета' : 'Тикет обновлен',
     );
 
     if (!result.hasError) {
@@ -208,15 +353,81 @@ class TicketsController extends StateNotifier<TicketsState> {
     }
   }
 
-  Future<void> updateTicket(Ticket ticket) async {
+  /// Назначить водителя/технику на тикет
+  Future<void> assignDriverVehicle({
+    required String ticketId,
+    String? driverId,
+    String? vehicleId,
+  }) async {
     final result = await AsyncValue.guard(() async {
-      // TODO: Implement repository method
-      return ticket;
+      return await _operationsRepository.createTicketAssignment(
+        ticketId,
+        driverId: driverId,
+        vehicleId: vehicleId,
+      );
     });
 
     state = state.copyWith(
-      lastAction: result.whenData((_) => null),
-      message: result.hasError ? 'Ошибка при обновлении тикета' : 'Тикет обновлен',
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при назначении' : 'Назначение создано',
+    );
+
+    if (!result.hasError) {
+      await _loadData();
+    }
+  }
+
+  /// Удалить назначение
+  Future<void> removeAssignment(String ticketId, String assignmentId) async {
+    final result = await AsyncValue.guard(() async {
+      await _operationsRepository.deleteTicketAssignment(ticketId, assignmentId);
+    });
+
+    state = state.copyWith(
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при удалении назначения' : 'Назначение удалено',
+    );
+
+    if (!result.hasError) {
+      await _loadData();
+    }
+  }
+
+  /// Перевести тикет в IN_PROGRESS
+  Future<void> startTicket(Ticket ticket) async {
+    final result = await AsyncValue.guard(() async {
+      return await _operationsRepository.updateTicketStatus(
+        ticket.id,
+        status: TicketStatus.inProgress,
+      );
+    });
+
+    state = state.copyWith(
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при начале работ' : 'Работы начаты',
+    );
+
+    if (!result.hasError) {
+      await _loadData();
+    }
+  }
+
+  /// Перевести тикет в COMPLETED (с проверками)
+  Future<void> completeTicket(Ticket ticket) async {
+    // TODO: Реализовать проверки:
+    // - Все рейсы закрыты (polygon_exit_time заполнено)
+    // - Объём на выезде ≈ 0 для рейсов с exit_volume_event
+    // Пока просто переводим в COMPLETED
+    final result = await AsyncValue.guard(() async {
+      return await _operationsRepository.updateTicketStatus(
+        ticket.id,
+        status: TicketStatus.completed,
+      );
+    });
+
+    state = state.copyWith(
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при завершении работ' : 'Работы завершены',
     );
 
     if (!result.hasError) {

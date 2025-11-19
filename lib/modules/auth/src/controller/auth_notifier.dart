@@ -92,29 +92,59 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _loadUserFromToken() async {
     state = state.copyWith(isCheckingToken: true);
     try {
-      // Ждем немного, чтобы Firebase Auth успел восстановить состояние (особенно на вебе)
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Сначала проверяем токен бэкенда (он сохраняется в localStorage на вебе)
+      final accessToken = await TokenStorage.getAccessToken();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        debugPrint('AuthNotifier: Found access token, restoring user from backend');
+        try {
+          // Восстанавливаем пользователя через токен бэкенда
+          final authResponse = await repo.meFromToken(accessToken);
+          state = state.copyWith(
+            isCheckingToken: false,
+            user: authResponse.user,
+          );
+          debugPrint('AuthNotifier: User restored from backend token: ${authResponse.user.role}');
+          return;
+        } catch (e) {
+          debugPrint('AuthNotifier: Error restoring user from token: $e');
+          // Если токен невалидный, очищаем его
+          await TokenStorage.saveAccessToken('');
+          await TokenStorage.saveRefreshToken('');
+        }
+      }
       
-      // Проверяем Firebase Auth вместо токенов бэкенда
+      // Если токена нет или он невалидный, проверяем Firebase Auth (для мобильных устройств)
+      debugPrint('AuthNotifier: No valid backend token, checking Firebase Auth...');
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
+        debugPrint('AuthNotifier: Firebase user found, creating User object');
         // Создаем User из Firebase User
         final user = await _createUserFromFirebase(firebaseUser);
         state = state.copyWith(isCheckingToken: false, user: user);
+        debugPrint('AuthNotifier: User restored from Firebase: ${user.role}');
       } else {
-        // На вебе может потребоваться больше времени для восстановления
-        // Ждем еще немного и проверяем снова
-        await Future.delayed(const Duration(milliseconds: 300));
-        final firebaseUserRetry = FirebaseAuth.instance.currentUser;
-        if (firebaseUserRetry != null) {
-          final user = await _createUserFromFirebase(firebaseUserRetry);
-          state = state.copyWith(isCheckingToken: false, user: user);
-        } else {
-          state = state.copyWith(isCheckingToken: false, user: null);
+        // На вебе может потребоваться еще больше времени для восстановления
+        // Ждем еще и проверяем снова (до 2 секунд)
+        debugPrint('AuthNotifier: No Firebase user found, waiting longer...');
+        for (int i = 0; i < 5; i++) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          final firebaseUserRetry = FirebaseAuth.instance.currentUser;
+          if (firebaseUserRetry != null) {
+            debugPrint('AuthNotifier: Firebase user found on retry $i');
+            final user = await _createUserFromFirebase(firebaseUserRetry);
+            state = state.copyWith(isCheckingToken: false, user: user);
+            debugPrint('AuthNotifier: User restored successfully on retry: ${user.role}');
+            return;
+          }
         }
+        debugPrint('AuthNotifier: No user found after all retries');
+        state = state.copyWith(isCheckingToken: false, user: null);
       }
-    } catch (e) {
-      debugPrint('Error loading user from Firebase: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error loading user: $e');
+      debugPrint('Stack trace: $stackTrace');
       state = state.copyWith(isCheckingToken: false, user: null);
     }
   }
@@ -155,24 +185,155 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  String? _verificationId;
+  String? _phoneNumber; // Сохраняем номер для верификации
+
+  /// Отправка SMS-кода через Firebase Phone Authentication
   Future<void> sendSms(String phone) async {
     state = state.copyWith(isLoggingIn: true, error: null);
     try {
-      await repo.sendSms(phone);
-      state = state.copyWith(isLoggingIn: false, error: null);
+      // Нормализуем номер телефона (добавляем + если нужно)
+      String normalizedPhone = phone.trim();
+      if (!normalizedPhone.startsWith('+')) {
+        // Если номер начинается с 8, заменяем на +7
+        if (normalizedPhone.startsWith('8')) {
+          normalizedPhone = '+7${normalizedPhone.substring(1)}';
+        } else if (normalizedPhone.startsWith('7')) {
+          normalizedPhone = '+$normalizedPhone';
+        } else {
+          // Предполагаем, что это казахстанский номер
+          normalizedPhone = '+7$normalizedPhone';
+        }
+      }
+
+      debugPrint('AuthNotifier: Sending SMS to: $normalizedPhone');
+      
+      // Отправляем код через Firebase Phone Authentication
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: normalizedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Автоматическая верификация (на Android)
+          debugPrint('AuthNotifier: Auto verification completed');
+          try {
+            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+            if (userCredential.user != null) {
+              final user = await _createUserFromFirebase(userCredential.user!);
+              state = state.copyWith(isLoggingIn: false, user: user, error: null);
+            }
+          } catch (e) {
+            debugPrint('AuthNotifier: Error in auto verification: $e');
+            state = state.copyWith(isLoggingIn: false, error: e.toString());
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          debugPrint('AuthNotifier: Verification failed: ${e.code} - ${e.message}');
+          String errorMessage = 'Ошибка отправки SMS';
+          if (e.code == 'invalid-phone-number') {
+            errorMessage = 'Неверный номер телефона';
+          } else if (e.code == 'too-many-requests') {
+            errorMessage = 'Слишком много запросов. Попробуйте позже';
+          } else if (e.code == 'quota-exceeded') {
+            errorMessage = 'Превышен лимит запросов. Попробуйте позже';
+          } else {
+            errorMessage = e.message ?? 'Ошибка отправки SMS';
+          }
+          state = state.copyWith(isLoggingIn: false, error: errorMessage);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          debugPrint('AuthNotifier: Code sent, verificationId: $verificationId');
+          _verificationId = verificationId;
+          _phoneNumber = normalizedPhone; // Сохраняем нормализованный номер
+          state = state.copyWith(isLoggingIn: false, error: null);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          debugPrint('AuthNotifier: Code auto retrieval timeout');
+          _verificationId = verificationId;
+        },
+        timeout: const Duration(seconds: 60),
+      );
     } catch (e) {
-      final errorMessage = e is AuthException ? e.message : e.toString();
+      debugPrint('AuthNotifier: Error sending SMS: $e');
+      final errorMessage = e.toString();
       state = state.copyWith(isLoggingIn: false, error: errorMessage);
     }
   }
 
+  /// Верификация SMS-кода через Firebase Phone Authentication
   Future<void> verifySms(String phone, String code) async {
+    if (_verificationId == null) {
+      state = state.copyWith(isLoggingIn: false, error: 'Сначала запросите код');
+      return;
+    }
+
     state = state.copyWith(isLoggingIn: true, error: null);
     try {
-      final authResponse = await repo.verifySms(phone, code);
-      state = state.copyWith(isLoggingIn: false, user: authResponse.user, error: null);
+      debugPrint('AuthNotifier: Verifying code with verificationId: $_verificationId');
+      
+      // Создаем credential из verificationId и кода
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: code.trim(),
+      );
+
+      // Входим с credential
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      if (userCredential.user != null) {
+        debugPrint('AuthNotifier: Phone verification successful');
+        
+        // Создаем User из Firebase User
+        final user = await _createUserFromFirebase(userCredential.user!);
+        
+        // Получаем ID Token для отправки на бэкенд (если нужно)
+        final idToken = await userCredential.user!.getIdToken();
+        if (idToken == null || idToken.isEmpty) {
+          throw Exception('Failed to get Firebase ID token');
+        }
+        
+        // Пробуем отправить Firebase ID Token на бэкенд для получения токенов бэкенда
+        try {
+          // Используем сохраненный номер или переданный
+          final phoneForBackend = _phoneNumber != null ? _phoneNumber! : phone.trim();
+          if (phoneForBackend.isEmpty) {
+            throw Exception('Phone number is required');
+          }
+          final authResponse = await repo.loginWithFirebaseToken(idToken, phoneForBackend);
+          // Сохраняем токены бэкенда
+          if (authResponse.accessToken.isNotEmpty) {
+            await TokenStorage.saveAccessToken(authResponse.accessToken);
+          }
+          if (authResponse.refreshToken.isNotEmpty) {
+            await TokenStorage.saveRefreshToken(authResponse.refreshToken);
+          }
+          state = state.copyWith(isLoggingIn: false, user: authResponse.user, error: null);
+        } catch (e) {
+          // Если бэкенд не поддерживает Firebase token, используем User из Firebase
+          debugPrint('AuthNotifier: Backend login failed, using Firebase user: $e');
+          state = state.copyWith(isLoggingIn: false, user: user, error: null);
+        }
+        
+        // Очищаем verificationId
+        _verificationId = null;
+        _phoneNumber = null;
+      } else {
+        throw Exception('User credential is null');
+      }
+    } on FirebaseAuthException catch (e) {
+      debugPrint('AuthNotifier: Firebase verification error: ${e.code} - ${e.message}');
+      String errorMessage = 'Неверный код';
+      if (e.code == 'invalid-verification-code') {
+        errorMessage = 'Неверный код подтверждения';
+      } else if (e.code == 'session-expired') {
+        errorMessage = 'Сессия истекла. Запросите новый код';
+        _verificationId = null;
+        _phoneNumber = null;
+      } else {
+        errorMessage = e.message ?? 'Ошибка верификации';
+      }
+      state = state.copyWith(isLoggingIn: false, error: errorMessage);
     } catch (e) {
-      final errorMessage = e is AuthException ? e.message : e.toString();
+      debugPrint('AuthNotifier: Error verifying SMS: $e');
+      final errorMessage = e.toString();
       state = state.copyWith(isLoggingIn: false, error: errorMessage);
     }
   }

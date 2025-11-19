@@ -85,3 +85,4 @@ state.dashboard?.when(
 - `lib/core/di.dart` - DI провайдеры
 - `lib/core/routes/app_routes.dart` - роуты
 
+

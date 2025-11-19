@@ -1,7 +1,6 @@
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
-import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
@@ -36,7 +35,7 @@ class OrganizationsKguZkhTab extends StatelessWidget {
         OrganizationsTabHeader(
           title: s.kgu_zkh,
           subtitle: 'Создание, редактирование и блокировка КГУ ЖКХ',
-          actionLabel: '+ Добавить КГУ ЖКХ',
+          actionLabel: 'Добавить КГУ ЖКХ',
           onAction: () => OrganizationsDialogs.showOrganizationDialog(
             context: context,
             controller: controller,
@@ -63,10 +62,10 @@ class OrganizationsKguZkhTab extends StatelessWidget {
             rows: organizations.map((organization) {
               return DataRow(
                 cells: [
-                  DataCell(Text(organization.name)),
-                  DataCell(Text(organization.bin)),
-                  DataCell(Text(organization.headFullName ?? '—')),
-                  DataCell(Text(organization.phone ?? '—')),
+                  DataCell(Text(organization.name, overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(organization.bin, overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(organization.headFullName ?? '—', overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(organization.phone ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(OrganizationsStatusChip(isActive: organization.isActive)),
                   DataCell(
                     OrganizationsTableActions(

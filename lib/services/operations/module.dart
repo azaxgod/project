@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/operations/collection/operations_collection.dart';
 import 'package:akimat_project/services/operations/services.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final operationsDioProvider = Provider<Dio>((ref) {
@@ -26,9 +27,24 @@ final operationsDioProvider = Provider<Dio>((ref) {
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        
+        // Логирование запросов для отладки
+        debugPrint('OperationsService Request: ${options.method} ${options.uri}');
+        debugPrint('OperationsService Headers: ${options.headers}');
+        debugPrint('OperationsService Query params: ${options.queryParameters}');
+        
         handler.next(options);
       },
       onError: (error, handler) async {
+        // Логирование ошибок для отладки
+        debugPrint('OperationsService Error: ${error.type}');
+        debugPrint('OperationsService Error URL: ${error.requestOptions.uri}');
+        debugPrint('OperationsService Error Method: ${error.requestOptions.method}');
+        debugPrint('OperationsService Error Status: ${error.response?.statusCode}');
+        debugPrint('OperationsService Error Data: ${error.response?.data}');
+        debugPrint('OperationsService Error Headers: ${error.response?.headers}');
+        debugPrint('OperationsService Error Message: ${error.message}');
+        
         // Автоматический refresh токена при 401
         if (error.response?.statusCode == 401) {
           final refreshToken = await TokenStorage.getRefreshToken();

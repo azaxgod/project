@@ -9,3 +9,4 @@ final analyticsControllerProvider =
   return AnalyticsController(repository: repository);
 });
 
+

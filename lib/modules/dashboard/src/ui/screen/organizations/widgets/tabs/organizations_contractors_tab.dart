@@ -1,6 +1,5 @@
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
-import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
@@ -78,15 +77,14 @@ class OrganizationsContractorsTab extends StatelessWidget {
                                 (org.type == OrganizationType.kguZkh || org.type == OrganizationType.too),
                             orElse: () => contractor,
                           )
-                          .name ??
-                      '—';
+                          .name;
               return DataRow(
                 cells: [
-                  DataCell(Text(contractor.name)),
-                  DataCell(Text(contractor.bin)),
-                  if (_shouldShowParentColumn) DataCell(Text(parentName)),
-                  DataCell(Text(contractor.headFullName ?? '—')),
-                  DataCell(Text(contractor.phone ?? '—')),
+                  DataCell(Text(contractor.name, overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(contractor.bin, overflow: TextOverflow.ellipsis)),
+                  if (_shouldShowParentColumn) DataCell(Text(parentName, overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(contractor.headFullName ?? '—', overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(contractor.phone ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(OrganizationsStatusChip(isActive: contractor.isActive)),
                   DataCell(
                     OrganizationsTableActions(

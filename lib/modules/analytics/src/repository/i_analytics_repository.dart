@@ -37,7 +37,10 @@ abstract class IAnalyticsRepository {
   });
 
   /// Получить аналитику по контрактам
-  Future<ContractsAnalyticsResponse> getContractsAnalytics();
+  Future<ContractsAnalyticsResponse> getContractsAnalytics({
+    DateTime? from,
+    DateTime? to,
+  });
 
   /// Получить аналитику по участкам
   Future<AreasAnalyticsResponse> getAreasAnalytics({
@@ -67,4 +70,5 @@ abstract class IAnalyticsRepository {
     DateTime? to,
   });
 }
+
 

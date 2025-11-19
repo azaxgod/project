@@ -67,12 +67,18 @@ class ContractsController extends StateNotifier<ContractsState> {
   Future<void> refresh() => _loadData();
 
   void setContractorFilter(String? contractorId) {
-    state = state.copyWith(contractorFilter: contractorId);
+    state = state.copyWith(
+      contractorFilter: contractorId,
+      clearContractorFilter: contractorId == null,
+    );
     _loadData();
   }
 
   void setStatusFilter(ContractStatus? status) {
-    state = state.copyWith(statusFilter: status);
+    state = state.copyWith(
+      statusFilter: status,
+      clearStatusFilter: status == null,
+    );
     _loadData();
   }
 

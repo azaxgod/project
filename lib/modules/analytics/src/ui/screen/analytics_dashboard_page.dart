@@ -7,13 +7,26 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/ui/widgets/date_range_picker.dart';
+import 'package:akimat_project/core/utils/file_downloader.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/analytics/src/controller/analytics_controller.dart';
 import 'package:akimat_project/modules/analytics/src/controller/analytics_providers.dart';
+import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_kpi_card.dart';
+import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_section.dart';
+import 'package:akimat_project/modules/analytics/src/ui/widgets/shimmer_loading.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/contracts_controller.dart';
+import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.dart';
+import 'package:akimat_project/services/acts/module.dart';
 import 'package:akimat_project/services/analytics/model/analytics_response.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 class AnalyticsDashboardPage extends ConsumerStatefulWidget {
   const AnalyticsDashboardPage({
@@ -34,21 +47,36 @@ class AnalyticsDashboardPage extends ConsumerStatefulWidget {
 class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage> {
   DateTime? _dateFrom;
   DateTime? _dateTo;
+  String? _selectedContractId;
 
   @override
   void initState() {
     super.initState();
-    // Устанавливаем диапазон по умолчанию (последние 7 дней)
+    // Устанавливаем диапазон по умолчанию (текущий месяц)
+    // Используем текущий месяц вместо последних 7 дней, чтобы избежать проблем
+    // с контрактами, которые начались недавно
     final now = DateTime.now();
     _dateTo = now;
-    _dateFrom = now.subtract(const Duration(days: 7));
+    _dateFrom = DateTime(now.year, now.month, 1); // Первый день текущего месяца
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(analyticsControllerProvider.notifier).loadDashboard(
+      final controller = ref.read(analyticsControllerProvider.notifier);
+      controller.loadDashboard(
         from: _dateFrom,
         to: _dateTo,
       );
+      // Также загружаем отфильтрованные контракты при инициализации
+      if (_dateFrom != null && _dateTo != null) {
+        controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+      }
     });
+  }
+
+  /// Проверяет, может ли пользователь генерировать акты
+  bool _canGenerateActs(UserRole role) {
+    return role == UserRole.akimatAdmin ||
+        role == UserRole.kguZkhAdmin ||
+        role == UserRole.contractorAdmin;
   }
 
   @override
@@ -58,7 +86,6 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final s = S.of(context)!;
     final state = ref.watch(analyticsControllerProvider);
     final controller = ref.read(analyticsControllerProvider.notifier);
-    final config = PlatformConfig.instance;
 
     return Scaffold(
       key: widget.scaffoldKey,
@@ -87,21 +114,94 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           Expanded(
             child: state.dashboard?.when(
               data: (data) => _buildDashboardContent(data, controller),
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => _buildLoadingState(),
               error: (error, stack) => Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppPadding.large),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Ошибка загрузки данных: $error'),
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Ошибка загрузки данных',
+                        style: AppTextStyles.title.copyWith(
+                          color: Colors.red,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(AppPadding.normal),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryBackground,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          error.toString(),
+                          style: AppTextStyles.body,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     const SizedBox(height: 16),
-                    ElevatedButton(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
                       onPressed: () => controller.loadDashboard(
                         from: _dateFrom,
                         to: _dateTo,
                       ),
-                      child: const Text('Повторить'),
-                    ),
-                  ],
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Повторить'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: () {
+                              // Показать детали ошибки
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Детали ошибки'),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('Ошибка:', style: AppTextStyles.title2),
+                                        const SizedBox(height: 4),
+                                        Text(error.toString()),
+                                        if (stack != null) ...[
+                                          const SizedBox(height: 16),
+                                          Text('Stack trace:', style: AppTextStyles.title2),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            stack.toString(),
+                                            style: AppTextStyles.caption,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      child: const Text('Закрыть'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('Детали'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ) ?? const Center(child: CircularProgressIndicator()),
@@ -114,54 +214,301 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   Widget _buildDashboardContent(DashboardResponse dashboardData, AnalyticsController controller) {
     final stats = dashboardData.data.stats;
     final contractors = dashboardData.data.contractors;
-    final contracts = dashboardData.data.contracts;
+    final dashboardContracts = dashboardData.data.contracts;
     final cameras = dashboardData.data.cameras;
     final config = PlatformConfig.instance;
+    
+    // Получаем отфильтрованные контракты из contractsAnalytics (если доступны)
+    final state = ref.watch(analyticsControllerProvider);
+    final contractsAnalyticsData = state.contractsAnalytics?.valueOrNull;
+    
+    // Используем отфильтрованные контракты из /analytics/contracts, если они доступны
+    // Иначе используем контракты из дашборда
+    List<DashboardContract> contractsToUse;
+    if (contractsAnalyticsData != null && _dateFrom != null && _dateTo != null) {
+      // Преобразуем ContractSummary в DashboardContract для отображения
+      final filteredContractIds = contractsAnalyticsData.data.summary
+          .map((c) => c.contractId)
+          .toSet();
+      
+      // Также добавляем контракты из других списков (topBudget, atRisk, budgetIssues)
+      filteredContractIds.addAll(contractsAnalyticsData.data.topBudget.map((c) => c.contractId));
+      filteredContractIds.addAll(contractsAnalyticsData.data.atRisk.map((c) => c.contractId));
+      filteredContractIds.addAll(contractsAnalyticsData.data.budgetIssues.map((c) => c.contractId));
+      
+      // Фильтруем контракты из дашборда по ID из contractsAnalytics
+      contractsToUse = dashboardContracts.where((contract) {
+        return filteredContractIds.contains(contract.contractId);
+      }).toList();
+    } else {
+      // Если contractsAnalytics не загружены, используем контракты из дашборда
+      contractsToUse = dashboardContracts;
+    }
+    
+    // Дополнительная фильтрация по выбранному контракту
+    // Если выбран контракт из списка созданных контрактов, показываем только его
+    final filteredContracts = _selectedContractId != null
+        ? contractsToUse.where((contract) => contract.contractId == _selectedContractId).toList()
+        : contractsToUse;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(config.padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Кнопки управления (дата и обновление) - только для веба или вверху контента
-          if (kIsWeb)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.date_range),
-                  tooltip: 'Выбрать период',
-                  onPressed: () => _showDateRangePicker(context, controller),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Обновить',
-                  onPressed: () => controller.loadDashboard(
-                    from: _dateFrom,
-                    to: _dateTo,
-                  ),
+          // Красивый виджет выбора даты и кнопка обновления
+          Container(
+            margin: const EdgeInsets.only(bottom: AppPadding.large),
+            padding: const EdgeInsets.all(AppPadding.normal),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppSize.cardRadius),
+              border: Border.all(color: AppColors.divider, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.divider.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppPadding.normal),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.date_range),
-                    tooltip: 'Выбрать период',
-                    onPressed: () => _showDateRangePicker(context, controller),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Обновить',
-                    onPressed: () => controller.loadDashboard(
-                      from: _dateFrom,
-                      to: _dateTo,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Выбор контракта из созданных контрактов
+                Builder(
+                  builder: (context) {
+                    final contractsState = ref.watch(contractsControllerProvider);
+                    final contractsData = contractsState.data.valueOrNull;
+                    final allContracts = contractsData?.contracts ?? <Contract>[];
+                    
+                    // Фильтруем контракты по выбранной дате (если дата выбрана)
+                    List<Contract> contractsToShow = allContracts;
+                    if (_dateFrom != null && _dateTo != null) {
+                      contractsToShow = allContracts.where((contract) {
+                        final contractStart = DateTime(contract.startAt.year, contract.startAt.month, contract.startAt.day);
+                        final contractEnd = DateTime(contract.endAt.year, contract.endAt.month, contract.endAt.day);
+                        final selectedFrom = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
+                        final selectedTo = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
+                        
+                        // Показываем контракты, которые активны в выбранный период
+                        return contractStart.isBefore(selectedTo.add(const Duration(days: 1))) &&
+                               contractEnd.isAfter(selectedFrom.subtract(const Duration(days: 1)));
+                      }).toList();
+                    }
+                    
+                    if (contractsToShow.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Выберите контракт',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: AppPadding.small),
+                        SizedBox(
+                          width: double.infinity,
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedContractId,
+                            decoration: InputDecoration(
+                              labelText: 'Контракт',
+                              hintText: 'Все контракты',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                              ),
+                              prefixIcon: const Icon(Icons.description),
+                              isDense: true,
+                            ),
+                            items: [
+                              const DropdownMenuItem<String>(
+                                value: null,
+                                child: Text('Все контракты'),
+                              ),
+                              ...contractsToShow.map((contract) {
+                                return DropdownMenuItem<String>(
+                                  value: contract.id,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        contract.name,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        '${DateFormat('dd.MM.yyyy').format(contract.startAt)} - ${DateFormat('dd.MM.yyyy').format(contract.endAt)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedContractId = value;
+                                
+                                // Если выбран контракт, устанавливаем его период как выбранную дату
+                                if (value != null) {
+                                  final selectedContract = contractsToShow.firstWhere((c) => c.id == value);
+                                  _dateFrom = selectedContract.startAt;
+                                  _dateTo = selectedContract.endAt;
+                                  
+                                  // Обновляем данные аналитики
+                                  final analyticsController = ref.read(analyticsControllerProvider.notifier);
+                                  analyticsController.loadDashboard(from: _dateFrom, to: _dateTo);
+                                  analyticsController.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: AppPadding.normal),
+                      ],
+                    );
+                  },
+                ),
+                // Выбор даты
+                Row(
+                  children: [
+                    Expanded(
+                      child: CustomDateRangePicker(
+                        label: 'Период аналитики',
+                        initialStartDate: _dateFrom,
+                        initialEndDate: _dateTo,
+                        onDateRangeSelected: (start, end) {
+                          setState(() {
+                            _dateFrom = start;
+                            _dateTo = end;
+                            // При изменении даты сбрасываем выбранный контракт, чтобы показать все контракты в новом периоде
+                            if (start != null && end != null) {
+                              _selectedContractId = null;
+                            }
+                          });
+                          if (start != null && end != null) {
+                            controller.updateDateRange(start, end);
+                            controller.loadDashboard(from: start, to: end);
+                            // Перезагружаем контракты с фильтром по дате
+                            controller.loadContractsAnalytics(from: start, to: end);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: AppPadding.normal),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.refresh, color: AppColors.primary),
+                        tooltip: 'Обновить данные',
+                        onPressed: () {
+                          controller.loadDashboard(from: _dateFrom, to: _dateTo);
+                          // Всегда загружаем отфильтрованные контракты при обновлении
+                          if (_dateFrom != null && _dateTo != null) {
+                            controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                // Информация о выбранном контракте
+                if (_selectedContractId != null) ...[
+                  const SizedBox(height: AppPadding.normal),
+                  Container(
+                    padding: const EdgeInsets.all(AppPadding.small),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Builder(
+                      builder: (context) {
+                        final contractsState = ref.watch(contractsControllerProvider);
+                        final contractsData = contractsState.data.valueOrNull;
+                        final allCreatedContracts = contractsData?.contracts ?? <Contract>[];
+                        final selectedCreatedContract = _selectedContractId != null
+                            ? allCreatedContracts.where((c) => c.id == _selectedContractId).firstOrNull
+                            : null;
+                        
+                        if (selectedCreatedContract == null) {
+                          return Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: AppPadding.small),
+                              Expanded(
+                                child: Text(
+                                  'Выбран контракт: ${_selectedContractId!.substring(0, 12)}...\n'
+                                  'При скачивании акта будет использован период действия контракта',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: AppPadding.small),
+                                Expanded(
+                                  child: Text(
+                                    'Выбран контракт: ${selectedCreatedContract.name}',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Период: ${DateFormat('dd.MM.yyyy').format(selectedCreatedContract.startAt)} - ${DateFormat('dd.MM.yyyy').format(selectedCreatedContract.endAt)}',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'При скачивании акта будет использован период действия контракта',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
+                ],
                 ],
               ),
             ),
@@ -169,20 +516,20 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           Row(
             children: [
               Expanded(
-                child: _buildKPICard(
-                  'Активные рейсы',
-                  stats.activeTrips.toString(),
-                  Icons.directions_car,
-                  Colors.blue,
+                child: AnimatedKPICard(
+                  title: 'Активные рейсы',
+                  value: stats.activeTrips.toString(),
+                  icon: Icons.directions_car,
+                  color: Colors.blue,
                 ),
               ),
               const SizedBox(width: AppPadding.normal),
               Expanded(
-                child: _buildKPICard(
-                  'Завершено рейсов',
-                  stats.completedTrips.toString(),
-                  Icons.check_circle,
-                  Colors.green,
+                child: AnimatedKPICard(
+                  title: 'Завершено рейсов',
+                  value: stats.completedTrips.toString(),
+                  icon: Icons.check_circle,
+                  color: Colors.green,
                 ),
               ),
             ],
@@ -191,42 +538,78 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           Row(
             children: [
               Expanded(
-                child: _buildKPICard(
-                  'Нарушения',
-                  stats.violations.toString(),
-                  Icons.warning,
-                  Colors.orange,
+                child: AnimatedKPICard(
+                  title: 'Нарушения',
+                  value: stats.violations.toString(),
+                  icon: Icons.warning,
+                  color: Colors.orange,
                 ),
               ),
               const SizedBox(width: AppPadding.normal),
               Expanded(
-                child: _buildKPICard(
-                  'Тикеты в работе',
-                  stats.ticketsInProgress.toString(),
-                  Icons.assignment,
-                  Colors.purple,
+                child: AnimatedKPICard(
+                  title: 'Тикеты в работе',
+                  value: stats.ticketsInProgress.toString(),
+                  icon: Icons.assignment,
+                  color: Colors.purple,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppPadding.large),
           
+          // Карта
+          if (dashboardData.data.map.areas.isNotEmpty || 
+              dashboardData.data.map.polygons.isNotEmpty)
+            AnimatedSection(
+              title: 'Карта города',
+              icon: Icons.map,
+              child: _buildMapSection(dashboardData.data.map),
+            ),
+          
+          if (dashboardData.data.map.areas.isNotEmpty || 
+              dashboardData.data.map.polygons.isNotEmpty)
+          const SizedBox(height: AppPadding.large),
+          
           // Подрядчики
-          _buildSection(
-            'Подрядчики',
-            Column(
+          AnimatedSection(
+            title: 'Подрядчики',
+            icon: Icons.business,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (contractors.active.isNotEmpty) ...[
-                  const Text('В работе:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  ...contractors.active.map((c) => _buildContractorCard(c, true)),
+                  Text(
+                    'В работе:',
+                    style: AppTextStyles.headline.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...contractors.active.asMap().entries.map((entry) {
+                    return _buildAnimatedContractorCard(
+                      entry.value,
+                      true,
+                      entry.key,
+                    );
+                  }),
                 ],
                 if (contractors.idle.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  const Text('Без работы:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  ...contractors.idle.map((c) => _buildContractorCard(c, false)),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Без работы:',
+                    style: AppTextStyles.headline.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...contractors.idle.asMap().entries.map((entry) {
+                    return _buildAnimatedContractorCard(
+                      entry.value,
+                      false,
+                      contractors.active.length + entry.key,
+                    );
+                  }),
                 ],
               ],
             ),
@@ -234,25 +617,49 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           
           const SizedBox(height: AppPadding.large),
           
-          // Контракты
-          _buildSection(
-            'Контракты',
-            contracts.isEmpty
-                ? const Text('Нет данных')
+          // Контракты (фильтруются по выбранной дате и контракту)
+          AnimatedSection(
+            title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
+            icon: Icons.description,
+            child: filteredContracts.isEmpty
+                ? Center(
+                    child: Text(
+                      _selectedContractId != null
+                          ? 'Контракт не найден в выбранном периоде'
+                          : 'Нет данных',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  )
                 : Column(
-                    children: contracts.map((c) => _buildContractCard(c)).toList(),
+                    children: filteredContracts.asMap().entries.map((entry) {
+                      return _buildAnimatedContractCard(entry.value, entry.key);
+                    }).toList(),
                   ),
           ),
           
           const SizedBox(height: AppPadding.large),
           
           // Камеры
-          _buildSection(
-            'Камеры',
-            cameras.isEmpty
-                ? const Text('Нет данных')
+          AnimatedSection(
+            title: 'Камеры',
+            icon: Icons.videocam,
+            child: cameras.isEmpty
+                ? Center(
+                  
+                    // padding: const EdgeInsets.all(AppPadding.large),
+                    child: Text(
+                      'Нет данных',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  )
                 : Column(
-                    children: cameras.map((c) => _buildCameraCard(c)).toList(),
+                    children: cameras.asMap().entries.map((entry) {
+                      return _buildAnimatedCameraCard(entry.value, entry.key);
+                    }).toList(),
                   ),
           ),
         ],
@@ -260,135 +667,745 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     );
   }
 
-  Widget _buildKPICard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.large),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
+  Widget _buildLoadingState() {
+    final config = PlatformConfig.instance;
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(config.padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: AppTextStyles.body),
-              Icon(icon, color: color),
+              Expanded(child: ShimmerCard()),
+              const SizedBox(width: AppPadding.normal),
+              Expanded(child: ShimmerCard()),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(value, style: AppTextStyles.title.copyWith(fontSize: 24)),
+          const SizedBox(height: AppPadding.normal),
+          Row(
+            children: [
+              Expanded(child: ShimmerCard()),
+              const SizedBox(width: AppPadding.normal),
+              Expanded(child: ShimmerCard()),
+            ],
+          ),
+          const SizedBox(height: AppPadding.large),
+          ShimmerCard(height: 200),
         ],
       ),
     );
   }
 
-  Widget _buildSection(String title, Widget content) {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.large),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTextStyles.title),
-          const SizedBox(height: AppPadding.normal),
-          content,
-        ],
-      ),
+  Widget _buildAnimatedContractorCard(
+    DashboardContractor contractor,
+    bool isActive,
+    int index,
+  ) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 300 + (index * 50)),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: _buildContractorCard(contractor, isActive),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAnimatedContractCard(DashboardContract contract, int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 300 + (index * 50)),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: _buildContractCard(contract),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAnimatedCameraCard(DashboardCamera camera, int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 300 + (index * 50)),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: _buildCameraCard(camera),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildContractorCard(DashboardContractor contractor, bool isActive) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        color: isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isActive
+              ? [
+                  Colors.green.withOpacity(0.15),
+                  Colors.green.withOpacity(0.05),
+                ]
+              : [
+                  Colors.grey.withOpacity(0.1),
+                  Colors.grey.withOpacity(0.05),
+                ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? Colors.green.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(contractor.name, style: AppTextStyles.body),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.green : Colors.grey,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                contractor.name,
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
           if (contractor.count != null)
-            Text('${contractor.count} рейсов', style: AppTextStyles.caption),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? Colors.green.withOpacity(0.2)
+                    : Colors.grey.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${contractor.count} рейсов',
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isActive ? Colors.green.shade700 : Colors.grey.shade700,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildContractCard(DashboardContract contract) {
+    final budgetProgress = contract.budgetProgress ?? 0.0;
+    final volumeProgress = contract.volumeProgress ?? 0.0;
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.blue.withOpacity(0.15),
+            Colors.blue.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.blue.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Контракт: ${contract.contractId.substring(0, 8)}...', 
-            style: AppTextStyles.body),
-          if (contract.budgetProgress != null)
-            Text('Бюджет: ${(contract.budgetProgress! * 100).toStringAsFixed(1)}%',
-              style: AppTextStyles.caption),
-          if (contract.volumeProgress != null)
-            Text('Объём: ${(contract.volumeProgress! * 100).toStringAsFixed(1)}%',
-              style: AppTextStyles.caption),
+          Row(
+            children: [
+              Icon(
+                Icons.description,
+                size: 16,
+                color: Colors.blue,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Контракт: ${contract.contractId.substring(0, 12)}...',
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (contract.startAt != null && contract.endAt != null)
+                      Text(
+                        'Период: ${DateFormat('dd.MM.yyyy').format(contract.startAt!)} - ${DateFormat('dd.MM.yyyy').format(contract.endAt!)}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (contract.budgetProgress != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Бюджет',
+                  style: AppTextStyles.caption,
+                ),
+                Text(
+                  '${(budgetProgress * 100).toStringAsFixed(1)}%',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: budgetProgress.clamp(0.0, 1.0),
+                minHeight: 6,
+                backgroundColor: Colors.blue.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  budgetProgress > 1.0
+                      ? Colors.red
+                      : (budgetProgress > 0.8
+                          ? Colors.orange
+                          : Colors.blue),
+                ),
+              ),
+            ),
+          ],
+          if (contract.volumeProgress != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Объём',
+                  style: AppTextStyles.caption,
+                ),
+                Text(
+                  '${(volumeProgress * 100).toStringAsFixed(1)}%',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: volumeProgress.clamp(0.0, 1.0),
+                minHeight: 6,
+                backgroundColor: Colors.green.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  volumeProgress > 1.0
+                      ? Colors.green.shade700
+                      : (volumeProgress > 0.8
+                          ? Colors.green
+                          : Colors.green.shade400),
+                ),
+              ),
+            ),
+          ],
+          // Кнопка скачать акт (PDF)
+          Builder(
+            builder: (context) {
+              final authState = ref.watch(authNotifierProvider);
+              final userRole = userRoleFromString(authState.user?.role);
+              final canGenerateActs = _canGenerateActs(userRole);
+              
+              if (!canGenerateActs) {
+                return const SizedBox.shrink();
+              }
+              
+              return Column(
+                children: [
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        // Используем ID контракта из карточки или выбранный контракт из виджета
+                        final contractIdToUse = _selectedContractId ?? contract.contractId;
+                        
+                        // Если период не выбран, бэкенд использует период действия контракта
+                        if (_dateFrom == null || _dateTo == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Период не выбран. Будет использован период действия контракта (ID: ${contractIdToUse.substring(0, 12)}...)'),
+                              backgroundColor: Colors.blue,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                          // Передаем null, бэкенд использует период контракта (start_at, end_at)
+                          _downloadActWithPeriod(
+                            contractIdToUse,
+                            null, // Бэкенд возьмет start_at контракта
+                            null, // Бэкенд возьмет end_at контракта
+                          );
+                        } else {
+                          // Период выбран пользователем - проверяем и корректируем его
+                          _downloadActWithValidation(contractIdToUse, contract);
+                        }
+                      },
+                      icon: const Icon(Icons.download, size: 18),
+                      label: const Text('Скачать акт (PDF)', style: TextStyle(fontSize: 12)),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _downloadAct(String contractId) async {
+    // Используем выбранный пользователем период, если он есть
+    await _downloadActWithPeriod(
+      contractId,
+      _dateFrom,
+      _dateTo,
+    );
+  }
+
+  /// Скачивание акта с валидацией периода относительно контракта
+  Future<void> _downloadActWithValidation(String contractId, DashboardContract contract) async {
+    if (_dateFrom == null || _dateTo == null) {
+      // Если период не выбран, используем период контракта
+      await _downloadActWithPeriod(contractId, null, null);
+      return;
+    }
+
+    DateTime? validatedStart = _dateFrom;
+    DateTime? validatedEnd = _dateTo;
+    bool periodAdjusted = false;
+    String? adjustmentMessage;
+
+    // Если у контракта есть даты, проверяем и корректируем период
+    if (contract.startAt != null && contract.endAt != null) {
+      final contractStart = contract.startAt!;
+      final contractEnd = contract.endAt!;
+      
+      // Нормализуем даты (убираем время)
+      final contractStartDate = DateTime(contractStart.year, contractStart.month, contractStart.day);
+      final contractEndDate = DateTime(contractEnd.year, contractEnd.month, contractEnd.day);
+      final selectedStartDate = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
+      final selectedEndDate = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
+
+      // Проверяем начало периода
+      if (selectedStartDate.isBefore(contractStartDate)) {
+        validatedStart = contractStartDate;
+        periodAdjusted = true;
+        adjustmentMessage = 'Начало периода скорректировано до даты начала контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)})';
+      }
+
+      // Проверяем конец периода
+      if (selectedEndDate.isAfter(contractEndDate)) {
+        validatedEnd = contractEndDate;
+        periodAdjusted = true;
+        if (adjustmentMessage != null) {
+          adjustmentMessage = 'Период скорректирован до периода действия контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)} - ${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
+        } else {
+          adjustmentMessage = 'Конец периода скорректирован до даты окончания контракта (${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
+        }
+      }
+
+      // Если период полностью вне контракта, используем период контракта
+      if (selectedEndDate.isBefore(contractStartDate) || selectedStartDate.isAfter(contractEndDate)) {
+        validatedStart = null; // Бэкенд использует start_at контракта
+        validatedEnd = null; // Бэкенд использует end_at контракта
+        periodAdjusted = true;
+        adjustmentMessage = 'Выбранный период полностью вне действия контракта. Будет использован период действия контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)} - ${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
+      }
+    }
+
+    // Показываем сообщение, если период был скорректирован
+    if (periodAdjusted && adjustmentMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(adjustmentMessage),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+
+    // Скачиваем акт с валидированным периодом
+    await _downloadActWithPeriod(contractId, validatedStart, validatedEnd);
+  }
+
+  Future<void> _downloadActWithPeriod(
+    String contractId,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+  ) async {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('Генерация акта...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+
+      final actsCollection = ref.read(actsCollectionProvider);
+      final pdfBytes = await actsCollection.generateActPdf(
+        contractId: contractId,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+      );
+
+      // Формируем имя файла
+      final dateFormat = DateFormat('yyyyMMdd');
+      final periodStr = periodStart != null && periodEnd != null
+          ? '${dateFormat.format(periodStart)}-${dateFormat.format(periodEnd)}'
+          : 'contract-period';
+      final filename = 'akt-${contractId.substring(0, 8)}-$periodStr';
+
+      // Скачиваем файл
+      await FileDownloader.downloadFile(
+        bytes: pdfBytes,
+        filename: filename,
+        extension: 'pdf',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Акт успешно скачан'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error downloading act: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Парсим сообщение об ошибке для более понятного отображения
+        String errorMessage = e.toString();
+        String userFriendlyMessage = errorMessage;
+        
+        // Обработка ошибки 422 - нет рейсов для выбранного периода
+        if (errorMessage.contains('no trips') || errorMessage.contains('422') || errorMessage.contains('Unprocessable')) {
+          final periodStr = periodStart != null && periodEnd != null
+              ? '${DateFormat('dd.MM.yyyy').format(periodStart!)} - ${DateFormat('dd.MM.yyyy').format(periodEnd!)}'
+              : 'выбранного периода';
+          
+          userFriendlyMessage = 'Нет рейсов для генерации акта\n\n'
+              'Для выбранного контракта и периода ($periodStr) не найдено рейсов со статусом "OK".\n\n'
+              'Возможные причины:\n'
+              '• В выбранном периоде нет выполненных рейсов\n'
+              '• Все рейсы имеют статус, отличный от "OK"\n'
+              '• Рейсы уже включены в другие акты\n\n'
+              'Попробуйте:\n'
+              '• Выбрать другой период\n'
+              '• Проверить наличие рейсов в разделе "Рейсы"';
+        }
+        // Проверяем, содержит ли ошибка информацию о датах контракта
+        else if (errorMessage.contains('period_start') && errorMessage.contains('contract start date')) {
+          // Извлекаем даты из сообщения об ошибке
+          final startDateMatch = RegExp(r'period_start \(([^)]+)\)').firstMatch(errorMessage);
+          final contractStartMatch = RegExp(r'contract start date \(([^)]+)\)').firstMatch(errorMessage);
+          
+          if (startDateMatch != null && contractStartMatch != null) {
+            userFriendlyMessage = 'Период начала (${startDateMatch.group(1)}) раньше даты начала контракта (${contractStartMatch.group(1)}).\n\n'
+                'Пожалуйста, выберите период в пределах действия контракта.';
+          } else {
+            userFriendlyMessage = 'Выбранный период выходит за пределы действия контракта.\n\n'
+                'Пожалуйста, выберите период в пределах дат контракта.';
+          }
+        } else if (errorMessage.contains('period_end') && errorMessage.contains('contract end date')) {
+          final endDateMatch = RegExp(r'period_end \(([^)]+)\)').firstMatch(errorMessage);
+          final contractEndMatch = RegExp(r'contract end date \(([^)]+)\)').firstMatch(errorMessage);
+          
+          if (endDateMatch != null && contractEndMatch != null) {
+            userFriendlyMessage = 'Период окончания (${endDateMatch.group(1)}) позже даты окончания контракта (${contractEndMatch.group(1)}).\n\n'
+                'Пожалуйста, выберите период в пределах действия контракта.';
+          } else {
+            userFriendlyMessage = 'Выбранный период выходит за пределы действия контракта.\n\n'
+                'Пожалуйста, выберите период в пределах дат контракта.';
+          }
+        } else if (errorMessage.contains('invalid input') || errorMessage.contains('period')) {
+          userFriendlyMessage = 'Некорректный период для генерации акта.\n\n'
+              'Убедитесь, что выбранный период находится в пределах действия контракта.';
+        }
+        
+        // Для ошибки 422 (нет рейсов) показываем AlertDialog с подробным объяснением
+        if (errorMessage.contains('no trips') || errorMessage.contains('422') || errorMessage.contains('Unprocessable')) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.orange, size: 24),
+                  const SizedBox(width: 8),
+                  const Text('Нет рейсов для генерации акта'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Text(userFriendlyMessage),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Понятно'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // Для других ошибок показываем SnackBar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(userFriendlyMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildCameraCard(DashboardCamera camera) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        color: Colors.purple.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.purple.withOpacity(0.15),
+            Colors.purple.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.purple.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Камера: ${camera.cameraId.substring(0, 8)}...', 
-            style: AppTextStyles.body),
+          Row(
+            children: [
+              Icon(
+                Icons.videocam,
+                size: 16,
+                color: Colors.purple,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Камера: ${camera.cameraId.substring(0, 12)}...',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
           if (camera.lprEvents != null)
-            Text('LPR: ${camera.lprEvents}', style: AppTextStyles.caption),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.purple.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'LPR: ${camera.lprEvents}',
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple.shade700,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Future<void> _showDateRangePicker(
-    BuildContext context,
-    AnalyticsController controller,
-  ) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _dateFrom != null && _dateTo != null
-          ? DateTimeRange(start: _dateFrom!, end: _dateTo!)
-          : null,
+  Widget _buildMapSection(DashboardMap mapData) {
+    final center = const LatLng(51.1694, 71.4491); // Алматы
+    
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.scale(
+            scale: 0.95 + (value * 0.05),
+            child: Container(
+              height: 400,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08 * value),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                    spreadRadius: 0,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                child: FlutterMap(
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: 11.0,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.akimat.project',
+                ),
+                // Участки
+                if (mapData.areas.isNotEmpty)
+                  PolygonLayer(
+                    polygons: mapData.areas.map((area) {
+                      final color = area.hasTrips 
+                          ? (area.intensity != null && area.intensity! > 0.5 
+                              ? Colors.green 
+                              : Colors.blue)
+                          : Colors.grey;
+                      // TODO: Парсить GeoJSON из area.id или использовать координаты
+                      // Пока используем заглушку
+                      return Polygon(
+                        points: [
+                          center,
+                          LatLng(center.latitude + 0.01, center.longitude),
+                          LatLng(center.latitude + 0.01, center.longitude + 0.01),
+                          LatLng(center.latitude, center.longitude + 0.01),
+                        ],
+                        color: color.withOpacity(0.3),
+                        borderColor: color,
+                        borderStrokeWidth: 2,
+                        // isFilled: true,
+                        
+                      );
+                    }).toList(),
+                  ),
+                // Полигоны
+                if (mapData.polygons.isNotEmpty)
+                  PolygonLayer(
+                    polygons: mapData.polygons.map((polygon) {
+                      // TODO: Парсить GeoJSON
+                      return Polygon(
+                        points: [
+                          LatLng(center.latitude + 0.02, center.longitude + 0.02),
+                          LatLng(center.latitude + 0.02, center.longitude + 0.03),
+                          LatLng(center.latitude + 0.03, center.longitude + 0.03),
+                          LatLng(center.latitude + 0.03, center.longitude + 0.02),
+                        ],
+                        color: Colors.orange.withOpacity(0.3),
+                        borderColor: Colors.orange,
+                        borderStrokeWidth: 2,
+                        // isFilled: true,
+                      );
+                    }).toList(),
+                  ),
+                // Камеры с ошибками
+                if (mapData.cameras.isNotEmpty)
+                  MarkerLayer(
+                    markers: mapData.cameras.where((c) => (c.errorEvents ?? 0) > 0).map((camera) {
+                      return Marker(
+                        point: LatLng(
+                          center.latitude + (mapData.cameras.indexOf(camera) * 0.005),
+                          center.longitude + (mapData.cameras.indexOf(camera) * 0.005),
+                        ),
+                        width: 30,
+                        height: 30,
+                        child: const Icon(
+                          Icons.videocam,
+                          color: Colors.red,
+                          size: 30,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          )
+        );
+      },
     );
-
-    if (picked != null) {
-      setState(() {
-        _dateFrom = picked.start;
-        _dateTo = picked.end;
-      });
-      
-      controller.updateDateRange(_dateFrom, _dateTo);
-      controller.loadDashboard(from: _dateFrom, to: _dateTo);
-    }
   }
+
 }
 

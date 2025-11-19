@@ -149,3 +149,4 @@ adb logcat | grep "FIREBASE PHONE AUTH ERROR"
 - Для разработки можно отключить App Check полностью
 - SHA отпечатки для debug и release разные - добавьте оба
 
+
