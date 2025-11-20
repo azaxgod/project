@@ -61,3 +61,4 @@
 - ✅ Firebase Auth правильно восстанавливает состояние из localStorage (веб) / SharedPreferences (мобилка)
 
 
+

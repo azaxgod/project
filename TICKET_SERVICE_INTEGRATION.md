@@ -70,3 +70,4 @@ baseUrl: 'https://snowops-ticket-service.onrender.com', // TODO: заменит�
 - Ответы оборачиваются в `{"data": ...}`
 - Ошибки возвращаются в формате `{"error": "..."}`
 
+
