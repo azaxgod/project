@@ -198,22 +198,42 @@ class TicketsController extends StateNotifier<TicketsState> {
   }
 
   void setStatusFilter(TicketStatus? status) {
+    debugPrint('TicketsController.setStatusFilter: called with status=$status');
+    debugPrint('TicketsController.setStatusFilter: current statusFilter=${state.statusFilter}');
+    // Всегда обновляем состояние и перезагружаем данные,
+    // даже если значение не изменилось (например, повторный выбор "Все")
     state = state.copyWith(statusFilter: status);
+    debugPrint('TicketsController.setStatusFilter: new statusFilter=${state.statusFilter}');
     _loadData();
   }
 
   void setContractorFilter(String? contractorId) {
+    debugPrint('TicketsController.setContractorFilter: called with contractorId=$contractorId');
+    debugPrint('TicketsController.setContractorFilter: current contractorFilter=${state.contractorFilter}');
+    // Всегда обновляем состояние и перезагружаем данные,
+    // даже если значение не изменилось (например, повторный выбор "Все")
     state = state.copyWith(contractorFilter: contractorId);
+    debugPrint('TicketsController.setContractorFilter: new contractorFilter=${state.contractorFilter}');
     _loadData();
   }
 
   void setAreaFilter(String? areaId) {
+    debugPrint('TicketsController.setAreaFilter: called with areaId=$areaId');
+    debugPrint('TicketsController.setAreaFilter: current areaFilter=${state.areaFilter}');
+    // Всегда обновляем состояние и перезагружаем данные,
+    // даже если значение не изменилось (например, повторный выбор "Все")
     state = state.copyWith(areaFilter: areaId);
+    debugPrint('TicketsController.setAreaFilter: new areaFilter=${state.areaFilter}');
     _loadData();
   }
 
   void setContractFilter(String? contractId) {
+    debugPrint('TicketsController.setContractFilter: called with contractId=$contractId');
+    debugPrint('TicketsController.setContractFilter: current contractFilter=${state.contractFilter}');
+    // Всегда обновляем состояние и перезагружаем данные,
+    // даже если значение не изменилось (например, повторный выбор "Все")
     state = state.copyWith(contractFilter: contractId);
+    debugPrint('TicketsController.setContractFilter: new contractFilter=${state.contractFilter}');
     _loadData();
   }
 

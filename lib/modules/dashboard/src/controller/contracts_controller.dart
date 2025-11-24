@@ -9,6 +9,7 @@ import 'package:akimat_project/modules/dashboard/src/repository/contracts_reposi
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
 import 'package:akimat_project/services/contracts/module.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ContractsController extends StateNotifier<ContractsState> {
@@ -29,13 +30,23 @@ class ContractsController extends StateNotifier<ContractsState> {
     state = state.copyWith(data: const AsyncLoading());
     
     try {
+      // Логируем фильтры для отладки
+      debugPrint('ContractsController._loadData: Loading contracts with filters:');
+      debugPrint('  - contractorFilter: ${state.contractorFilter}');
+      debugPrint('  - statusFilter: ${state.statusFilter}');
+      debugPrint('  - periodStart: ${state.periodStart}');
+      debugPrint('  - periodEnd: ${state.periodEnd}');
+      
       // Загружаем контракты с фильтрами
+      // Если фильтр = null, API вернет все контракты (фильтр не передается в query параметры)
       final contracts = await _contractsRepository.loadContracts(
         contractorId: state.contractorFilter,
         status: state.statusFilter,
         startFrom: state.periodStart,
         startTo: state.periodEnd,
       );
+      
+      debugPrint('ContractsController._loadData: Loaded ${contracts.length} contracts');
 
       // Загружаем подрядчиков для фильтра
       final allOrganizations = await _organizationsRepository.loadOrganizations();
@@ -67,18 +78,33 @@ class ContractsController extends StateNotifier<ContractsState> {
   Future<void> refresh() => _loadData();
 
   void setContractorFilter(String? contractorId) {
+    // Всегда обновляем состояние и перезагружаем данные,
+    // даже если значение не изменилось (например, повторный выбор "Все")
     state = state.copyWith(
       contractorFilter: contractorId,
       clearContractorFilter: contractorId == null,
     );
+    // Всегда перезагружаем данные, чтобы применить фильтр (или сбросить его при null)
     _loadData();
   }
 
   void setStatusFilter(ContractStatus? status) {
+    // Всегда обновляем состояние и перезагружаем данные,
+    // даже если значение не изменилось (например, повторный выбор "Все")
+    debugPrint('ContractsController.setStatusFilter: Called with status: $status');
+    debugPrint('ContractsController.setStatusFilter: Current statusFilter: ${state.statusFilter}');
+    
+    // Принудительно обновляем состояние, даже если значение не изменилось
+    // Это гарантирует, что фильтр будет сброшен при выборе "Все" (null)
     state = state.copyWith(
       statusFilter: status,
       clearStatusFilter: status == null,
     );
+    
+    debugPrint('ContractsController.setStatusFilter: New statusFilter: ${state.statusFilter}');
+    debugPrint('ContractsController.setStatusFilter: Calling _loadData()');
+    
+    // Всегда перезагружаем данные, чтобы применить фильтр (или сбросить его при null)
     _loadData();
   }
 
@@ -88,12 +114,16 @@ class ContractsController extends StateNotifier<ContractsState> {
   }
 
   Future<void> createContract({
-    required String contractorId,
+    required ContractType contractType,
+    String? contractorId,
+    String? landfillId,
     required String name,
-    required ContractWorkType workType,
+    ContractWorkType? workType,
     required double pricePerM3,
-    required double budgetTotal,
-    required double minimalVolumeM3,
+    double? budgetTotal,
+    double? minimalVolumeM3,
+    List<String>? polygonIds,
+    double? vatRate,
     required DateTime startAt,
     required DateTime endAt,
     required bool isActive,
@@ -101,12 +131,16 @@ class ContractsController extends StateNotifier<ContractsState> {
   }) async {
     try {
       await _contractsRepository.createContract(
+        contractType: contractType,
         contractorId: contractorId,
+        landfillId: landfillId,
         name: name,
         workType: workType,
         pricePerM3: pricePerM3,
         budgetTotal: budgetTotal,
         minimalVolumeM3: minimalVolumeM3,
+        polygonIds: polygonIds,
+        vatRate: vatRate,
         startAt: startAt,
         endAt: endAt,
         isActive: isActive,

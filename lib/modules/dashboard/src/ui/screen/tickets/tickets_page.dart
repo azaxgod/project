@@ -262,7 +262,11 @@ class _TicketsContent extends ConsumerWidget {
                             child: Text(s.cancelled),
                           ),
                         ],
-                        onChanged: controller.setStatusFilter,
+                        onChanged: (value) {
+                          debugPrint('TicketsPage: Status filter changed to: $value');
+                          // Всегда вызываем setStatusFilter, даже если значение не изменилось
+                          controller.setStatusFilter(value);
+                        },
                       ),
                     ),
                     // Contractor filter (только для KGU ZKH и Акимата)
@@ -289,7 +293,11 @@ class _TicketsContent extends ConsumerWidget {
                               ),
                             ),
                           ],
-                          onChanged: controller.setContractorFilter,
+                          onChanged: (value) {
+                            debugPrint('TicketsPage: Contractor filter changed to: $value');
+                            // Всегда вызываем setContractorFilter, даже если значение не изменилось
+                            controller.setContractorFilter(value);
+                          },
                         ),
                       ),
                     // Area filter
@@ -315,7 +323,11 @@ class _TicketsContent extends ConsumerWidget {
                             ),
                           ),
                         ],
-                        onChanged: controller.setAreaFilter,
+                        onChanged: (value) {
+                          debugPrint('TicketsPage: Area filter changed to: $value');
+                          // Всегда вызываем setAreaFilter, даже если значение не изменилось
+                          controller.setAreaFilter(value);
+                        },
                       ),
                     ),
                     // Contract filter
@@ -341,7 +353,11 @@ class _TicketsContent extends ConsumerWidget {
                             ),
                           ),
                         ],
-                        onChanged: controller.setContractFilter,
+                        onChanged: (value) {
+                          debugPrint('TicketsPage: Contract filter changed to: $value');
+                          // Всегда вызываем setContractFilter, даже если значение не изменилось
+                          controller.setContractFilter(value);
+                        },
                       ),
                     ),
                     // Фильтр по плановому периоду
@@ -377,39 +393,73 @@ class _TicketsContent extends ConsumerWidget {
           Expanded(
             child: filteredTickets.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.assignment_outlined,
-                          size: 64,
-                          color: AppColors.textTertiary,
-                        ),
-                        const SizedBox(height: AppPadding.normal),
-                        Text(
-                          data.tickets.isEmpty 
-                              ? 'Нет тикетов'
-                              : 'Нет тикетов, соответствующих фильтрам',
-                          style: AppTextStyles.headline.copyWith(
-                            color: AppColors.textSecondary,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppPadding.large),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(AppPadding.large),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBackground,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.divider,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.assignment_outlined,
+                              size: 80,
+                              color: AppColors.textTertiary,
+                            ),
                           ),
-                        ),
-                        if (data.tickets.isNotEmpty && filteredTickets.isEmpty) ...[
+                          const SizedBox(height: AppPadding.large),
+                          Text(
+                            data.tickets.isEmpty 
+                                ? 'Нет тикетов'
+                                : 'Нет тикетов, соответствующих фильтрам',
+                            style: AppTextStyles.title1.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: AppPadding.small),
-                          TextButton(
-                            onPressed: () {
-                              // Сбрасываем все фильтры
-                              controller.setStatusFilter(null);
-                              controller.setContractorFilter(null);
-                              controller.setAreaFilter(null);
-                              controller.setContractFilter(null);
-                              controller.setPeriodFilter(null, null);
-                              controller.setFactPeriodFilter(null, null);
-                            },
-                            child: const Text('Сбросить фильтры'),
+                          Text(
+                            data.tickets.isEmpty
+                                ? 'Создайте новый тикет, чтобы начать работу'
+                                : 'Попробуйте изменить параметры фильтров',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
+                          if (data.tickets.isNotEmpty && filteredTickets.isEmpty) ...[
+                            const SizedBox(height: AppPadding.large),
+                            FilledButton.icon(
+                              onPressed: () {
+                                // Сбрасываем все фильтры
+                                controller.setStatusFilter(null);
+                                controller.setContractorFilter(null);
+                                controller.setAreaFilter(null);
+                                controller.setContractFilter(null);
+                                controller.setPeriodFilter(null, null);
+                                controller.setFactPeriodFilter(null, null);
+                              },
+                              icon: const Icon(Icons.filter_alt_off),
+                              label: const Text('Сбросить все фильтры'),
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppPadding.large,
+                                  vertical: AppPadding.normal,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   )
                 : kIsWeb
@@ -469,6 +519,7 @@ class _TicketsContent extends ConsumerWidget {
                                   id: '',
                                   contractorId: '',
                                   name: '—',
+                                  contractType: ContractType.contractorService,
                                   workType: ContractWorkType.road,
                                   pricePerM3: 0,
                                   budgetTotal: 0,

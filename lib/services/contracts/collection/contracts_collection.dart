@@ -100,10 +100,31 @@ class ContractsCollection {
       if (workType != null) queryParams['work_type'] = workType;
       if (status != null) queryParams['status'] = status;
       if (onlyActive != null) queryParams['only_active'] = onlyActive;
-      if (startFrom != null) queryParams['start_from'] = startFrom.toIso8601String();
-      if (startTo != null) queryParams['start_to'] = startTo.toIso8601String();
-      if (endFrom != null) queryParams['end_from'] = endFrom.toIso8601String();
-      if (endTo != null) queryParams['end_to'] = endTo.toIso8601String();
+      // Форматируем даты в формат YYYY-MM-DD (только дата, без времени)
+      if (startFrom != null) {
+        queryParams['start_from'] = 
+            '${startFrom.year.toString().padLeft(4, '0')}-'
+            '${startFrom.month.toString().padLeft(2, '0')}-'
+            '${startFrom.day.toString().padLeft(2, '0')}';
+      }
+      if (startTo != null) {
+        queryParams['start_to'] = 
+            '${startTo.year.toString().padLeft(4, '0')}-'
+            '${startTo.month.toString().padLeft(2, '0')}-'
+            '${startTo.day.toString().padLeft(2, '0')}';
+      }
+      if (endFrom != null) {
+        queryParams['end_from'] = 
+            '${endFrom.year.toString().padLeft(4, '0')}-'
+            '${endFrom.month.toString().padLeft(2, '0')}-'
+            '${endFrom.day.toString().padLeft(2, '0')}';
+      }
+      if (endTo != null) {
+        queryParams['end_to'] = 
+            '${endTo.year.toString().padLeft(4, '0')}-'
+            '${endTo.month.toString().padLeft(2, '0')}-'
+            '${endTo.day.toString().padLeft(2, '0')}';
+      }
 
       final response = await dio.get(
         '/contracts',
@@ -119,13 +140,18 @@ class ContractsCollection {
   }
 
   /// POST /contracts - Создать новый контракт
+  /// Поддерживает создание контрактов CONTRACTOR_SERVICE и LANDFILL_SERVICE
   Future<ContractDto> createContract({
-    required String contractorId,
+    required String contractType, // "CONTRACTOR_SERVICE" или "LANDFILL_SERVICE"
+    String? contractorId, // Для CONTRACTOR_SERVICE
+    String? landfillId, // Для LANDFILL_SERVICE
     required String name,
-    required String workType,
+    String? workType, // Только для CONTRACTOR_SERVICE
     required double pricePerM3,
-    required double budgetTotal,
-    required double minimalVolumeM3,
+    double? budgetTotal, // Опционально для LANDFILL_SERVICE
+    double? minimalVolumeM3, // Опционально для LANDFILL_SERVICE
+    List<String>? polygonIds, // Для LANDFILL_SERVICE
+    double? vatRate, // Ставка НДС
     required DateTime startAt,
     required DateTime endAt,
     required bool isActive,
@@ -137,20 +163,26 @@ class ContractsCollection {
       final startAtFormatted = startAt.toUtc().toIso8601String();
       final endAtFormatted = endAt.toUtc().toIso8601String();
       
+      final data = <String, dynamic>{
+        'contract_type': contractType,
+        'name': name,
+        'price_per_m3': pricePerM3,
+        'start_at': startAtFormatted, // ISO 8601 формат
+        'end_at': endAtFormatted, // ISO 8601 формат
+        'is_active': isActive,
+        if (contractorId != null) 'contractor_id': contractorId,
+        if (landfillId != null) 'landfill_id': landfillId,
+        if (workType != null) 'work_type': workType,
+        if (budgetTotal != null) 'budget_total': budgetTotal,
+        if (minimalVolumeM3 != null) 'minimal_volume_m3': minimalVolumeM3,
+        if (polygonIds != null && polygonIds.isNotEmpty) 'polygon_ids': polygonIds,
+        if (vatRate != null) 'vat_rate': vatRate,
+        if (createdByOrgId != null) 'created_by_org_id': createdByOrgId,
+      };
+      
       final response = await dio.post(
         '/contracts',
-        data: {
-          'contractor_id': contractorId,
-          'name': name,
-          'work_type': workType,
-          'price_per_m3': pricePerM3,
-          'budget_total': budgetTotal,
-          'minimal_volume_m3': minimalVolumeM3,
-          'start_at': startAtFormatted, // ISO 8601 формат
-          'end_at': endAtFormatted, // ISO 8601 формат
-          'is_active': isActive,
-          if (createdByOrgId != null) 'created_by_org_id': createdByOrgId, // Добавляем, если указано
-        },
+        data: data,
       );
 
       // POST /contracts возвращает 201 Created с контрактом, возможно обёрнутым в data

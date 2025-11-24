@@ -308,6 +308,7 @@ class ContractDialogs {
                   
                   try {
                     await controller.createContract(
+                      contractType: ContractType.contractorService, 
                       contractorId: selectedContractorId!,
                       name: nameController.text.trim(),
                       workType: ContractWorkType.road, // Дефолтное значение, можно добавить поле в форму

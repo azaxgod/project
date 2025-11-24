@@ -34,7 +34,8 @@ import 'package:akimat_project/l10n/l10n.dart';
           return AkimatHome(
             scaffoldKey: scaffoldKey,
           );
-        case 'TOO_ADMIN':
+        case 'LANDFILL_ADMIN':
+        case 'TOO_ADMIN': // Поддержка старого значения
         case 'CONTRACTOR_ADMIN':
           return const ContractorHome();
         case 'DRIVER':

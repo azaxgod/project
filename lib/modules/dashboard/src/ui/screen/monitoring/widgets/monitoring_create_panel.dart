@@ -6,6 +6,7 @@ import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,6 +36,7 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
   
   String? _selectedContractorId;
   bool _isActive = true;
+  bool _isCloseHovered = false;
 
   @override
   void dispose() {
@@ -51,57 +53,87 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
     final drawingGeometry = state.drawingGeometry;
     final isDrawing = drawingGeometry.isNotEmpty;
 
+    debugPrint('MonitoringCreatePanel: build called, mode=${widget.mode}');
+    debugPrint('MonitoringCreatePanel: drawingGeometry.length=${drawingGeometry.length}');
+
     return Container(
-      width: 450,
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(AppSize.cardRadius),
-          bottomLeft: Radius.circular(AppSize.cardRadius),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.cardBackground,
+            AppColors.cardBackground.withValues(alpha: 0.98),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            blurRadius: 30,
+            offset: const Offset(0, -8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
-            offset: const Offset(-4, 0),
+            offset: const Offset(0, -4),
             spreadRadius: 2,
           ),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Заголовок с градиентом
           Container(
-            padding: const EdgeInsets.all(AppPadding.normal),
+            padding: const EdgeInsets.all(AppPadding.normal + 4),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.primary.withValues(alpha: 0.1),
-                  AppColors.primary.withValues(alpha: 0.05),
+                  AppColors.primary.withValues(alpha: 0.15),
+                  AppColors.primary.withValues(alpha: 0.08),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               border: Border(
-                bottom: BorderSide(color: AppColors.divider, width: 1),
+                bottom: BorderSide(
+                  color: AppColors.divider.withOpacity(0.3),
+                  width: 1,
+                ),
               ),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary,
+                        AppColors.primary.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Icon(
                     widget.mode == 'area' 
-                        ? Icons.map_outlined
+                        ? Icons.map_rounded
                         : widget.mode == 'polygon'
-                            ? Icons.location_city_outlined
-                            : Icons.videocam_outlined,
-                    color: AppColors.primary,
-                    size: 24,
+                            ? Icons.location_city_rounded
+                            : Icons.videocam_rounded,
+                    color: Colors.white,
+                    size: 26,
                   ),
                 ),
                 const SizedBox(width: AppPadding.normal),
@@ -111,12 +143,12 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
                     children: [
                       Text(
                         _getTitle(),
-                        style: AppTextStyles.title1.copyWith(
+                        style: AppTextStyles.title2.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         'Нарисуйте геометрию на карте',
                         style: AppTextStyles.caption.copyWith(
@@ -128,23 +160,31 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
                 ),
                 Material(
                   color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      // Убираем фокус с полей ввода
-                      FocusScope.of(context).unfocus();
-                      _resetForm();
-                      widget.controller.clearDrawingGeometry();
-                      widget.controller.setCreateMode(null);
-                      widget.onClose?.call();
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.divider.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
+                  child: MouseRegion(
+                    onEnter: (_) => setState(() => _isCloseHovered = true),
+                    onExit: (_) => setState(() => _isCloseHovered = false),
+                    child: InkWell(
+                      onTap: () {
+                        _handleClose();
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _isCloseHovered
+                              ? AppColors.error.withOpacity(0.1)
+                              : AppColors.divider.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: _isCloseHovered
+                              ? AppColors.error
+                              : AppColors.textSecondary,
+                        ),
                       ),
-                      child: const Icon(Icons.close, size: 20),
                     ),
                   ),
                 ),
@@ -152,7 +192,7 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
             ),
           ),
           // Контент
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(AppPadding.normal),
               child: Form(
@@ -160,18 +200,89 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Поля формы
-                    _buildFormFields(),
-                    const SizedBox(height: AppPadding.large),
-                    // Кнопка начала рисования
-                    if (!isDrawing && drawingGeometry.isEmpty)
-                      _buildStartDrawingButton(),
-                    // Информация о рисовании
-                    if (isDrawing || drawingGeometry.isNotEmpty)
-                      _buildDrawingInfo(drawingGeometry),
-                    const SizedBox(height: AppPadding.large),
-                    // Кнопки действий
-                    _buildActionButtons(),
+                    // Поля формы (показываем для камеры, до начала рисования, или после завершения рисования)
+                    if (widget.mode == 'camera' || 
+                        drawingGeometry.isEmpty || 
+                        (drawingGeometry.length >= 3 && !state.isEditingGeometry))
+                      _buildFormFields(),
+                    // Кнопка начала рисования (только если еще не начали рисовать)
+                    if (drawingGeometry.isEmpty && widget.mode != 'camera')
+                      ...[
+                        if (widget.mode != 'camera') const SizedBox(height: AppPadding.large),
+                        _buildStartDrawingButton(),
+                      ],
+                    // Упрощенная информация о рисовании (только счетчик точек)
+                    if (drawingGeometry.isNotEmpty && drawingGeometry.length < 3 && !state.isEditingGeometry)
+                      ...[
+                        const SizedBox(height: AppPadding.normal),
+                        Container(
+                          padding: const EdgeInsets.all(AppPadding.small),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.edit_location_alt, size: 20, color: AppColors.primary),
+                              const SizedBox(width: AppPadding.small),
+                              Text(
+                                'Точек: ${drawingGeometry.length} / 3 минимум',
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    // Информация в режиме редактирования
+                    if (state.isEditingGeometry)
+                      ...[
+                        const SizedBox(height: AppPadding.normal),
+                        Container(
+                          padding: const EdgeInsets.all(AppPadding.normal),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                            border: Border.all(color: Colors.orange, width: 1),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.edit, size: 20, color: Colors.orange),
+                                  const SizedBox(width: AppPadding.small),
+                                  Text(
+                                    'Режим редактирования',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: AppPadding.small),
+                              Text(
+                                'Кликните на красную точку на карте для удаления',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.orange,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    // Кнопки действий (только для камеры или когда форма заполнена и геометрия готова)
+                    if (widget.mode == 'camera' || 
+                        (drawingGeometry.isNotEmpty && drawingGeometry.length >= 3 && !state.isEditingGeometry))
+                      ...[
+                        const SizedBox(height: AppPadding.large),
+                        _buildActionButtons(),
+                      ],
                   ],
                 ),
               ),
@@ -406,45 +517,53 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
       children: [
         SizedBox(
           width: double.infinity,
-          child: FilledButton(
+          child: FilledButton.icon(
             onPressed: _canSave() ? _handleSave : null,
+            icon: const Icon(Icons.check_circle_rounded, size: 20),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              elevation: 2,
+              elevation: _canSave() ? 4 : 0,
+              shadowColor: AppColors.primary.withOpacity(0.3),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            label: const Text(
               'Сохранить',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ),
         const SizedBox(height: AppPadding.small),
         SizedBox(
           width: double.infinity,
-          child: OutlinedButton(
+          child: OutlinedButton.icon(
             onPressed: () {
-              // Убираем фокус с полей ввода
-              FocusScope.of(context).unfocus();
-              _resetForm();
-              widget.controller.clearDrawingGeometry();
-              widget.controller.setCreateMode(null);
-              widget.onClose?.call();
+              _handleClose();
             },
+            icon: const Icon(Icons.close_rounded, size: 18),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
-              side: BorderSide(color: AppColors.divider),
+              side: BorderSide(
+                color: AppColors.divider.withOpacity(0.5),
+                width: 1.5,
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            label: const Text(
               'Отмена',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -561,6 +680,47 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
     return organizations
         .where((org) => org.type == OrganizationType.contractor)
         .toList();
+  }
+
+  void _handleClose() {
+    debugPrint('MonitoringCreatePanel._handleClose: Called');
+    
+    try {
+      // Убираем фокус с полей ввода
+      FocusScope.of(context).unfocus();
+      debugPrint('MonitoringCreatePanel._handleClose: Focus unfocused');
+      
+      // Сбрасываем форму
+      _resetForm();
+      debugPrint('MonitoringCreatePanel._handleClose: Form reset');
+      
+      // Очищаем геометрию рисования
+      widget.controller.clearDrawingGeometry();
+      debugPrint('MonitoringCreatePanel._handleClose: Drawing geometry cleared');
+      
+      // Закрываем панель через контроллер
+      widget.controller.setCreateMode(null);
+      debugPrint('MonitoringCreatePanel._handleClose: setCreateMode(null) called');
+      
+      // Вызываем callback, если он есть
+      if (widget.onClose != null) {
+        widget.onClose!();
+        debugPrint('MonitoringCreatePanel._handleClose: onClose callback called');
+      }
+      
+      debugPrint('MonitoringCreatePanel._handleClose: Completed successfully');
+    } catch (e, stack) {
+      debugPrint('MonitoringCreatePanel._handleClose: ERROR - $e');
+      debugPrint('MonitoringCreatePanel._handleClose: Stack - $stack');
+      
+      // В случае ошибки все равно пытаемся закрыть панель
+      try {
+        widget.controller.setCreateMode(null);
+        widget.onClose?.call();
+      } catch (_) {
+        // Игнорируем ошибки при попытке закрыть
+      }
+    }
   }
 }
 

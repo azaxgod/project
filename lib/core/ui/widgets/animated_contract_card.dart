@@ -83,20 +83,21 @@ class _AnimatedContractCardState extends State<AnimatedContractCard>
     final dateFormat = DateFormat('dd.MM.yyyy');
     final status = _getContractStatus(widget.contract);
     final volumeProgress = widget.contract.usage != null &&
-            widget.contract.minimalVolumeM3 > 0
+            (widget.contract.minimalVolumeM3 ?? 0) > 0
         ? (widget.contract.usage!.totalVolumeM3 /
-                widget.contract.minimalVolumeM3 *
+                (widget.contract.minimalVolumeM3 ?? 1) *
                 100.0)
             .clamp(0.0, 100.0)
         : 0.0;
-    final budgetProgress = widget.contract.budgetTotal > 0
+    final budgetProgress = (widget.contract.budgetTotal ?? 0) > 0
         ? (widget.contract.usage?.totalCost ?? 0.0) /
-                widget.contract.budgetTotal *
+                (widget.contract.budgetTotal ?? 1) *
                 100.0
         : 0.0;
     final budgetExceeded =
+        widget.contract.budgetTotal != null &&
         (widget.contract.usage?.totalCost ?? 0.0) >
-            widget.contract.budgetTotal;
+            widget.contract.budgetTotal!;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -202,7 +203,7 @@ class _AnimatedContractCardState extends State<AnimatedContractCard>
                               label: 'Освоение объёма',
                               progress: volumeProgress,
                               value:
-                                  '${widget.contract.usage?.totalVolumeM3.toStringAsFixed(1) ?? '0'} / ${widget.contract.minimalVolumeM3.toStringAsFixed(1)} м³',
+                                  '${widget.contract.usage?.totalVolumeM3.toStringAsFixed(1) ?? '0'} / ${widget.contract.minimalVolumeM3?.toStringAsFixed(1)} м³',
                               color: Colors.blue,
                             ),
                             const SizedBox(height: AppPadding.normal),
@@ -211,7 +212,7 @@ class _AnimatedContractCardState extends State<AnimatedContractCard>
                               label: 'Освоение бюджета',
                               progress: budgetProgress,
                               value:
-                                  '${(widget.contract.usage?.totalCost ?? 0.0).toStringAsFixed(0)} / ${widget.contract.budgetTotal.toStringAsFixed(0)} ₸',
+                                  '${(widget.contract.usage?.totalCost ?? 0.0).toStringAsFixed(0)} / ${widget.contract.budgetTotal?.toStringAsFixed(0)} ₸',
                               color: budgetExceeded ? Colors.red : Colors.green,
                             ),
                             const SizedBox(height: AppPadding.normal),

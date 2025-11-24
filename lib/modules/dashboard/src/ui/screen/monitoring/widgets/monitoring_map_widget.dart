@@ -6,6 +6,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widget
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class MonitoringMapWidget extends StatefulWidget {
   final List<CleaningArea> areas;
@@ -21,6 +22,8 @@ class MonitoringMapWidget extends StatefulWidget {
   final Function(String)? onPolygonTap;
   final Function(String)? onVehicleTap;
   final Function(double lat, double lon)? onMapTap;
+  final bool isEditingGeometry; // Режим редактирования
+  final Function(int index)? onPointTap; // Обработчик клика на точку (для удаления)
 
   const MonitoringMapWidget({
     super.key,
@@ -37,6 +40,8 @@ class MonitoringMapWidget extends StatefulWidget {
     this.onPolygonTap,
     this.onVehicleTap,
     this.onMapTap,
+    this.isEditingGeometry = false,
+    this.onPointTap,
   });
 
   @override
@@ -60,11 +65,16 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Определяем курсор в зависимости от режима рисования
+    final isDrawing = widget.drawingGeometry != null && widget.drawingGeometry!.isNotEmpty;
+    final cursor = isDrawing ? SystemMouseCursors.precise : SystemMouseCursors.basic;
     final center = const LatLng(54.8667, 69.1500); // Петропавловск
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
+    return MouseRegion(
+      cursor: cursor,
+      child: FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
         initialCenter: center,
         initialZoom: 12.0,
         onTap: widget.onMapTap != null
@@ -188,22 +198,45 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                      final coord = entry.value;
                      return Marker(
                        point: LatLng(coord[1], coord[0]),
-                       width: 20,
-                       height: 20,
-                       child: Container(
-                         decoration: BoxDecoration(
-                           color: Colors.green,
-                           shape: BoxShape.circle,
-                           border: Border.all(color: Colors.white, width: 2),
-                         ),
-                         child: Center(
-                           child: Text(
-                             '${index + 1}',
-                             style: const TextStyle(
+                       width: widget.isEditingGeometry ? 30 : 20,
+                       height: widget.isEditingGeometry ? 30 : 20,
+                       child: GestureDetector(
+                         onTap: widget.isEditingGeometry && widget.onPointTap != null
+                             ? () => widget.onPointTap!(index)
+                             : null,
+                         child: Container(
+                           decoration: BoxDecoration(
+                             color: widget.isEditingGeometry ? Colors.red : Colors.green,
+                             shape: BoxShape.circle,
+                             border: Border.all(
                                color: Colors.white,
-                               fontSize: 10,
-                               fontWeight: FontWeight.bold,
+                               width: widget.isEditingGeometry ? 3 : 2,
                              ),
+                             boxShadow: widget.isEditingGeometry
+                                 ? [
+                                     BoxShadow(
+                                       color: Colors.red.withValues(alpha: 0.5),
+                                       blurRadius: 8,
+                                       spreadRadius: 2,
+                                     ),
+                                   ]
+                                 : null,
+                           ),
+                           child: Center(
+                             child: widget.isEditingGeometry
+                                 ? const Icon(
+                                     Icons.close,
+                                     color: Colors.white,
+                                     size: 16,
+                                   )
+                                 : Text(
+                                     '${index + 1}',
+                                     style: const TextStyle(
+                                       color: Colors.white,
+                                       fontSize: 10,
+                                       fontWeight: FontWeight.bold,
+                                     ),
+                                   ),
                            ),
                          ),
                        ),
@@ -211,6 +244,7 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                    }).toList(),
                  ),
       ],
+      ),
     );
   }
 

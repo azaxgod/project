@@ -21,13 +21,21 @@ class DriverDto {
 
   factory DriverDto.fromJson(Map<String, dynamic> json) {
     return DriverDto(
-      id: json['id'] as String? ?? '',
-      contractorId: json['contractorID'] as String? ?? json['contractorId'] as String? ?? '',
-      fullName: json['fullName'] as String? ?? '',
-      iin: json['iin'] as String? ?? '',
-      birthYear: json['birthYear'] as int?,
-      phone: json['phone'] as String? ?? '',
-      isActive: json['isActive'] as bool? ?? true,
+      // Поддержка обоих вариантов: верхний регистр (ID) и camelCase (id)
+      id: json['ID'] as String? ?? json['id'] as String? ?? '',
+      contractorId: json['ContractorID'] as String? ?? 
+                     json['contractorID'] as String? ?? 
+                     json['contractorId'] as String? ?? '',
+      // Поддержка обоих вариантов: верхний регистр (FullName) и camelCase (fullName)
+      fullName: json['FullName'] as String? ?? json['fullName'] as String? ?? '',
+      // Поддержка обоих вариантов: верхний регистр (IIN) и camelCase (iin)
+      iin: json['IIN'] as String? ?? json['iin'] as String? ?? '',
+      // Поддержка обоих вариантов: верхний регистр (BirthYear) и camelCase (birthYear)
+      birthYear: json['BirthYear'] as int? ?? json['birthYear'] as int?,
+      // Поддержка обоих вариантов: верхний регистр (Phone) и camelCase (phone)
+      phone: json['Phone'] as String? ?? json['phone'] as String? ?? '',
+      // Поддержка обоих вариантов: верхний регистр (IsActive) и camelCase (isActive)
+      isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
     );
   }
 

@@ -57,12 +57,12 @@ class NavbarWidgetsProvider {
         route: '/analytics',
       ),
       // Скрыты временно: Отчет и Рейсы о нарушениях
-      // _NavbarButton(
-      //   label: S.of(context)!.violations,
-      //   icon: Icons.gavel,
-      //   isActive: currentRoute == '/violations' || currentRoute.startsWith('/violations/'),
-      //   route: '/violations',
-      // ),
+      _NavbarButton(
+        label: S.of(context)!.violations,
+        icon: Icons.gavel,
+        isActive: currentRoute == '/violations' || currentRoute.startsWith('/violations/'),
+        route: '/violations',
+      ),
       // _NavbarButton(
       //   label: S.of(context)!.trips,
       //   icon: Icons.directions_car,

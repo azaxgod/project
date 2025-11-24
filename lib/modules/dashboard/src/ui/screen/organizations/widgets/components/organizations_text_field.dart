@@ -8,6 +8,7 @@ class OrganizationsTextField extends StatelessWidget {
     this.keyboardType,
     this.validator,
     this.maxLines = 1,
+    this.obscureText = false,
   });
 
   final TextEditingController controller;
@@ -15,6 +16,7 @@ class OrganizationsTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final int maxLines;
+  final bool obscureText;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +27,7 @@ class OrganizationsTextField extends StatelessWidget {
         keyboardType: keyboardType,
         validator: validator,
         maxLines: maxLines,
+        obscureText: obscureText,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

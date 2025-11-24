@@ -17,13 +17,18 @@ abstract class ContractsRepository {
   Future<Contract> getContract(String id);
 
   /// Создать новый контракт
+  /// Поддерживает создание контрактов CONTRACTOR_SERVICE и LANDFILL_SERVICE
   Future<Contract> createContract({
-    required String contractorId,
+    required ContractType contractType,
+    String? contractorId, // Для CONTRACTOR_SERVICE
+    String? landfillId, // Для LANDFILL_SERVICE
     required String name,
-    required ContractWorkType workType,
+    ContractWorkType? workType, // Только для CONTRACTOR_SERVICE
     required double pricePerM3,
-    required double budgetTotal,
-    required double minimalVolumeM3,
+    double? budgetTotal, // Опционально для LANDFILL_SERVICE
+    double? minimalVolumeM3, // Опционально для LANDFILL_SERVICE
+    List<String>? polygonIds, // Для LANDFILL_SERVICE
+    double? vatRate, // Ставка НДС
     required DateTime startAt,
     required DateTime endAt,
     required bool isActive,

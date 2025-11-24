@@ -62,30 +62,47 @@ class ContractsRepositoryImpl implements ContractsRepository {
     return dto.toDomain();
   }
 
+  String _contractTypeToString(ContractType type) {
+    switch (type) {
+      case ContractType.contractorService:
+        return 'CONTRACTOR_SERVICE';
+      case ContractType.landfillService:
+        return 'LANDFILL_SERVICE';
+    }
+  }
+
   @override
   Future<Contract> createContract({
-    required String contractorId,
+    required ContractType contractType,
+    String? contractorId,
+    String? landfillId,
     required String name,
-    required ContractWorkType workType,
+    ContractWorkType? workType,
     required double pricePerM3,
-    required double budgetTotal,
-    required double minimalVolumeM3,
+    double? budgetTotal,
+    double? minimalVolumeM3,
+    List<String>? polygonIds,
+    double? vatRate,
     required DateTime startAt,
     required DateTime endAt,
     required bool isActive,
-    String? createdByOrgId, // ID организации KGU ZKH, создающей контракт
+    String? createdByOrgId,
   }) async {
     final dto = await _services.collection.createContract(
+      contractType: _contractTypeToString(contractType),
       contractorId: contractorId,
+      landfillId: landfillId,
       name: name,
-      workType: _workTypeToString(workType),
+      workType: workType != null ? _workTypeToString(workType) : null,
       pricePerM3: pricePerM3,
       budgetTotal: budgetTotal,
       minimalVolumeM3: minimalVolumeM3,
+      polygonIds: polygonIds,
+      vatRate: vatRate,
       startAt: startAt,
       endAt: endAt,
       isActive: isActive,
-      createdByOrgId: createdByOrgId, // Передаем ID организации создателя
+      createdByOrgId: createdByOrgId,
     );
     return dto.toDomain();
   }

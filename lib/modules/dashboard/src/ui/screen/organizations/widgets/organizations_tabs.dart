@@ -322,7 +322,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
         // Если не удалось найти организацию KGU_ZKH, возвращаем пустой список
         // (будет показано пустое состояние с сообщением)
         return [];
-      case UserRole.tooAdmin:
+      case UserRole.landfillAdmin:
         if (organizationId != null) {
           return [
             _OrganizationsTabDefinition(

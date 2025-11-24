@@ -234,8 +234,8 @@ class MonitoringController extends StateNotifier<MonitoringState> {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
         return areas; // Видят все участки
-      case UserRole.tooAdmin:
-        return []; // TOO не видит участки (только полигоны)
+      case UserRole.landfillAdmin:
+        return []; // LANDFILL не видит участки (только полигоны)
       case UserRole.contractorAdmin:
         // Видят только участки с тикетами на этого подрядчика
         // TODO: Реализовать фильтрацию по тикетам через Operations Service
@@ -255,7 +255,7 @@ class MonitoringController extends StateNotifier<MonitoringState> {
     switch (state.role) {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
-      case UserRole.tooAdmin:
+      case UserRole.landfillAdmin:
       case UserRole.contractorAdmin:
       case UserRole.driver:
         return polygons; // Все видят полигоны
@@ -269,7 +269,7 @@ class MonitoringController extends StateNotifier<MonitoringState> {
     switch (state.role) {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
-      case UserRole.tooAdmin:
+      case UserRole.landfillAdmin:
         return cameras.values.expand((c) => c).toList(); // Видят все камеры
       case UserRole.contractorAdmin:
       case UserRole.driver:
@@ -286,7 +286,7 @@ class MonitoringController extends StateNotifier<MonitoringState> {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
         return vehicles; // Видят всю технику
-      case UserRole.tooAdmin:
+      case UserRole.landfillAdmin:
         return vehicles; // Видят всю технику (но не участки)
       case UserRole.contractorAdmin:
         // Видят только свою технику
@@ -488,11 +488,26 @@ class MonitoringController extends StateNotifier<MonitoringState> {
 
   /// Установить режим создания
   void setCreateMode(String? mode) {
-    state = state.copyWith(
-      createMode: mode,
-      drawingGeometry: mode != null ? [] : null,
+    debugPrint('MonitoringController.setCreateMode: called with mode=$mode');
+    debugPrint('MonitoringController.setCreateMode: current state.createMode=${state.createMode}');
+    debugPrint('MonitoringController.setCreateMode: current state.hashCode=${state.hashCode}');
+    
+    // ВАЖНО: Используем явную передачу null для createMode и drawingGeometry
+    // чтобы можно было закрыть панель (установить createMode в null)
+    final newState = state.copyWith(
+      createMode: mode, // Передаем напрямую, включая null
+      drawingGeometry: mode != null ? const <List<double>>[] : null, // Если режим null, то и геометрия null
     );
-    debugPrint('MonitoringController.setCreateMode: mode=$mode');
+    
+    debugPrint('MonitoringController.setCreateMode: new state.createMode=${newState.createMode}');
+    debugPrint('MonitoringController.setCreateMode: new state.drawingGeometry=${newState.drawingGeometry}');
+    debugPrint('MonitoringController.setCreateMode: new state.hashCode=${newState.hashCode}');
+    
+    // ВАЖНО: Используем state = для StateNotifier, чтобы уведомить слушателей
+    state = newState;
+    
+    debugPrint('MonitoringController.setCreateMode: state updated successfully');
+    debugPrint('MonitoringController.setCreateMode: After update, state.createMode=${state.createMode}');
   }
 
   /// Добавить точку при рисовании
@@ -504,13 +519,40 @@ class MonitoringController extends StateNotifier<MonitoringState> {
 
   /// Очистить геометрию рисования
   void clearDrawingGeometry() {
-    state = state.copyWith(drawingGeometry: []);
+    state = state.copyWith(drawingGeometry: [], isEditingGeometry: false);
   }
 
-  /// Завершить рисование
+  /// Включить режим редактирования геометрии
+  void enableEditingGeometry() {
+    state = state.copyWith(isEditingGeometry: true);
+  }
+
+  /// Выключить режим редактирования геометрии
+  void disableEditingGeometry() {
+    state = state.copyWith(isEditingGeometry: false);
+  }
+
+  /// Удалить точку по индексу
+  void removeDrawingPoint(int index) {
+    if (index >= 0 && index < state.drawingGeometry.length) {
+      final currentGeometry = List<List<double>>.from(state.drawingGeometry);
+      currentGeometry.removeAt(index);
+      state = state.copyWith(drawingGeometry: currentGeometry);
+    }
+  }
+
+  /// Сохранить геометрию (без отправки на сервер)
+  void saveGeometry() {
+    // Геометрия уже сохранена в state.drawingGeometry
+    // Просто выключаем режим редактирования
+    state = state.copyWith(isEditingGeometry: false);
+  }
+
+  /// Завершить рисование (отправка на сервер через форму)
   void finishDrawing() {
     // Геометрия уже сохранена в state.drawingGeometry
-    // Можно добавить логику валидации
+    // Выключаем режим редактирования, форма сама отправит данные
+    state = state.copyWith(isEditingGeometry: false);
   }
 }
 

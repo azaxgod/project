@@ -126,7 +126,7 @@ class _AreasContentState extends ConsumerState<_AreasContent> {
     final s = S.of(context)!;
     final canEdit = widget.state.role == UserRole.akimatAdmin || 
                     widget.state.role == UserRole.kguZkhAdmin ||
-                    widget.state.role == UserRole.tooAdmin;
+                    widget.state.role == UserRole.landfillAdmin;
 
     // Filter areas
     var filteredAreas = widget.data.areas;

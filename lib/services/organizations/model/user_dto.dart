@@ -14,6 +14,10 @@ class UserDto {
   final String? driverId;
   @JsonKey(name: 'isActive')
   final bool isActive;
+  @JsonKey(name: 'blockReason')
+  final String? blockReason;
+  @JsonKey(name: 'generatedPassword')
+  final String? generatedPassword;
   @JsonKey(name: 'createdAt')
   final DateTime? createdAt;
   @JsonKey(name: 'updatedAt')
@@ -27,6 +31,8 @@ class UserDto {
     this.organizationId,
     this.driverId,
     required this.isActive,
+    this.blockReason,
+    this.generatedPassword,
     this.createdAt,
     this.updatedAt,
   });

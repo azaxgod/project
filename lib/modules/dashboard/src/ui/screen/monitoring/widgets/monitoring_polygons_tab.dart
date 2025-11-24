@@ -6,9 +6,11 @@ import 'package:akimat_project/modules/dashboard/src/controller/monitoring_contr
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MonitoringPolygonsTab extends StatelessWidget {
+class MonitoringPolygonsTab extends ConsumerWidget {
   final MonitoringState state;
   final MonitoringData data;
   final MonitoringController controller;
@@ -23,7 +25,10 @@ class MonitoringPolygonsTab extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ВАЖНО: Получаем актуальное состояние через ref.watch
+    // чтобы виджет перестраивался при изменении createMode
+    final currentState = ref.watch(monitoringControllerProvider);
     return Column(
       children: [
         // Кнопки создания (только для тех, кто может редактировать)
@@ -34,22 +39,48 @@ class MonitoringPolygonsTab extends StatelessWidget {
               children: [
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      controller.setCreateMode('polygon');
-                    },
-                    icon: const Icon(Icons.add_circle_outline, size: 22),
-                    label: const Text(
-                      'Создать полигон',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                  child: Material(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                    child: InkWell(
+                      onTap: () {
+                        debugPrint('MonitoringPolygonsTab: Create polygon button pressed');
+                        try {
+                          controller.setCreateMode('polygon');
+                          debugPrint('MonitoringPolygonsTab: setCreateMode called successfully, createMode=${currentState.createMode}');
+                        } catch (e, stack) {
+                          debugPrint('MonitoringPolygonsTab: Error calling setCreateMode: $e');
+                          debugPrint('MonitoringPolygonsTab: Stack: $stack');
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add_circle_outline, size: 22, color: Colors.white),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Создать полигон',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -57,22 +88,54 @@ class MonitoringPolygonsTab extends StatelessWidget {
                 const SizedBox(height: AppPadding.small),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      controller.setCreateMode('camera');
-                    },
-                    icon: const Icon(Icons.videocam_outlined, size: 22),
-                    label: const Text(
-                      'Добавить камеру',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                  child: Material(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                    child: InkWell(
+                      onTap: () {
+                        debugPrint('MonitoringPolygonsTab: Add camera button pressed');
+                        debugPrint('MonitoringPolygonsTab: Current createMode=${currentState.createMode}');
+                        try {
+                          controller.setCreateMode('camera');
+                          debugPrint('MonitoringPolygonsTab: setCreateMode("camera") called successfully');
+                          // Проверяем состояние после вызова
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            final updatedState = ref.read(monitoringControllerProvider);
+                            debugPrint('MonitoringPolygonsTab: Updated createMode=${updatedState.createMode}');
+                          });
+                        } catch (e, stack) {
+                          debugPrint('MonitoringPolygonsTab: Error calling setCreateMode: $e');
+                          debugPrint('MonitoringPolygonsTab: Stack: $stack');
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.secondary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.videocam_outlined, size: 22, color: Colors.white),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Добавить камеру',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -87,7 +150,7 @@ class MonitoringPolygonsTab extends StatelessWidget {
             itemCount: data.polygons.length,
             itemBuilder: (context, index) {
               final polygon = data.polygons[index];
-              final isSelected = polygon.id == state.selectedPolygonId;
+              final isSelected = polygon.id == currentState.selectedPolygonId;
               final polygonCameras = data.cameras
                   .where((c) => c.polygonId == polygon.id)
                   .toList();

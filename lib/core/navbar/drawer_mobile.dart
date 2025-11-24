@@ -77,15 +77,19 @@ class DrawerMobile extends ConsumerWidget {
     final user = authState.user;
     final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
 
-    String _getRoleLabel(UserRole role) {
+    String getRoleLabel(UserRole role) {
       switch (role) {
         case UserRole.akimatAdmin:
+        case UserRole.akimatUser:
           return 'Акимат';
         case UserRole.kguZkhAdmin:
+        case UserRole.kguZkhUser:
           return 'KGU ZKH';
-        case UserRole.tooAdmin:
-          return 'TOO';
+        case UserRole.landfillAdmin:
+        case UserRole.landfillUser:
+          return 'LANDFILL';
         case UserRole.contractorAdmin:
+        case UserRole.contractorUser:
           return 'Подрядчик';
         case UserRole.driver:
           return 'Водитель';
@@ -94,15 +98,19 @@ class DrawerMobile extends ConsumerWidget {
       }
     }
 
-    Color _getRoleColor(UserRole role) {
+    Color getRoleColor(UserRole role) {
       switch (role) {
         case UserRole.akimatAdmin:
+        case UserRole.akimatUser:
           return Colors.blue;
         case UserRole.kguZkhAdmin:
+        case UserRole.kguZkhUser:
           return Colors.green;
-        case UserRole.tooAdmin:
+        case UserRole.landfillAdmin:
+        case UserRole.landfillUser:
           return Colors.orange;
         case UserRole.contractorAdmin:
+        case UserRole.contractorUser:
           return Colors.purple;
         case UserRole.driver:
           return Colors.teal;
@@ -111,15 +119,19 @@ class DrawerMobile extends ConsumerWidget {
       }
     }
 
-    IconData _getRoleIcon(UserRole role) {
+    IconData getRoleIcon(UserRole role) {
       switch (role) {
         case UserRole.akimatAdmin:
+        case UserRole.akimatUser:
           return Icons.admin_panel_settings;
         case UserRole.kguZkhAdmin:
+        case UserRole.kguZkhUser:
           return Icons.business;
-        case UserRole.tooAdmin:
+        case UserRole.landfillAdmin:
+        case UserRole.landfillUser:
           return Icons.engineering;
         case UserRole.contractorAdmin:
+        case UserRole.contractorUser:
           return Icons.business_center;
         case UserRole.driver:
           return Icons.drive_eta;
@@ -199,10 +211,10 @@ class DrawerMobile extends ConsumerWidget {
                       vertical: AppPadding.small,
                     ),
                     decoration: BoxDecoration(
-                      color: _getRoleColor(role).withOpacity(0.1),
+                      color: getRoleColor(role).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppSize.buttonRadius),
                       border: Border.all(
-                        color: _getRoleColor(role).withOpacity(0.3),
+                        color: getRoleColor(role).withOpacity(0.3),
                         width: 1,
                       ),
                     ),
@@ -210,15 +222,15 @@ class DrawerMobile extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _getRoleIcon(role),
+                          getRoleIcon(role),
                           size: 18,
-                          color: _getRoleColor(role),
+                          color: getRoleColor(role),
                         ),
                         const SizedBox(width: AppPadding.small),
                         Text(
-                          _getRoleLabel(role),
+                          getRoleLabel(role),
                           style: TextStyle(
-                            color: _getRoleColor(role),
+                            color: getRoleColor(role),
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                             letterSpacing: -0.2,

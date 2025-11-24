@@ -67,7 +67,7 @@ class OrganizationsPage extends ConsumerWidget {
                 onRetry: controller.refresh,
               ),
               data: (data) {
-                if (state.role == UserRole.driver || state.role == UserRole.tooAdmin) {
+                if (state.role == UserRole.driver || state.role == UserRole.landfillAdmin) {
                   return _ForbiddenOrganizationsPage(
                     scaffoldKey: scaffoldKey,
                     webNavbarWidgets: webNavbarWidgets,

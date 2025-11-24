@@ -260,6 +260,180 @@ class RolesCollection {
 
   // ==================== Users ====================
 
+  // ==================== Akimat Users ====================
+
+  /// POST /roles/akimat/users - Создать сотрудника Акимата
+  /// Доступ: только AKIMAT_ADMIN
+  /// Роль: AKIMAT_USER
+  Future<UserDto> createAkimatUser({
+    required String phone,
+    required String login,
+    required String password,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/akimat/users',
+        data: {
+          'phone': phone,
+          'login': login,
+          'password': password,
+        },
+      );
+      return UserDto.fromJson(
+          response.data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/akimat/users - Список сотрудников Акимата
+  /// Доступ: AKIMAT_ADMIN
+  /// Возвращает: всех пользователей с ролью AKIMAT_USER текущего акимата
+  Future<List<UserDto>> getAkimatUsers() async {
+    try {
+      final response = await dio.get('/roles/akimat/users');
+      final List<dynamic> users = response.data['users'] ?? [];
+      return users
+          .map((json) => UserDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== KGU Users ====================
+
+  /// POST /roles/kgu/users - Создать сотрудника КГУ
+  /// Доступ: только KGU_ZKH_ADMIN
+  /// Роль: KGU_ZKH_USER
+  Future<UserDto> createKguUser({
+    required String phone,
+    required String login,
+    required String password,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/kgu/users',
+        data: {
+          'phone': phone,
+          'login': login,
+          'password': password,
+        },
+      );
+      return UserDto.fromJson(
+          response.data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/kgu/users - Список сотрудников КГУ
+  /// Доступ: KGU_ZKH_ADMIN
+  /// Возвращает: всех KGU_ZKH_USER текущего КГУ
+  Future<List<UserDto>> getKguUsers() async {
+    try {
+      final response = await dio.get('/roles/kgu/users');
+      final List<dynamic> users = response.data['users'] ?? [];
+      return users
+          .map((json) => UserDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== LANDFILL Users ====================
+
+  /// POST /roles/landfill/users - Создать сотрудника LANDFILL
+  /// Доступ: только LANDFILL_ADMIN
+  /// Роль: LANDFILL_USER
+  Future<UserDto> createLandfillUser({
+    required String phone,
+    required String login,
+    required String password,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/landfill/users',
+        data: {
+          'phone': phone,
+          'login': login,
+          'password': password,
+        },
+      );
+      return UserDto.fromJson(
+          response.data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/landfill/users - Список сотрудников LANDFILL
+  /// Доступ: LANDFILL_ADMIN
+  /// Возвращает: всех LANDFILL_USER текущего оператора
+  Future<List<UserDto>> getLandfillUsers() async {
+    try {
+      final response = await dio.get('/roles/landfill/users');
+      final List<dynamic> users = response.data['users'] ?? [];
+      return users
+          .map((json) => UserDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Contractor Users ====================
+
+  /// POST /roles/users - Создать сотрудника подрядчика
+  /// Доступ: только CONTRACTOR_ADMIN
+  /// Роль: CONTRACTOR_USER
+  Future<UserDto> createContractorUser({
+    required String phone,
+    required String login,
+    required String password,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/roles/users',
+        data: {
+          'phone': phone,
+          'login': login,
+          'password': password,
+        },
+      );
+      return UserDto.fromJson(
+          response.data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /roles/users - Список сотрудников подрядчика
+  /// Доступ: CONTRACTOR_ADMIN
+  /// Возвращает: всех CONTRACTOR_USER текущего подрядчика
+  Future<List<UserDto>> getContractorUsers() async {
+    try {
+      final response = await dio.get('/roles/users');
+      final List<dynamic> users = response.data['users'] ?? [];
+      return users
+          .map((json) => UserDto.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Generic User Operations ====================
+
   /// GET /roles/users?phone=...&login=... - Найти пользователя
   Future<UserDto?> findUser({String? phone, String? login}) async {
     try {
@@ -302,6 +476,9 @@ class RolesCollection {
   }
 
   /// PUT /roles/users/:id - Обновить пользователя
+  /// Поддерживает блокировку с причиной:
+  /// - is_active: false + block_reason - блокировка с причиной
+  /// - is_active: true - разблокировка (block_reason автоматически очищается)
   Future<UserDto> updateUser(
     String id, {
     String? phone,
@@ -310,6 +487,8 @@ class RolesCollection {
     String? role,
     String? organizationId,
     String? driverId,
+    bool? isActive,
+    String? blockReason,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -331,6 +510,12 @@ class RolesCollection {
       if (driverId != null) {
         data['driver_id'] = driverId;
       }
+      if (isActive != null) {
+        data['is_active'] = isActive;
+      }
+      if (blockReason != null) {
+        data['block_reason'] = blockReason;
+      }
 
       final response = await dio.put('/roles/users/$id', data: data);
       return UserDto.fromJson(
@@ -339,6 +524,27 @@ class RolesCollection {
       _handleError(e);
       rethrow;
     }
+  }
+
+  /// Блокировать пользователя с причиной
+  Future<UserDto> blockUser(
+    String id, {
+    String? blockReason,
+  }) async {
+    return updateUser(
+      id,
+      isActive: false,
+      blockReason: blockReason,
+    );
+  }
+
+  /// Разблокировать пользователя
+  /// При разблокировке block_reason автоматически очищается на бэкенде
+  Future<UserDto> unblockUser(String id) async {
+    return updateUser(
+      id,
+      isActive: true,
+    );
   }
 
   // ==================== Drivers ====================

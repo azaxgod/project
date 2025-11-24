@@ -62,6 +62,7 @@ class MonitoringState {
   final bool showCameras;
   final String? createMode; // 'area', 'polygon', 'camera', null
   final List<List<double>> drawingGeometry; // [[lon, lat], ...]
+  final bool isEditingGeometry; // Режим редактирования геометрии (можно удалять точки)
 
   const MonitoringState({
     required this.data,
@@ -80,6 +81,7 @@ class MonitoringState {
     this.showCameras = true,
     this.createMode,
     this.drawingGeometry = const [],
+    this.isEditingGeometry = false,
   });
 
   factory MonitoringState.initial({
@@ -109,8 +111,9 @@ class MonitoringState {
     bool? showAreas,
     bool? showPolygons,
     bool? showCameras,
-    String? createMode,
-    List<List<double>>? drawingGeometry,
+    Object? createMode = _keepCreateMode,
+    Object? drawingGeometry = _keepDrawingGeometry,
+    bool? isEditingGeometry,
   }) {
     return MonitoringState(
       data: data ?? this.data,
@@ -127,9 +130,36 @@ class MonitoringState {
       showAreas: showAreas ?? this.showAreas,
       showPolygons: showPolygons ?? this.showPolygons,
       showCameras: showCameras ?? this.showCameras,
-      createMode: createMode ?? this.createMode,
-      drawingGeometry: drawingGeometry ?? this.drawingGeometry,
+      // ВАЖНО: Используем паттерн с Object? для nullable полей, чтобы можно было явно установить null
+      createMode: createMode == _keepCreateMode ? this.createMode : createMode as String?,
+      drawingGeometry: drawingGeometry == _keepDrawingGeometry 
+          ? this.drawingGeometry 
+          : _parseDrawingGeometry(drawingGeometry),
+      isEditingGeometry: isEditingGeometry ?? this.isEditingGeometry,
     );
+  }
+
+  static const _keepCreateMode = Object();
+  static const _keepDrawingGeometry = Object();
+
+  /// Безопасное приведение drawingGeometry к правильному типу
+  static List<List<double>> _parseDrawingGeometry(Object? value) {
+    if (value == null) {
+      return const <List<double>>[];
+    }
+    if (value is List<List<double>>) {
+      return value;
+    }
+    if (value is List) {
+      // Пытаемся привести к List<List<double>>
+      try {
+        return value.cast<List<double>>();
+      } catch (e) {
+        // Если не получилось, возвращаем пустой список
+        return const <List<double>>[];
+      }
+    }
+    return const <List<double>>[];
   }
 }
 

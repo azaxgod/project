@@ -158,5 +158,158 @@ class ActsCollection {
       rethrow;
     }
   }
+
+  // ==================== Acts Management ====================
+
+  /// GET /acts/contractors - Список актов КГУ ↔ подрядчики
+  /// Доступ: KGU_ZKH_ADMIN, CONTRACTOR_ADMIN
+  Future<Map<String, dynamic>> getContractorActs({
+    String? contractorId,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (contractorId != null) {
+        queryParams['contractor_id'] = contractorId;
+      }
+      if (periodStart != null) {
+        queryParams['period_start'] = periodStart.toUtc().toIso8601String();
+      }
+      if (periodEnd != null) {
+        queryParams['period_end'] = periodEnd.toUtc().toIso8601String();
+      }
+
+      final response = await dio.get(
+        '/acts/contractors',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /acts/landfill - Список актов КГУ ↔ LANDFILL
+  /// Доступ: KGU_ZKH_ADMIN, LANDFILL_ADMIN
+  Future<Map<String, dynamic>> getLandfillActs({
+    String? landfillId,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+    String? status,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (landfillId != null) {
+        queryParams['landfill_id'] = landfillId;
+      }
+      if (periodStart != null) {
+        queryParams['period_start'] = periodStart.toUtc().toIso8601String();
+      }
+      if (periodEnd != null) {
+        queryParams['period_end'] = periodEnd.toUtc().toIso8601String();
+      }
+      if (status != null) {
+        queryParams['status'] = status;
+      }
+
+      final response = await dio.get(
+        '/acts/landfill',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /acts/landfill/:id - Получить акт приёма по ID
+  /// Доступ: KGU_ZKH_ADMIN, LANDFILL_ADMIN
+  Future<Map<String, dynamic>> getLandfillAct(String actId) async {
+    try {
+      final response = await dio.get('/acts/landfill/$actId');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// POST /acts/landfill - Создать акт приёма снега
+  /// Доступ: только KGU_ZKH_ADMIN
+  Future<Map<String, dynamic>> createLandfillAct({
+    required String contractId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+  }) async {
+    try {
+      final response = await dio.post(
+        '/acts/landfill',
+        data: {
+          'contract_id': contractId,
+          'period_start': periodStart.toUtc().toIso8601String(),
+          'period_end': periodEnd.toUtc().toIso8601String(),
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /acts/landfill/:id/approve - Подтвердить акт приёма
+  /// Доступ: только LANDFILL_ADMIN
+  Future<Map<String, dynamic>> approveLandfillAct(
+    String actId, {
+    String? comment,
+  }) async {
+    try {
+      final response = await dio.put(
+        '/acts/landfill/$actId/approve',
+        data: comment != null ? {'comment': comment} : null,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /acts/landfill/:id/reject - Отклонить акт приёма
+  /// Доступ: только LANDFILL_ADMIN
+  Future<Map<String, dynamic>> rejectLandfillAct(
+    String actId, {
+    required String reason,
+  }) async {
+    try {
+      final response = await dio.put(
+        '/acts/landfill/$actId/reject',
+        data: {
+          'reason': reason,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /acts/landfill/:id/send - Отправить акт оператору полигона
+  /// Доступ: только KGU_ZKH_ADMIN
+  Future<Map<String, dynamic>> sendLandfillActToOperator(String actId) async {
+    try {
+      final response = await dio.put(
+        '/acts/landfill/$actId/send',
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
 }
 

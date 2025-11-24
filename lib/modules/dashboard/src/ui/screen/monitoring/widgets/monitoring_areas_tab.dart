@@ -5,6 +5,7 @@ import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +25,10 @@ class MonitoringAreasTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ВАЖНО: Получаем актуальное состояние через ref.watch
+    // чтобы виджет перестраивался при изменении createMode
+    final currentState = ref.watch(monitoringControllerProvider);
+    
     return Column(
       children: [
         // Кнопка создания участка (только для тех, кто может редактировать)
@@ -32,22 +37,55 @@ class MonitoringAreasTab extends ConsumerWidget {
             padding: const EdgeInsets.all(AppPadding.normal),
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  controller.setCreateMode('area');
-                },
-                icon: const Icon(Icons.add_circle_outline, size: 22),
-                label: const Text(
-                  'Создать участок',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+              child: Material(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                child: InkWell(
+                  onTap: () {
+                    debugPrint('=== MonitoringAreasTab: Create area button pressed ===');
+                    debugPrint('MonitoringAreasTab: Current createMode=${currentState.createMode}');
+                    debugPrint('MonitoringAreasTab: Controller hash=${controller.hashCode}');
+                    
+                    // Вызываем метод напрямую
+                    controller.setCreateMode('area');
+                    
+                    debugPrint('MonitoringAreasTab: setCreateMode("area") called');
+                    
+                    // Проверяем состояние сразу после вызова
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final updatedState = ref.read(monitoringControllerProvider);
+                      debugPrint('MonitoringAreasTab: After setCreateMode, createMode=${updatedState.createMode}');
+                      debugPrint('MonitoringAreasTab: State hash=${updatedState.hashCode}');
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add_circle_outline, size: 22, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Создать участок',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -60,7 +98,7 @@ class MonitoringAreasTab extends ConsumerWidget {
             itemCount: data.areas.length,
             itemBuilder: (context, index) {
               final area = data.areas[index];
-              final isSelected = area.id == state.selectedAreaId;
+              final isSelected = area.id == currentState.selectedAreaId;
               return _buildAreaCard(area, isSelected);
             },
           ),

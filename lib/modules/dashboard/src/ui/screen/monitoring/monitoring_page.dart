@@ -3,6 +3,10 @@ import 'package:akimat_project/core/navbar/drawer_mobile.dart';
 import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
+import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_padding.dart';
+import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
@@ -192,7 +196,17 @@ class _MonitoringContent extends ConsumerWidget {
 
          @override
          Widget build(BuildContext context, WidgetRef ref) {
+           // ВАЖНО: Отслеживаем изменения состояния через ref.watch
+           // чтобы виджет перестраивался при изменении createMode
+           final currentState = ref.watch(monitoringControllerProvider);
+           
+           // Логируем для отладки
+           WidgetsBinding.instance.addPostFrameCallback((_) {
+             debugPrint('_MonitoringContent.build: createMode=${currentState.createMode}');
+           });
+           
            return Stack(
+             clipBehavior: Clip.none,
              children: [
                Row(
                  children: [
@@ -200,46 +214,259 @@ class _MonitoringContent extends ConsumerWidget {
                    Expanded(
                      flex: 2,
                      child: MonitoringMapWidget(
-                       areas: state.showAreas ? data.areas : [],
-                       polygons: state.showPolygons ? data.polygons : [],
-                       cameras: state.showCameras ? data.cameras : [],
-                       vehicles: state.showVehicles ? data.vehicles : [],
-                       selectedAreaId: state.selectedAreaId,
-                       selectedPolygonId: state.selectedPolygonId,
-                       selectedVehicleId: state.selectedVehicleId,
-                       selectedVehicleTrack: state.selectedVehicleTrack,
-                       drawingGeometry: state.drawingGeometry,
+                       areas: currentState.showAreas ? data.areas : [],
+                       polygons: currentState.showPolygons ? data.polygons : [],
+                       cameras: currentState.showCameras ? data.cameras : [],
+                       vehicles: currentState.showVehicles ? data.vehicles : [],
+                       selectedAreaId: currentState.selectedAreaId,
+                       selectedPolygonId: currentState.selectedPolygonId,
+                       selectedVehicleId: currentState.selectedVehicleId,
+                       selectedVehicleTrack: currentState.selectedVehicleTrack,
+                       drawingGeometry: currentState.drawingGeometry,
+                       isEditingGeometry: currentState.isEditingGeometry,
                        onAreaTap: (areaId) => controller.selectArea(areaId),
                        onPolygonTap: (polygonId) => controller.selectPolygon(polygonId),
                        onVehicleTap: (vehicleId) => controller.selectVehicle(vehicleId),
-                       onMapTap: state.createMode != null ? (lat, lon) {
-                         controller.addDrawingPoint(lon, lat);
-                       } : null,
+                       onMapTap: currentState.createMode != null && !currentState.isEditingGeometry
+                           ? (lat, lon) {
+                               controller.addDrawingPoint(lon, lat);
+                             }
+                           : null,
+                       onPointTap: currentState.isEditingGeometry
+                           ? (index) {
+                               controller.removeDrawingPoint(index);
+                             }
+                           : null,
                      ),
                    ),
                    // Панель справа
                    SizedBox(
                      width: 400,
                      child: MonitoringSidebar(
-                       state: state,
+                       state: currentState,
                        data: data,
                        controller: controller,
                      ),
                    ),
                  ],
                ),
-               // Боковая панель создания справа
-               if (state.createMode != null)
+               // Боковая панель действий справа (появляется после 3+ точек)
+               if (currentState.createMode != null && 
+                   currentState.drawingGeometry.isNotEmpty && 
+                   currentState.drawingGeometry.length >= 3 &&
+                   (currentState.createMode == 'area' || currentState.createMode == 'polygon'))
                  Positioned(
-                   right: 0,
-                   top: 0,
-                   bottom: 0,
-                   child: MonitoringCreatePanel(
-                     controller: controller,
-                     mode: state.createMode,
-                     onClose: () => controller.setCreateMode(null),
+                   right: 420, // Справа от сайдбара (400px) + отступ
+                   top: 100,
+                   child: Material(
+                     elevation: 16,
+                     shadowColor: Colors.black.withValues(alpha: 0.3),
+                     borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                     child: Container(
+                       width: 280,
+                       padding: const EdgeInsets.all(AppPadding.normal),
+                       decoration: BoxDecoration(
+                         color: AppColors.cardBackground,
+                         borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                         border: Border.all(
+                           color: AppColors.primary.withValues(alpha: 0.2),
+                           width: 2,
+                         ),
+                       ),
+                       child: Column(
+                         mainAxisSize: MainAxisSize.min,
+                         crossAxisAlignment: CrossAxisAlignment.stretch,
+                         children: [
+                           Row(
+                             children: [
+                               Icon(
+                                 Icons.edit_location_alt,
+                                 color: AppColors.primary,
+                                 size: 24,
+                               ),
+                               const SizedBox(width: AppPadding.small),
+                               Expanded(
+                                 child: Text(
+                                   'Геометрия готова',
+                                   style: AppTextStyles.title2.copyWith(
+                                     fontWeight: FontWeight.bold,
+                                     color: AppColors.primary,
+                                   ),
+                                 ),
+                               ),
+                             ],
+                           ),
+                           const SizedBox(height: AppPadding.small),
+                           Text(
+                             'Точек: ${currentState.drawingGeometry.length}',
+                             style: AppTextStyles.caption,
+                           ),
+                           const SizedBox(height: AppPadding.normal),
+                           // Кнопка Сохранить (сохраняет геометрию, но не отправляет)
+                           if (currentState.isEditingGeometry)
+                             FilledButton.icon(
+                               onPressed: () {
+                                 controller.saveGeometry();
+                               },
+                               icon: const Icon(Icons.save, size: 20),
+                               label: const Text('Сохранить'),
+                               style: FilledButton.styleFrom(
+                                 padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                                 backgroundColor: AppColors.success,
+                               ),
+                             ),
+                           // Кнопка Завершить (отправляет на сервер)
+                           if (!currentState.isEditingGeometry)
+                             FilledButton.icon(
+                               onPressed: () {
+                                 controller.finishDrawing();
+                                 // Прокручиваем к форме внизу для заполнения и отправки
+                                 // Форма сама отправит данные на сервер
+                               },
+                               icon: const Icon(Icons.check, size: 20),
+                               label: const Text('Завершить'),
+                               style: FilledButton.styleFrom(
+                                 padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                               ),
+                             ),
+                           const SizedBox(height: AppPadding.small),
+                           // Кнопка Редактировать (включает режим редактирования)
+                           if (!currentState.isEditingGeometry)
+                             OutlinedButton.icon(
+                               onPressed: () {
+                                 controller.enableEditingGeometry();
+                               },
+                               icon: const Icon(Icons.edit, size: 20),
+                               label: const Text('Редактировать'),
+                               style: OutlinedButton.styleFrom(
+                                 padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                               ),
+                             ),
+                           // Кнопка Отменить редактирование
+                           if (currentState.isEditingGeometry)
+                             OutlinedButton.icon(
+                               onPressed: () {
+                                 controller.disableEditingGeometry();
+                               },
+                               icon: const Icon(Icons.cancel, size: 20),
+                               label: const Text('Отменить редактирование'),
+                               style: OutlinedButton.styleFrom(
+                                 padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                               ),
+                             ),
+                           const SizedBox(height: AppPadding.small),
+                           // Кнопка Отменить (закрыть панель)
+                           OutlinedButton.icon(
+                             onPressed: () {
+                               controller.setCreateMode(null);
+                             },
+                             icon: const Icon(Icons.close, size: 20),
+                             label: const Text('Отменить'),
+                             style: OutlinedButton.styleFrom(
+                               padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                               foregroundColor: AppColors.error,
+                             ),
+                           ),
+                           // Подсказка в режиме редактирования
+                           if (currentState.isEditingGeometry) ...[
+                             const SizedBox(height: AppPadding.normal),
+                             Container(
+                               padding: const EdgeInsets.all(AppPadding.small),
+                               decoration: BoxDecoration(
+                                 color: AppColors.primary.withValues(alpha: 0.1),
+                                 borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                               ),
+                               child: Row(
+                                 children: [
+                                   Icon(Icons.info_outline, size: 16, color: AppColors.primary),
+                                   const SizedBox(width: AppPadding.small),
+                                   Expanded(
+                                     child: Text(
+                                       'Кликните на точку на карте для удаления',
+                                       style: AppTextStyles.caption.copyWith(
+                                         color: AppColors.primary,
+                                       ),
+                                     ),
+                                   ),
+                                 ],
+                               ),
+                             ),
+                           ],
+                         ],
+                       ),
+                     ),
                    ),
                  ),
+               // Панель создания снизу (как модальная карточка)
+               if (currentState.createMode != null)
+                 Positioned(
+                   left: 0,
+                   right: 0,
+                   bottom: 0,
+                   child: TweenAnimationBuilder<double>(
+                         duration: const Duration(milliseconds: 300),
+                         curve: Curves.easeOutCubic,
+                         tween: Tween(begin: 0.0, end: 1.0),
+                         builder: (context, value, child) {
+                           return Transform.translate(
+                             offset: Offset(0, (1 - value) * 100),
+                             child: Opacity(
+                               opacity: value,
+                               child: child,
+                             ),
+                           );
+                         },
+                         child: Material(
+                           elevation: 24,
+                           shadowColor: Colors.black.withValues(alpha: 0.5),
+                           borderRadius: const BorderRadius.only(
+                             topLeft: Radius.circular(24),
+                             topRight: Radius.circular(24),
+                           ),
+                           child: Container(
+                             constraints: BoxConstraints(
+                               maxHeight: MediaQuery.of(context).size.height * 0.7,
+                               minHeight: 400,
+                             ),
+                             decoration: BoxDecoration(
+                               color: AppColors.cardBackground,
+                               borderRadius: const BorderRadius.only(
+                                 topLeft: Radius.circular(24),
+                                 topRight: Radius.circular(24),
+                               ),
+                             ),
+                             child: Column(
+                               mainAxisSize: MainAxisSize.min,
+                               children: [
+                                 // Индикатор перетаскивания
+                                 Container(
+                                   margin: const EdgeInsets.only(top: 12, bottom: 8),
+                                   width: 40,
+                                   height: 4,
+                                   decoration: BoxDecoration(
+                                     color: Colors.grey.withValues(alpha: 0.4),
+                                     borderRadius: BorderRadius.circular(2),
+                                   ),
+                                 ),
+                                 // Контент панели
+                                 Flexible(
+                                   child: MonitoringCreatePanel(
+                                     key: ValueKey('create_panel_${currentState.createMode}'),
+                                     controller: controller,
+                                     mode: currentState.createMode,
+                                     onClose: () {
+                                       debugPrint('MonitoringPage: onClose called');
+                                       controller.setCreateMode(null);
+                                     },
+                                   ),
+                                 ),
+                               ],
+                             ),
+                           ),
+                         ),
+                       ),
+                     ),
+                  //  ),
              ],
            );
          }

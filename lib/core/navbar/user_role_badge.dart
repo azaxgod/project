@@ -14,12 +14,20 @@ class UserRoleBadge extends ConsumerWidget {
     switch (role) {
       case UserRole.akimatAdmin:
         return 'Акимат';
+      case UserRole.akimatUser:
+        return 'Акимат (пользователь)';
       case UserRole.kguZkhAdmin:
         return 'KGU ZKH';
-      case UserRole.tooAdmin:
-        return 'TOO';
+      case UserRole.kguZkhUser:
+        return 'KGU ZKH (пользователь)';
+      case UserRole.landfillAdmin:
+        return 'LANDFILL';
+      case UserRole.landfillUser:
+        return 'LANDFILL (пользователь)';
       case UserRole.contractorAdmin:
         return 'Подрядчик';
+      case UserRole.contractorUser:
+        return 'Подрядчик (пользователь)';
       case UserRole.driver:
         return 'Водитель';
       case UserRole.unknown:
@@ -30,12 +38,16 @@ class UserRoleBadge extends ConsumerWidget {
   Color _getRoleColor(UserRole role) {
     switch (role) {
       case UserRole.akimatAdmin:
+      case UserRole.akimatUser:
         return Colors.blue;
       case UserRole.kguZkhAdmin:
+      case UserRole.kguZkhUser:
         return Colors.green;
-      case UserRole.tooAdmin:
+      case UserRole.landfillAdmin:
+      case UserRole.landfillUser:
         return Colors.orange;
       case UserRole.contractorAdmin:
+      case UserRole.contractorUser:
         return Colors.purple;
       case UserRole.driver:
         return Colors.teal;
@@ -47,12 +59,16 @@ class UserRoleBadge extends ConsumerWidget {
   IconData _getRoleIcon(UserRole role) {
     switch (role) {
       case UserRole.akimatAdmin:
+      case UserRole.akimatUser:
         return Icons.admin_panel_settings;
       case UserRole.kguZkhAdmin:
+      case UserRole.kguZkhUser:
         return Icons.business;
-      case UserRole.tooAdmin:
+      case UserRole.landfillAdmin:
+      case UserRole.landfillUser:
         return Icons.engineering;
       case UserRole.contractorAdmin:
+      case UserRole.contractorUser:
         return Icons.business_center;
       case UserRole.driver:
         return Icons.drive_eta;

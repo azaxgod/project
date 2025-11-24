@@ -207,7 +207,11 @@ class _ContractsContent extends ConsumerWidget {
                               ),
                             ),
                           ],
-                          onChanged: controller.setContractorFilter,
+                          onChanged: (value) {
+                            // Всегда вызываем setContractorFilter, даже если значение не изменилось
+                            // PopupMenuButton всегда вызывает onSelected, что позволяет повторно выбрать "Все"
+                            controller.setContractorFilter(value);
+                          },
                         ),
                       ),
                     // Status filter
@@ -245,7 +249,11 @@ class _ContractsContent extends ConsumerWidget {
                             child: Text(s.archived, overflow: TextOverflow.ellipsis),
                           ),
                         ],
-                        onChanged: controller.setStatusFilter,
+                        onChanged: (value) {
+                          // Всегда вызываем setStatusFilter, даже если значение не изменилось
+                          // PopupMenuButton всегда вызывает onSelected, что позволяет повторно выбрать "Все"
+                          controller.setStatusFilter(value);
+                        },
                       ),
                     ),
                     // Period filter - используем кастомный date range picker для мобильных
@@ -369,20 +377,21 @@ class _ContractsContent extends ConsumerWidget {
                           orElse: () => data.contractors.first,
                         );
                         final volumeProgress = contract.usage != null &&
-                                contract.minimalVolumeM3 > 0
+                                (contract.minimalVolumeM3 ?? 0) > 0
                             ? (contract.usage!.totalVolumeM3 /
-                                    contract.minimalVolumeM3 *
+                                    (contract.minimalVolumeM3 ?? 1) *
                                     100.0)
                                 .clamp(0.0, 100.0)
                             : 0.0;
-                        final budgetProgress = contract.budgetTotal > 0
+                        final budgetProgress = (contract.budgetTotal ?? 0) > 0
                             ? (contract.usage?.totalCost ?? 0.0) /
-                                    contract.budgetTotal *
+                                    (contract.budgetTotal ?? 1) *
                                     100.0
                             : 0.0;
                         final budgetExceeded =
+                            contract.budgetTotal != null &&
                             (contract.usage?.totalCost ?? 0.0) >
-                                contract.budgetTotal;
+                                contract.budgetTotal!;
 
                         return DataRow(
                           cells: [
@@ -421,7 +430,7 @@ class _ContractsContent extends ConsumerWidget {
                                 child: _ProgressBar(
                                   progress: volumeProgress,
                                   label:
-                                      '${contract.usage?.totalVolumeM3.toStringAsFixed(1) ?? '0'} / ${contract.minimalVolumeM3.toStringAsFixed(1)} м³',
+                                      '${contract.usage?.totalVolumeM3.toStringAsFixed(1) ?? '0'} / ${contract.minimalVolumeM3?.toStringAsFixed(1)} м³',
                                 ),
                               ),
                             ),
@@ -431,7 +440,7 @@ class _ContractsContent extends ConsumerWidget {
                                 child: _ProgressBar(
                                   progress: budgetProgress,
                                   label:
-                                      '${(contract.usage?.totalCost ?? 0.0).toStringAsFixed(0)} / ${contract.budgetTotal.toStringAsFixed(0)} ₸',
+                                      '${(contract.usage?.totalCost ?? 0.0).toStringAsFixed(0)} / ${contract.budgetTotal?.toStringAsFixed(0)} ₸',
                                 ),
                               ),
                             ),

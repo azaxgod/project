@@ -926,5 +926,46 @@ class OperationsCollection {
       rethrow;
     }
   }
+
+  // ==================== LANDFILL Reception Journal ====================
+
+  /// GET /landfill/reception-journal - Журнал приёма снега для LANDFILL
+  /// Доступ: только LANDFILL_ADMIN и LANDFILL_USER
+  /// Возвращает все заезды на полигоны, принадлежащие организации LANDFILL
+  Future<Map<String, dynamic>> getLandfillReceptionJournal({
+    String? polygonId,
+    String? contractorId,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? status,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (polygonId != null) {
+        queryParams['polygon_id'] = polygonId;
+      }
+      if (contractorId != null) {
+        queryParams['contractor_id'] = contractorId;
+      }
+      if (dateFrom != null) {
+        queryParams['date_from'] = dateFrom.toUtc().toIso8601String();
+      }
+      if (dateTo != null) {
+        queryParams['date_to'] = dateTo.toUtc().toIso8601String();
+      }
+      if (status != null) {
+        queryParams['status'] = status;
+      }
+
+      final response = await dio.get(
+        '/landfill/reception-journal',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
 }
 
