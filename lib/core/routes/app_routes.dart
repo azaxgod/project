@@ -11,6 +11,7 @@ import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_violati
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_vehicles_page.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/auth/src/ui/login_page.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_cabinet/akimat_cabinet_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/akimat_home.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/areas/areas_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/monitoring_page.dart';
@@ -85,13 +86,13 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => AkimatHome(
+        builder: (context, state) => AkimatCabinetPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         ),
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => AkimatHome(
+        builder: (context, state) => AkimatCabinetPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         ),
       ),

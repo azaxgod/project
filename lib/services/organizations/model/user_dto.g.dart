@@ -13,7 +13,7 @@ UserDto _$UserDtoFromJson(Map<String, dynamic> json) => UserDto(
       login: json['login'] as String?,
       organizationId: json['organizationID'] as String?,
       driverId: json['driverID'] as String?,
-      isActive: json['isActive'] as bool,
+      isActive: json['isActive'] as bool? ?? true,
       blockReason: json['blockReason'] as String?,
       generatedPassword: json['generatedPassword'] as String?,
       createdAt: json['createdAt'] == null

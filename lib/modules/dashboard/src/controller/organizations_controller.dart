@@ -7,6 +7,7 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository_impl.dart';
 import 'package:akimat_project/services/organizations/module.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class OrganizationsController extends StateNotifier<OrganizationsState> {
@@ -27,6 +28,19 @@ class OrganizationsController extends StateNotifier<OrganizationsState> {
         final organizations = await _repository.loadOrganizations();
         final drivers = await _repository.loadDrivers();
         final vehicles = await _repository.loadVehicles();
+        
+        // Debug logging
+        debugPrint('OrganizationsController._loadData:');
+        debugPrint('  - Loaded ${organizations.length} organizations');
+        debugPrint('  - Loaded ${drivers.length} drivers');
+        debugPrint('  - Loaded ${vehicles.length} vehicles');
+        debugPrint('  - Current role: ${state.role}');
+        debugPrint('  - Current organizationId: ${state.organizationId}');
+        if (vehicles.isNotEmpty) {
+          debugPrint('  - First vehicle contractorId: ${vehicles.first.contractorId}');
+          debugPrint('  - Vehicles contractorIds: ${vehicles.map((v) => v.contractorId).toSet().join(", ")}');
+        }
+        
         return OrganizationsData(
           organizations: organizations,
           drivers: drivers,

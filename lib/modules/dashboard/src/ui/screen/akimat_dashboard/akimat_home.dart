@@ -62,16 +62,11 @@ class AkimatHome extends ConsumerWidget {
                 mobileNavbarWidgets,
               ),
             ),
-      body: Column(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (kIsWeb)
-            HeaderNavbar(webWidgets: webNavbarWidgets),
+          if (kIsWeb) const VerticalDivider(thickness: 1, width: 1),
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (kIsWeb) const VerticalDivider(thickness: 1, width: 1),
-                Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.all(config.padding),
                     child: Column(
@@ -325,9 +320,9 @@ const SizedBox(height: 16),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
+          );
+        // ],
+      // ),
+    // );
   }
 }

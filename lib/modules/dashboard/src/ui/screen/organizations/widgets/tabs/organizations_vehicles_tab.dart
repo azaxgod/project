@@ -1,12 +1,10 @@
+import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.dart';
-import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/contractor_cabinet/widgets/vehicle_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_status_chip.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_tab_header.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_table_actions.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_details_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_dialogs.dart';
 import 'package:flutter/material.dart';
@@ -51,89 +49,63 @@ class OrganizationsVehiclesTab extends StatelessWidget {
             message: 'Добавьте транспорт, чтобы закреплять водителей.',
           )
         else
-          OrganizationsDataTable(
-            columns: const [
-              DataColumn(label: Text('Гос. номер')),
-              DataColumn(label: Text('Марка')),
-              DataColumn(label: Text('Модель')),
-              DataColumn(label: Text('Цвет')),
-              DataColumn(label: Text('Год')),
-              DataColumn(label: Text('Объём кузова')),
-              DataColumn(label: Text('Водитель')),
-              DataColumn(label: Text('Статус')),
-              DataColumn(label: Text('Действия')),
-            ],
-            rows: vehicles.map((vehicle) {
-              final driver = data.drivers.firstWhere(
-                (driver) => driver.id == vehicle.driverId,
-                orElse: () => Driver(
-                  id: '',
-                  contractorId: '',
-                  fullName: '',
-                  iin: '',
-                  phone: '',
-                  isActive: false,
-                ),
-              );
-              return DataRow(
-                cells: [
-                  DataCell(Text(vehicle.plateNumber)),
-                  DataCell(Text(vehicle.brand)),
-                  DataCell(Text(vehicle.model)),
-                  DataCell(Text(vehicle.color)),
-                  DataCell(Text(vehicle.year.toString())),
-                  DataCell(Text(vehicle.bodyVolumeM3.toStringAsFixed(1))),
-                  DataCell(Text(driver.id.isEmpty ? 'Не назначен' : driver.fullName)),
-                  DataCell(OrganizationsStatusChip(isActive: vehicle.isActive)),
-                  DataCell(
-                    OrganizationsTableActions(
-                      actions: [
-                        OrganizationsTableAction(
-                          label: 'Подробнее',
-                          onPressed: () => OrganizationsDetailsDialogs.showVehicleDetails(
-                            context: context,
-                            vehicle: vehicle,
-                            driver: driver,
-                          ),
-                        ),
-                        OrganizationsTableAction(
-                          label: 'Редактировать',
-                          onPressed: () => OrganizationsDialogs.showVehicleDialog(
-                            context: context,
-                            controller: controller,
-                            data: data,
-                            contractorId: contractorId,
-                            vehicle: vehicle,
-                          ),
-                        ),
-                        OrganizationsTableAction(
-                          label: 'Назначить водителя',
-                          onPressed: () => OrganizationsDialogs.showAssignDriverDialog(
-                            context: context,
-                            controller: controller,
-                            data: data,
-                            vehicle: vehicle,
-                          ),
-                        ),
-                        OrganizationsTableAction(
-                          label: vehicle.isActive ? 'Удалить' : 'Восстановить',
-                          isDestructive: vehicle.isActive,
-                          onPressed: () => controller.updateVehicle(
-                            vehicle.copyWith(
-                              isActive: !vehicle.isActive,
-                              driverId: vehicle.isActive ? null : vehicle.driverId,
-                            ),
-                          ),
-                        ),
-                      ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppPadding.large),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: vehicles.length,
+              itemBuilder: (context, index) {
+                final vehicle = vehicles[index];
+                Driver? driver;
+                if (vehicle.driverId != null && vehicle.driverId!.isNotEmpty) {
+                  try {
+                    driver = data.drivers.firstWhere(
+                      (d) => d.id == vehicle.driverId,
+                    );
+                  } catch (e) {
+                    driver = null;
+                  }
+                }
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index < vehicles.length - 1 ? AppPadding.normal : 0,
+                  ),
+                  child: VehicleCard(
+                    vehicle: vehicle,
+                    driver: driver,
+                    onTap: () => OrganizationsDetailsDialogs.showVehicleDetails(
+                      context: context,
+                      vehicle: vehicle,
+                      driver: driver ?? Driver(
+                        id: '',
+                        contractorId: '',
+                        fullName: 'Не назначен',
+                        iin: '',
+                        phone: '',
+                        isActive: false,
+                      ),
+                    ),
+                    onEdit: () => OrganizationsDialogs.showVehicleDialog(
+                      context: context,
+                      controller: controller,
+                      data: data,
+                      contractorId: contractorId,
+                      vehicle: vehicle,
+                    ),
+                    onAssignDriver: () => OrganizationsDialogs.showAssignDriverDialog(
+                      context: context,
+                      controller: controller,
+                      data: data,
+                      vehicle: vehicle,
                     ),
                   ),
-                ],
-              );
-            }).toList(),
+                );
+              },
+            ),
           ),
       ],
     );
   }
 }
-

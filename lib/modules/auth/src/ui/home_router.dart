@@ -1,6 +1,9 @@
   import 'package:akimat_project/modules/areas/src/ui/contract_home.dart';
   import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
-  import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/akimat_home.dart';
+  import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_cabinet/akimat_cabinet_page.dart';
+  import 'package:akimat_project/modules/dashboard/src/ui/screen/kgu_cabinet/kgu_cabinet_page.dart';
+  import 'package:akimat_project/modules/dashboard/src/ui/screen/contractor_cabinet/contractor_cabinet_page.dart';
+  import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_cabinet_page.dart';
   import 'package:akimat_project/modules/trips/src/ui/driver_home.dart';
   import 'package:flutter/material.dart';
   import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,14 +33,30 @@ import 'package:akimat_project/l10n/l10n.dart';
       final role = authState.user!.role;
       switch (role) {
         case 'AKIMAT_ADMIN':
-        final scaffoldKey = GlobalKey<ScaffoldState>();
-          return AkimatHome(
+        case 'AKIMAT_USER':
+          final scaffoldKey = GlobalKey<ScaffoldState>();
+          return AkimatCabinetPage(
+            scaffoldKey: scaffoldKey,
+          );
+        case 'KGU_ZKH_ADMIN':
+        case 'KGU_ZKH_USER':
+          final scaffoldKey = GlobalKey<ScaffoldState>();
+          return KguCabinetPage(
+            scaffoldKey: scaffoldKey,
+          );
+        case 'CONTRACTOR_ADMIN':
+        case 'CONTRACTOR_USER':
+          final scaffoldKey = GlobalKey<ScaffoldState>();
+          return ContractorCabinetPage(
             scaffoldKey: scaffoldKey,
           );
         case 'LANDFILL_ADMIN':
+        case 'LANDFILL_USER':
         case 'TOO_ADMIN': // Поддержка старого значения
-        case 'CONTRACTOR_ADMIN':
-          return const ContractorHome();
+          final scaffoldKey = GlobalKey<ScaffoldState>();
+          return LandfillCabinetPage(
+            scaffoldKey: scaffoldKey,
+          );
         case 'DRIVER':
           return const DriverHome();
         default:

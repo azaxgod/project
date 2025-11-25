@@ -369,7 +369,7 @@ class _ContractsContent extends ConsumerWidget {
                           DataColumn(label: Text(s.volume_progress)),
                           DataColumn(label: Text(s.budget_progress)),
                           DataColumn(label: Text(s.budget_exceeded)),
-                          DataColumn(label: Text(s.actions)),
+                          // DataColumn(label: Text(s.actions)), // Скрыта временно
                         ],
                       rows: data.contracts.map((contract) {
                         final contractor = data.contractors.firstWhere(
@@ -445,14 +445,14 @@ class _ContractsContent extends ConsumerWidget {
                               ),
                             ),
                             DataCell(Text(budgetExceeded ? s.yes : s.no)),
-                            DataCell(
-                              TextButton(
-                                onPressed: () {
-                                  // TODO: Показать карточку контракта
-                                },
-                                child: Text(s.open),
-                              ),
-                            ),
+                            // DataCell(
+                            //   TextButton(
+                            //     onPressed: () {
+                            //       // TODO: Показать карточку контракта
+                            //     },
+                            //     child: Text(s.open),
+                            //   ),
+                            // ), // Скрыта временно
                           ],
                         );
                       }).toList(),

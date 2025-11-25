@@ -293,9 +293,30 @@ class RolesCollection {
   Future<List<UserDto>> getAkimatUsers() async {
     try {
       final response = await dio.get('/roles/akimat/users');
-      final List<dynamic> users = response.data['users'] ?? [];
+      final usersData = response.data;
+      
+      // Обработка разных форматов ответа
+      List<dynamic> users;
+      if (usersData is List) {
+        users = usersData;
+      } else if (usersData is Map && usersData['users'] != null) {
+        users = usersData['users'] as List<dynamic>? ?? [];
+      } else {
+        users = [];
+      }
+      
       return users
-          .map((json) => UserDto.fromJson(json as Map<String, dynamic>))
+          .where((json) => json != null)
+          .map((json) {
+            try {
+              return UserDto.fromJson(json as Map<String, dynamic>);
+            } catch (e) {
+              // Логируем ошибку парсинга, но продолжаем обработку остальных пользователей
+              print('Error parsing user: $e, data: $json');
+              return null;
+            }
+          })
+          .whereType<UserDto>()
           .toList();
     } on DioException catch (e) {
       _handleError(e);
@@ -661,7 +682,17 @@ class RolesCollection {
         '/roles/vehicles',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      final List<dynamic> vehicles = response.data['vehicles'] ?? [];
+      
+      // API может возвращать данные в формате {vehicles: [...]} или просто массив
+      final List<dynamic> vehicles;
+      if (response.data is Map) {
+        vehicles = response.data['vehicles'] ?? response.data['vehicle'] ?? [];
+      } else if (response.data is List) {
+        vehicles = response.data;
+      } else {
+        vehicles = [];
+      }
+      
       return vehicles
           .map((json) => VehicleDto.fromJson(json as Map<String, dynamic>))
           .toList();

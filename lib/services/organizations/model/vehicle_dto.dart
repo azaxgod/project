@@ -28,18 +28,57 @@ class VehicleDto {
   final bool isActive;
 
   factory VehicleDto.fromJson(Map<String, dynamic> json) {
+    // Поддержка разных вариантов названий полей (ID/ContractorID от API и id/contractorId от клиента)
+    final id = json['ID'] as String? ?? 
+               json['id'] as String? ?? 
+               '';
+    final contractorId = json['ContractorID'] as String? ?? 
+                        json['contractor_id'] as String? ?? 
+                        json['contractorId'] as String? ?? 
+                        '';
+    final driverId = json['DriverID'] as String? ?? 
+                    json['driver_id'] as String? ?? 
+                    json['driverId'] as String?;
+    final plateNumber = json['PlateNumber'] as String? ?? 
+                       json['plate_number'] as String? ?? 
+                       json['plateNumber'] as String? ?? 
+                       '';
+    final brand = json['Brand'] as String? ?? 
+                 json['brand'] as String? ?? 
+                 '';
+    final model = json['Model'] as String? ?? 
+                 json['model'] as String? ?? 
+                 '';
+    final color = json['Color'] as String? ?? 
+                 json['color'] as String? ?? 
+                 '';
+    final year = json['Year'] as int? ?? 
+                json['year'] as int? ?? 
+                0;
+    final bodyVolumeM3 = (json['BodyVolumeM3'] as num?)?.toDouble() ?? 
+                        (json['body_volume_m3'] as num?)?.toDouble() ?? 
+                        (json['bodyVolumeM3'] as num?)?.toDouble() ?? 
+                        0.0;
+    final photoUrl = json['PhotoURL'] as String? ?? 
+                    json['photo_url'] as String? ?? 
+                    json['photoUrl'] as String?;
+    final isActive = json['IsActive'] as bool? ?? 
+                    json['is_active'] as bool? ?? 
+                    json['isActive'] as bool? ?? 
+                    true;
+    
     return VehicleDto(
-      id: json['id'] as String? ?? '',
-      contractorId: json['contractor_id'] as String? ?? json['contractorId'] as String? ?? '',
-      driverId: json['driver_id'] as String? ?? json['driverId'] as String?,
-      plateNumber: json['plate_number'] as String? ?? json['plateNumber'] as String? ?? '',
-      brand: json['brand'] as String? ?? '',
-      model: json['model'] as String? ?? '',
-      color: json['color'] as String? ?? '',
-      year: json['year'] as int? ?? 0,
-      bodyVolumeM3: (json['body_volume_m3'] as num?)?.toDouble() ?? (json['bodyVolumeM3'] as num?)?.toDouble() ?? 0.0,
-      photoUrl: json['photo_url'] as String? ?? json['photoUrl'] as String?,
-      isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
+      id: id,
+      contractorId: contractorId,
+      driverId: driverId,
+      plateNumber: plateNumber,
+      brand: brand,
+      model: model,
+      color: color,
+      year: year,
+      bodyVolumeM3: bodyVolumeM3,
+      photoUrl: photoUrl,
+      isActive: isActive,
     );
   }
 

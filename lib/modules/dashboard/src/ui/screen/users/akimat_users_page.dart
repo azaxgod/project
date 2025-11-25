@@ -1,6 +1,5 @@
 import 'package:akimat_project/core/locale/locale_provider.dart';
 import 'package:akimat_project/core/navbar/drawer_mobile.dart';
-import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
@@ -56,14 +55,7 @@ class AkimatUsersPage extends ConsumerWidget {
                 mobileNavbarWidgets,
               ),
             ),
-      body: Column(
-        children: [
-          if (kIsWeb)
-            HeaderNavbar(
-              webWidgets: webNavbarWidgets,
-            ),
-          Expanded(
-            child: state.data.when(
+      body: state.data.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, stack) => OrganizationsErrorState(
                 message: s.failed_to_load_data(error),
@@ -76,9 +68,7 @@ class AkimatUsersPage extends ConsumerWidget {
                 controller: controller,
               ),
             ),
-          ),
-        ],
-      ),
+      // ),
     );
   }
 }
