@@ -5,14 +5,14 @@ import 'package:akimat_project/services/organizations/model/user_dto.dart';
 import 'package:akimat_project/services/organizations/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final akimatUsersControllerProvider =
-    StateNotifierProvider<AkimatUsersController, AkimatUsersState>((ref) {
+final landfillUsersControllerProvider =
+    StateNotifierProvider<LandfillUsersController, AkimatUsersState>((ref) {
   final services = ref.watch(organizationsServicesProvider);
-  return AkimatUsersController(services: services);
+  return LandfillUsersController(services: services);
 });
 
-class AkimatUsersController extends StateNotifier<AkimatUsersState> implements UsersControllerBase {
-  AkimatUsersController({
+class LandfillUsersController extends StateNotifier<AkimatUsersState> implements UsersControllerBase {
+  LandfillUsersController({
     required OrganizationsServices services,
   })  : _services = services,
         super(AkimatUsersState.initial()) {
@@ -25,7 +25,7 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> implements U
     state = state.copyWith(data: const AsyncLoading());
     state = state.copyWith(
       data: await AsyncValue.guard(() async {
-        final users = await _services.rolesCollection.getAkimatUsers();
+        final users = await _services.rolesCollection.getLandfillUsers();
         return users;
       }),
     );
@@ -41,7 +41,7 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> implements U
     required String password,
   }) async {
     try {
-      await _services.rolesCollection.createAkimatUser(
+      await _services.rolesCollection.createLandfillUser(
         phone: phone,
         login: login,
         password: password,
@@ -84,16 +84,10 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> implements U
       if (userId.isEmpty) {
         throw Exception('ID пользователя не может быть пустым');
       }
-      
-      // Блокируем пользователя
       await _services.rolesCollection.blockUser(
         userId,
         blockReason: blockReason,
       );
-      
-      // Обновляем список после блокировки
-      // Примечание: если API фильтрует заблокированных пользователей из списка,
-      // пользователь может исчезнуть из списка, но это нормально
       await refresh();
     } catch (e) {
       rethrow;
@@ -106,28 +100,14 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> implements U
       if (userId.isEmpty) {
         throw Exception('ID пользователя не может быть пустым');
       }
-      
-      // Проверяем, что пользователь существует перед разблокировкой
-      // Это поможет избежать ошибки, если пользователь был удален
       try {
         await _services.rolesCollection.getUser(userId);
       } catch (e) {
-        // Если пользователь не найден, пробуем разблокировать все равно
-        // Возможно, он просто не отображается в списке из-за фильтрации
         print('Warning: User not found before unblock, but trying to unblock anyway. ID: $userId');
       }
-      
-      // Разблокируем пользователя
       await _services.rolesCollection.unblockUser(userId);
       await refresh();
     } catch (e) {
-      // Пробрасываем ошибку с более понятным сообщением
-      final errorMessage = e.toString();
-      if (errorMessage.contains('user not found') || 
-          errorMessage.contains('404') || 
-          errorMessage.contains('не найден')) {
-        throw Exception('Пользователь не найден. Возможно, он был удален или ID изменился. Обновите список и попробуйте снова.');
-      }
       rethrow;
     }
   }
@@ -157,13 +137,6 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> implements U
     }
   }
 
-  @override
-  void clearPassword(String userId) {
-    final updatedPasswords = Map<String, String>.from(state.resetPasswords);
-    updatedPasswords.remove(userId);
-    state = state.copyWith(resetPasswords: updatedPasswords);
-  }
-
   String _generateRandomPassword() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     final random = DateTime.now().millisecondsSinceEpoch;
@@ -173,9 +146,14 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> implements U
     }
     return buffer.toString();
   }
+
+  @override
+  void clearPassword(String userId) {
+    state = state.copyWith(
+      resetPasswords: {
+        ...Map.from(state.resetPasswords)..remove(userId),
+      },
+    );
+  }
 }
-
-
-
-
 

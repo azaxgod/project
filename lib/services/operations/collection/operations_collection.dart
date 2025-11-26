@@ -967,5 +967,44 @@ class OperationsCollection {
       rethrow;
     }
   }
+
+  // ==================== Driver Locations ====================
+
+  /// POST /drivers/location - Отправить текущую GPS-локацию водителя
+  /// Доступ: только DRIVER
+  /// Водитель отправляет свою текущую координату. Хранится только последняя точка (без истории).
+  Future<void> sendDriverLocation({
+    required double lat,
+    required double lon,
+    double? accuracy,
+  }) async {
+    try {
+      await dio.post(
+        '/drivers/location',
+        data: {
+          'lat': lat,
+          'lon': lon,
+          if (accuracy != null) 'accuracy': accuracy,
+        },
+      );
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /drivers/locations - Получить локации водителей
+  /// Доступ:
+  /// - AKIMAT_ADMIN, KGU_ZKH_ADMIN - видят всех водителей
+  /// - DRIVER - видит только себя
+  Future<Map<String, dynamic>> getDriversLocations() async {
+    try {
+      final response = await dio.get('/drivers/locations');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
 }
 

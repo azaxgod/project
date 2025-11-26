@@ -608,5 +608,44 @@ class OperationsRepositoryImpl implements OperationsRepository {
     final dto = await _ticketsServices!.collection.markAssignmentCompleted(assignmentId);
     return dto.toDomain();
   }
+
+  // ==================== Landfill Reception Journal ====================
+
+  @override
+  Future<Map<String, dynamic>> getLandfillReceptionJournal({
+    String? polygonId,
+    String? contractorId,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? status,
+  }) async {
+    return await _services.collection.getLandfillReceptionJournal(
+      polygonId: polygonId,
+      contractorId: contractorId,
+      dateFrom: dateFrom,
+      dateTo: dateTo,
+      status: status,
+    );
+  }
+
+  // ==================== Driver Locations ====================
+
+  @override
+  Future<void> sendDriverLocation({
+    required double lat,
+    required double lon,
+    double? accuracy,
+  }) async {
+    await _services.collection.sendDriverLocation(
+      lat: lat,
+      lon: lon,
+      accuracy: accuracy,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getDriversLocations() async {
+    return await _services.collection.getDriversLocations();
+  }
 }
 

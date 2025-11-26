@@ -215,4 +215,27 @@ abstract class OperationsRepository {
 
   /// Установить статус назначения COMPLETED (для водителя)
   Future<TicketAssignment> markAssignmentCompleted(String assignmentId);
+
+  // ==================== Landfill Reception Journal ====================
+
+  /// Получить журнал приёма снега для LANDFILL
+  Future<Map<String, dynamic>> getLandfillReceptionJournal({
+    String? polygonId,
+    String? contractorId,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? status,
+  });
+
+  // ==================== Driver Locations ====================
+
+  /// Отправить текущую GPS-локацию водителя
+  Future<void> sendDriverLocation({
+    required double lat,
+    required double lon,
+    double? accuracy,
+  });
+
+  /// Получить локации водителей
+  Future<Map<String, dynamic>> getDriversLocations();
 }

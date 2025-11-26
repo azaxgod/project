@@ -1,7 +1,7 @@
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
-import 'package:akimat_project/modules/dashboard/src/controller/users/akimat_users_controller.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/users/users_controller_base.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
 import 'package:akimat_project/services/organizations/model/user_dto.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 class CreateUserDialog {
   static Future<void> show({
     required BuildContext context,
-    required AkimatUsersController controller,
+    required UsersControllerBase controller,
     required String userType, // 'AKIMAT_USER', 'KGU_ZKH_USER', 'LANDFILL_USER', 'CONTRACTOR_USER'
     UserDto? user, // Если указан, то редактирование
   }) async {
