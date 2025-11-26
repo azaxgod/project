@@ -6,6 +6,7 @@ import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
+import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +38,9 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
   String? _selectedContractorId;
   bool _isActive = true;
   bool _isCloseHovered = false;
+  // Поля для камеры
+  String? _selectedPolygonId;
+  CameraType _cameraType = CameraType.lpr;
 
   @override
   void dispose() {
@@ -211,8 +215,11 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
                         if (widget.mode != 'camera') const SizedBox(height: AppPadding.large),
                         _buildStartDrawingButton(),
                       ],
-                    // Упрощенная информация о рисовании (только счетчик точек)
-                    if (drawingGeometry.isNotEmpty && drawingGeometry.length < 3 && !state.isEditingGeometry)
+                    // Информация о рисовании для участков/полигонов (3 точки минимум)
+                    if (drawingGeometry.isNotEmpty && 
+                        drawingGeometry.length < 3 && 
+                        !state.isEditingGeometry &&
+                        widget.mode != 'camera')
                       ...[
                         const SizedBox(height: AppPadding.normal),
                         Container(
@@ -230,6 +237,34 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
                                 'Точек: ${drawingGeometry.length} / 3 минимум',
                                 style: AppTextStyles.body.copyWith(
                                   color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    // Информация о рисовании для камеры (1 точка)
+                    if (drawingGeometry.isNotEmpty && 
+                        widget.mode == 'camera' &&
+                        !state.isEditingGeometry)
+                      ...[
+                        const SizedBox(height: AppPadding.normal),
+                        Container(
+                          padding: const EdgeInsets.all(AppPadding.small),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.location_on, size: 20, color: AppColors.success),
+                              const SizedBox(width: AppPadding.small),
+                              Text(
+                                'Точка выбрана: ${drawingGeometry.length}',
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.success,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -276,9 +311,11 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
                           ),
                         ),
                       ],
-                    // Кнопки действий (только для камеры или когда форма заполнена и геометрия готова)
-                    if (widget.mode == 'camera' || 
-                        (drawingGeometry.isNotEmpty && drawingGeometry.length >= 3 && !state.isEditingGeometry))
+                    // Кнопки действий
+                    // Для камеры: когда выбрана хотя бы 1 точка
+                    // Для участков/полигонов: когда выбрано минимум 3 точки
+                    if ((widget.mode == 'camera' && drawingGeometry.isNotEmpty) ||
+                        (widget.mode != 'camera' && drawingGeometry.isNotEmpty && drawingGeometry.length >= 3 && !state.isEditingGeometry))
                       ...[
                         const SizedBox(height: AppPadding.large),
                         _buildActionButtons(),
@@ -411,6 +448,79 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
           style: AppTextStyles.body,
           maxLines: 3,
         ),
+        if (widget.mode == 'camera') ...[
+          const SizedBox(height: AppPadding.normal),
+          // Выбор полигона для камеры
+          Builder(
+            builder: (context) {
+              final monitoringState = ref.watch(monitoringControllerProvider);
+              final polygons = monitoringState.data.valueOrNull?.polygons ?? [];
+              
+              return DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: 'Полигон*',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                  ),
+                ),
+                value: _selectedPolygonId,
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Выберите полигон'),
+                  ),
+                  ...polygons.map((polygon) => DropdownMenuItem<String>(
+                        value: polygon.id,
+                        child: Text(polygon.name),
+                      )),
+                ],
+                onChanged: (value) {
+                  setState(() => _selectedPolygonId = value);
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Выберите полигон';
+                  }
+                  return null;
+                },
+              );
+            },
+          ),
+          const SizedBox(height: AppPadding.normal),
+          // Тип камеры
+          DropdownButtonFormField<CameraType>(
+            decoration: InputDecoration(
+              labelText: 'Тип камеры*',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSize.cardRadius),
+              ),
+            ),
+            value: _cameraType,
+            items: const [
+              DropdownMenuItem<CameraType>(
+                value: CameraType.lpr,
+                child: Text('LPR (Распознавание номеров)'),
+              ),
+              DropdownMenuItem<CameraType>(
+                value: CameraType.volume,
+                child: Text('VOLUME (Объем)'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _cameraType = value);
+              }
+            },
+          ),
+          const SizedBox(height: AppPadding.normal),
+          CheckboxListTile(
+            title: const Text('Активна'),
+            value: _isActive,
+            onChanged: (value) {
+              setState(() => _isActive = value ?? true);
+            },
+          ),
+        ],
       ],
     );
   }
@@ -578,6 +688,10 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
     if (widget.mode == 'area' || widget.mode == 'polygon') {
       return state.drawingGeometry.length >= 3;
     }
+    if (widget.mode == 'camera') {
+      // Для камеры нужна хотя бы 1 точка
+      return state.drawingGeometry.isNotEmpty && _selectedPolygonId != null;
+    }
     return true;
   }
 
@@ -587,21 +701,20 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
     final state = ref.read(monitoringControllerProvider);
     final geometry = state.drawingGeometry;
 
-    // Проверка минимального количества точек
-    if (geometry.length < 3) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Необходимо минимум 3 точки для создания полигона'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-
     try {
       if (widget.mode == 'area') {
+        // Проверка минимального количества точек для участка
+        if (geometry.length < 3) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Необходимо минимум 3 точки для создания участка'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
         await widget.controller.createCleaningArea(
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
@@ -612,6 +725,18 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
           defaultContractorId: _selectedContractorId,
         );
       } else if (widget.mode == 'polygon') {
+        // Проверка минимального количества точек для полигона
+        if (geometry.length < 3) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Необходимо минимум 3 точки для создания полигона'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
         await widget.controller.createPolygon(
           name: _nameController.text.trim(),
           address: _addressController.text.trim().isEmpty
@@ -621,6 +746,28 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
               ? null
               : _descriptionController.text.trim(),
           geometry: geometry,
+          isActive: _isActive,
+        );
+      } else if (widget.mode == 'camera') {
+        // Для камеры используем первую точку как location
+        if (geometry.isEmpty || _selectedPolygonId == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Выберите точку на карте и полигон'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+        // Берем первую точку: [longitude, latitude]
+        final location = geometry.first;
+        await widget.controller.createCamera(
+          polygonId: _selectedPolygonId!,
+          type: _cameraType,
+          name: _nameController.text.trim(),
+          location: location, // [lon, lat]
           isActive: _isActive,
         );
       }
@@ -671,6 +818,8 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
     _cityController.text = 'Петропавловск';
     _selectedContractorId = null;
     _isActive = true;
+    _selectedPolygonId = null;
+    _cameraType = CameraType.lpr;
     widget.controller.clearDrawingGeometry();
   }
 

@@ -39,46 +39,65 @@ class UserDto {
 
   factory UserDto.fromJson(Map<String, dynamic> json) {
     // Обработка null значений с значениями по умолчанию
-    // Сначала проверяем обязательные поля
-    final id = json['id']?.toString();
-    final phone = json['phone']?.toString();
-    final role = json['role']?.toString();
-    final isActiveValue = json['isActive'] ?? json['is_active'];
+    // API возвращает поля с заглавными буквами: Phone, Login, BlockReason, IsActive, ID
+    // Поддерживаем оба формата: capitalized и snake_case
+    final id = json['ID']?.toString() ?? json['id']?.toString();
+    final phone = json['Phone']?.toString() ?? json['phone']?.toString();
+    final role = json['Role']?.toString() ?? json['role']?.toString();
+    final isActiveValue = json['IsActive'] ?? json['isActive'] ?? json['is_active'];
     
     // Если какие-то обязательные поля отсутствуют, используем безопасный метод создания
-    if (id == null || phone == null || role == null) {
+    if (id == null || id.isEmpty || phone == null || phone.isEmpty || role == null || role.isEmpty) {
+      // Логируем проблему для отладки
+      print('Warning: UserDto missing required fields. ID: $id, Phone: $phone, Role: $role');
       return UserDto(
         id: id ?? '',
         phone: phone ?? '',
         role: role ?? 'AKIMAT_USER',
-        login: json['login']?.toString(),
-        organizationId: json['organizationID']?.toString() ?? json['organizationId']?.toString(),
-        driverId: json['driverID']?.toString() ?? json['driverId']?.toString(),
+        login: json['Login']?.toString() ?? json['login']?.toString(),
+        organizationId: json['OrganizationID']?.toString() ?? json['organizationID']?.toString() ?? json['organizationId']?.toString(),
+        driverId: json['DriverID']?.toString() ?? json['driverID']?.toString() ?? json['driverId']?.toString(),
         isActive: _parseBool(isActiveValue) ?? true,
-        blockReason: json['blockReason']?.toString() ?? json['block_reason']?.toString(),
-        generatedPassword: json['generatedPassword']?.toString() ?? json['generated_password']?.toString(),
-        createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']),
-        updatedAt: _parseDateTime(json['updatedAt'] ?? json['updated_at']),
+        blockReason: json['BlockReason']?.toString() ?? json['blockReason']?.toString() ?? json['block_reason']?.toString(),
+        generatedPassword: json['GeneratedPassword']?.toString() ?? json['generatedPassword']?.toString() ?? json['generated_password']?.toString(),
+        createdAt: _parseDateTime(json['CreatedAt'] ?? json['createdAt'] ?? json['created_at']),
+        updatedAt: _parseDateTime(json['UpdatedAt'] ?? json['updatedAt'] ?? json['updated_at']),
       );
     }
     
+    // Нормализуем JSON для сгенерированного метода (конвертируем заглавные в нижний регистр)
+    final normalizedJson = <String, dynamic>{
+      'id': id,
+      'phone': phone,
+      'role': role,
+      'login': json['Login']?.toString() ?? json['login']?.toString(),
+      'organizationID': json['OrganizationID']?.toString() ?? json['organizationID']?.toString() ?? json['organizationId']?.toString(),
+      'driverID': json['DriverID']?.toString() ?? json['driverID']?.toString() ?? json['driverId']?.toString(),
+      'isActive': _parseBool(isActiveValue) ?? true,
+      'blockReason': json['BlockReason']?.toString() ?? json['blockReason']?.toString() ?? json['block_reason']?.toString(),
+      'generatedPassword': json['GeneratedPassword']?.toString() ?? json['generatedPassword']?.toString() ?? json['generated_password']?.toString(),
+      'createdAt': json['CreatedAt']?.toString() ?? json['createdAt']?.toString() ?? json['created_at']?.toString(),
+      'updatedAt': json['UpdatedAt']?.toString() ?? json['updatedAt']?.toString() ?? json['updated_at']?.toString(),
+    };
+    
     // Если все обязательные поля присутствуют, пытаемся использовать сгенерированный метод
     try {
-      return _$UserDtoFromJson(json);
+      return _$UserDtoFromJson(normalizedJson);
     } catch (e) {
       // Fallback: создаем UserDto с безопасной обработкой null значений
+      print('Error parsing UserDto with generated method: $e');
       return UserDto(
         id: id,
         phone: phone,
         role: role,
-        login: json['login']?.toString(),
-        organizationId: json['organizationID']?.toString() ?? json['organizationId']?.toString(),
-        driverId: json['driverID']?.toString() ?? json['driverId']?.toString(),
-        isActive: _parseBool(isActiveValue) ?? true,
-        blockReason: json['blockReason']?.toString() ?? json['block_reason']?.toString(),
-        generatedPassword: json['generatedPassword']?.toString() ?? json['generated_password']?.toString(),
-        createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']),
-        updatedAt: _parseDateTime(json['updatedAt'] ?? json['updated_at']),
+        login: normalizedJson['login']?.toString(),
+        organizationId: normalizedJson['organizationID']?.toString(),
+        driverId: normalizedJson['driverID']?.toString(),
+        isActive: normalizedJson['isActive'] as bool? ?? true,
+        blockReason: normalizedJson['blockReason']?.toString(),
+        generatedPassword: normalizedJson['generatedPassword']?.toString(),
+        createdAt: _parseDateTime(normalizedJson['createdAt']?.toString()),
+        updatedAt: _parseDateTime(normalizedJson['updatedAt']?.toString()),
       );
     }
   }

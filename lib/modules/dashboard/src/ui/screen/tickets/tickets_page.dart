@@ -14,10 +14,15 @@ import 'package:akimat_project/modules/dashboard/src/controller/tickets_state.da
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
 import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
+import 'package:akimat_project/core/di.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
+import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_error_state.dart';
 import 'package:akimat_project/core/ui/widgets/date_range_picker.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/widgets/ticket_create_dialog.dart';
@@ -540,7 +545,7 @@ class _TicketsContent extends ConsumerWidget {
                             '${DateFormat('dd.MM.yyyy').format(ticket.plannedStartAt)} - ${DateFormat('dd.MM.yyyy').format(ticket.plannedEndAt)}',
                           )),
                           DataCell(_StatusChip(status: ticket.status)),
-                          // Колонка "Назначено водителей" только для Подрядчика
+
                           if (state.role == UserRole.contractorAdmin)
                             DataCell(Text('${data.assignments[ticket.id]?.length ?? 0}')),
                           DataCell(Text('${ticket.tripsCount ?? 0}')),
@@ -552,17 +557,41 @@ class _TicketsContent extends ConsumerWidget {
                           ),
                         ];
                         
-                        // Добавляем колонку действий для KGU ZKH и Подрядчика
-                        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.contractorAdmin) {
+
+                        if (state.role == UserRole.kguZkhAdmin || 
+                            state.role == UserRole.contractorAdmin || 
+                            state.role == UserRole.driver) {
+
+                          final authState = ref.read(authNotifierProvider);
+                          
+                          final driverId = state.role == UserRole.driver ? authState.user?.id : null;
+                          TicketAssignment? driverAssignment;
+                          if (state.role == UserRole.driver && driverId != null) {
+                            driverAssignment = data.assignments[ticket.id]
+                                ?.firstWhere(
+                                  (a) => a.driverId == driverId && a.isActive,
+                                  orElse: () => TicketAssignment(
+                                    id: '',
+                                    ticketId: '',
+                                    isActive: false,
+                                    createdAt:  DateTime.fromMillisecondsSinceEpoch(0),
+                                    updatedAt:  DateTime.fromMillisecondsSinceEpoch(0),
+                                  ),
+                                );
+                            if (driverAssignment?.id == '') {
+                              driverAssignment = null;
+                            }
+                          }
+                          
                           cells.add(
                             DataCell(
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  // Кнопка "Подробнее" для всех ролей
                                   IconButton(
                                     icon: const Icon(Icons.info_outline, size: 20),
                                     onPressed: () {
-                                      // TODO: Открыть карточку тикета
                                       controller.selectTicket(ticket);
                                     },
                                     tooltip: s.details,
@@ -571,13 +600,31 @@ class _TicketsContent extends ConsumerWidget {
                                     if (ticket.status == TicketStatus.planned)
                                       IconButton(
                                         icon: const Icon(Icons.cancel, size: 20, color: Colors.red),
-                                        onPressed: () => controller.cancelTicket(ticket),
+                                        onPressed: () => _TicketsContent._showCancelConfirmationDialog(
+                                          context,
+                                          ticket,
+                                          controller,
+                                        ),
                                         tooltip: s.cancel_ticket,
+                                      ),
+                                    if (ticket.status == TicketStatus.inProgress)
+                                      IconButton(
+                                        icon: const Icon(Icons.check_circle_outline, size: 20, color: Colors.blue),
+                                        onPressed: () => _TicketsContent._showCompleteConfirmationDialog(
+                                          context,
+                                          ticket,
+                                          controller,
+                                        ),
+                                        tooltip: 'Перевести в COMPLETED',
                                       ),
                                     if (ticket.status == TicketStatus.completed)
                                       IconButton(
                                         icon: const Icon(Icons.check_circle, size: 20, color: Colors.green),
-                                        onPressed: () => controller.closeTicket(ticket),
+                                        onPressed: () => _TicketsContent._showCloseConfirmationDialog(
+                                          context,
+                                          ticket,
+                                          controller,
+                                        ),
                                         tooltip: s.close_ticket,
                                       ),
                                   ],
@@ -586,23 +633,37 @@ class _TicketsContent extends ConsumerWidget {
                                     IconButton(
                                       icon: const Icon(Icons.person_add, size: 20),
                                       onPressed: () {
-                                        _TicketsContent._showAssignmentDialog(context, ticket, data, controller);
+                                        _TicketsContent._showAssignmentDialog(context, ref, ticket, data, controller);
                                       },
                                       tooltip: 'Назначить водителей/технику',
                                     ),
-                                  // Для Подрядчика: перевод в IN_PROGRESS
-                                  if (state.role == UserRole.contractorAdmin && ticket.status == TicketStatus.planned)
-                                    IconButton(
-                                      icon: const Icon(Icons.play_arrow, size: 20, color: Colors.blue),
-                                      onPressed: () => controller.startTicket(ticket),
-                                      tooltip: 'Начать работы',
-                                    ),
                                   // Для Подрядчика: перевод в COMPLETED
+                                  // Примечание: Статус IN_PROGRESS устанавливается автоматически,
+                                  // когда водитель начинает работу через PUT /driver/assignments/:id/mark-in-work
                                   if (state.role == UserRole.contractorAdmin && ticket.status == TicketStatus.inProgress)
                                     IconButton(
                                       icon: const Icon(Icons.check_circle_outline, size: 20, color: Colors.green),
                                       onPressed: () => controller.completeTicket(ticket),
                                       tooltip: 'Завершить работы',
+                                    ),
+                                  // Для Водителя: кнопка "Начать работу"
+                                  if (state.role == UserRole.driver && 
+                                      driverAssignment != null &&
+                                      (driverAssignment.assignmentStatus == null || 
+                                       driverAssignment.assignmentStatus == AssignmentStatus.notStarted))
+                                    IconButton(
+                                      icon: const Icon(Icons.play_arrow, size: 20, color: Colors.blue),
+                                      onPressed: () => controller.markAssignmentInWork(driverAssignment!.id),
+                                      tooltip: 'Начать работу',
+                                    ),
+                                  // Для Водителя: кнопка "Завершить работу"
+                                  if (state.role == UserRole.driver && 
+                                      driverAssignment != null &&
+                                      driverAssignment.assignmentStatus == AssignmentStatus.inWork)
+                                    IconButton(
+                                      icon: const Icon(Icons.check_circle_outline, size: 20, color: Colors.green),
+                                      onPressed: () => controller.markAssignmentCompleted(driverAssignment!.id),
+                                      tooltip: 'Завершить работу',
                                     ),
                                 ],
                               ),
@@ -624,28 +685,245 @@ class _TicketsContent extends ConsumerWidget {
     );
   }
 
-  /// Диалог назначения водителей/техники на тикет
-  static void _showAssignmentDialog(
+  /// Диалог подтверждения отмены тикета
+  static Future<void> _showCancelConfirmationDialog(
     BuildContext context,
     Ticket ticket,
-    TicketsData data,
     TicketsController controller,
-  ) {
-    // TODO: Реализовать диалог назначения
-    // Пока показываем заглушку
-    showDialog(
+  ) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Назначить водителей/технику'),
-        content: const Text('Функция назначения будет реализована в следующей версии'),
+        title: const Text('Отменить тикет'),
+        content: const Text(
+          'Вы уверены, что хотите отменить этот тикет? '
+          'Отмена возможна только если нет рейсов и фактического начала работ.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Закрыть'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Отменить тикет'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true && context.mounted) {
+      await controller.cancelTicket(ticket);
+    }
+  }
+
+  /// Диалог подтверждения перевода тикета в COMPLETED
+  static Future<void> _showCompleteConfirmationDialog(
+    BuildContext context,
+    Ticket ticket,
+    TicketsController controller,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Перевести тикет в COMPLETED'),
+        content: const Text(
+          'Вы уверены, что хотите перевести этот тикет в статус COMPLETED?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Перевести в COMPLETED'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await controller.completeTicketForKgu(ticket);
+    }
+  }
+
+  /// Диалог подтверждения закрытия тикета
+  static Future<void> _showCloseConfirmationDialog(
+    BuildContext context,
+    Ticket ticket,
+    TicketsController controller,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Закрыть тикет'),
+        content: const Text(
+          'Вы уверены, что хотите закрыть этот тикет? '
+          'Закрытие возможно только для завершенных тикетов после проверки.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.green,
+            ),
+            child: const Text('Закрыть тикет'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await controller.closeTicket(ticket);
+    }
+  }
+
+  /// Диалог назначения водителей/техники на тикет
+  static void _showAssignmentDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Ticket ticket,
+    TicketsData data,
+    TicketsController controller,
+  ) async {
+    // Загружаем водителей и транспорт подрядчика
+    final organizationsRepo = ref.read(organizationsRepositoryProvider);
+    List<Driver> drivers = [];
+    List<Vehicle> vehicles = [];
+    
+    try {
+      drivers = await organizationsRepo.loadDrivers();
+      vehicles = await organizationsRepo.loadVehicles();
+      
+      // Фильтруем по подрядчику из тикета
+      drivers = drivers.where((d) => 
+        d.contractorId == ticket.contractorId && d.isActive
+      ).toList();
+      vehicles = vehicles.where((v) => 
+        v.contractorId == ticket.contractorId && v.isActive
+      ).toList();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка загрузки данных: $e')),
+        );
+      }
+      return;
+    }
+    
+    if (drivers.isEmpty || vehicles.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Нет доступных водителей или транспортных средств для этого подрядчика'),
+          ),
+        );
+      }
+      return;
+    }
+    
+    String? selectedDriverId;
+    String? selectedVehicleId;
+    
+    if (context.mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModal) => AlertDialog(
+              title: const Text('Назначить водителя и технику'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedDriverId,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: 'Водитель',
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('Выберите водителя'),
+                        ),
+                        ...drivers.map(
+                          (driver) => DropdownMenuItem(
+                            value: driver.id,
+                            child: Text(driver.fullName),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => setModal(() => selectedDriverId = value),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedVehicleId,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: 'Транспорт',
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('Выберите транспорт'),
+                        ),
+                        ...vehicles.map(
+                          (vehicle) => DropdownMenuItem(
+                            value: vehicle.id,
+                            child: Text('${vehicle.plateNumber} — ${vehicle.brand} ${vehicle.model}'),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => setModal(() => selectedVehicleId = value),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Отмена'),
+                ),
+                FilledButton(
+                  onPressed: selectedDriverId != null && selectedVehicleId != null
+                      ? () async {
+                          await controller.assignDriverVehicle(
+                            ticketId: ticket.id,
+                            driverId: selectedDriverId,
+                            vehicleId: selectedVehicleId,
+                          );
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Назначение создано'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        }
+                      : null,
+                  child: const Text('Сохранить'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
   }
 }
 

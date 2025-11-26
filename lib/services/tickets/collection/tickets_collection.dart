@@ -434,5 +434,104 @@ class TicketsCollection {
       rethrow;
     }
   }
+
+  // ==================== Driver Tickets ====================
+
+  /// GET /driver/tickets - Получить тикеты водителя
+  Future<List<TicketDto>> getTicketsDriver({
+    String? status,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (status != null) queryParams['status'] = status;
+
+      debugPrint('TicketsCollection.getTicketsDriver: Request URL: /driver/tickets');
+      debugPrint('TicketsCollection.getTicketsDriver: Query params: $queryParams');
+
+      final response = await dio.get(
+        '/driver/tickets',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+
+      debugPrint('TicketsCollection.getTicketsDriver: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      final List<dynamic> data = responseData['data'] as List<dynamic>? ?? [];
+      debugPrint('TicketsCollection.getTicketsDriver: Received ${data.length} tickets');
+      return data.map((json) => TicketDto.fromJson(json as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /driver/tickets/:id - Получить тикет водителя
+  Future<TicketDto> getTicketDriver(String id) async {
+    try {
+      final response = await dio.get('/driver/tickets/$id');
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+      return TicketDto.fromJson(responseData['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Driver Assignments ====================
+
+  /// PUT /driver/assignments/:id/mark-in-work - Установить статус назначения IN_WORK
+  Future<TicketAssignmentDto> markAssignmentInWork(String assignmentId) async {
+    try {
+      debugPrint('TicketsCollection.markAssignmentInWork: Request URL: /driver/assignments/$assignmentId/mark-in-work');
+      
+      final response = await dio.put('/driver/assignments/$assignmentId/mark-in-work');
+      
+      debugPrint('TicketsCollection.markAssignmentInWork: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      return TicketAssignmentDto.fromJson(responseData['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.markAssignmentInWork: DioException: ${e.type}');
+      debugPrint('TicketsCollection.markAssignmentInWork: Status code: ${e.response?.statusCode}');
+      debugPrint('TicketsCollection.markAssignmentInWork: Response data: ${e.response?.data}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// PUT /driver/assignments/:id/mark-completed - Установить статус назначения COMPLETED
+  Future<TicketAssignmentDto> markAssignmentCompleted(String assignmentId) async {
+    try {
+      debugPrint('TicketsCollection.markAssignmentCompleted: Request URL: /driver/assignments/$assignmentId/mark-completed');
+      
+      final response = await dio.put('/driver/assignments/$assignmentId/mark-completed');
+      
+      debugPrint('TicketsCollection.markAssignmentCompleted: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      return TicketAssignmentDto.fromJson(responseData['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.markAssignmentCompleted: DioException: ${e.type}');
+      debugPrint('TicketsCollection.markAssignmentCompleted: Status code: ${e.response?.statusCode}');
+      debugPrint('TicketsCollection.markAssignmentCompleted: Response data: ${e.response?.data}');
+      _handleError(e);
+      rethrow;
+    }
+  }
 }
 

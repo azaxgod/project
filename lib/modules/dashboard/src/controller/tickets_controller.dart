@@ -159,9 +159,12 @@ class TicketsController extends StateNotifier<TicketsState> {
           debugPrint('TicketsController: Stack trace: $stackTrace');
         }
 
-        // Загружаем назначения для всех тикетов (только для Подрядчика, Акимата и KGU ZKH)
+        // Загружаем назначения для всех тикетов (для Подрядчика, Акимата, KGU ZKH и Водителя)
         Map<String, List<TicketAssignment>> assignments = {};
-        if (state.role == UserRole.contractorAdmin || state.role == UserRole.akimatAdmin || state.role == UserRole.kguZkhAdmin) {
+        if (state.role == UserRole.contractorAdmin || 
+            state.role == UserRole.akimatAdmin || 
+            state.role == UserRole.kguZkhAdmin ||
+            state.role == UserRole.driver) {
           for (final ticket in tickets) {
             try {
               final ticketAssignments = await _operationsRepository.getTicketAssignments(ticket.id);
@@ -448,6 +451,57 @@ class TicketsController extends StateNotifier<TicketsState> {
     state = state.copyWith(
       lastAction: result.whenData((_) => const AsyncValue.data(null)),
       message: result.hasError ? 'Ошибка при завершении работ' : 'Работы завершены',
+    );
+
+    if (!result.hasError) {
+      await _loadData();
+    }
+  }
+
+  /// Перевести тикет в COMPLETED (для KGU ZKH)
+  Future<void> completeTicketForKgu(Ticket ticket) async {
+    final result = await AsyncValue.guard(() async {
+      return await _operationsRepository.updateTicketStatus(
+        ticket.id,
+        status: TicketStatus.completed,
+      );
+    });
+
+    state = state.copyWith(
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при переводе тикета в COMPLETED' : 'Тикет переведен в COMPLETED',
+    );
+
+    if (!result.hasError) {
+      await _loadData();
+    }
+  }
+
+  /// Установить статус назначения IN_WORK (для водителя)
+  Future<void> markAssignmentInWork(String assignmentId) async {
+    final result = await AsyncValue.guard(() async {
+      return await _operationsRepository.markAssignmentInWork(assignmentId);
+    });
+
+    state = state.copyWith(
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при начале работы' : 'Работа начата',
+    );
+
+    if (!result.hasError) {
+      await _loadData();
+    }
+  }
+
+  /// Установить статус назначения COMPLETED (для водителя)
+  Future<void> markAssignmentCompleted(String assignmentId) async {
+    final result = await AsyncValue.guard(() async {
+      return await _operationsRepository.markAssignmentCompleted(assignmentId);
+    });
+
+    state = state.copyWith(
+      lastAction: result.whenData((_) => const AsyncValue.data(null)),
+      message: result.hasError ? 'Ошибка при завершении работы' : 'Работа завершена',
     );
 
     if (!result.hasError) {

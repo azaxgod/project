@@ -137,16 +137,17 @@ class MonitoringSidebar extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => controller.selectVehicle(null),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: const Icon(Icons.close, size: 20),
-                  ),
+              IconButton(
+                onPressed: () {
+                  controller.selectVehicle(null);
+                },
+                icon: const Icon(Icons.close, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
                 ),
+                tooltip: 'Закрыть',
               ),
             ],
           ),

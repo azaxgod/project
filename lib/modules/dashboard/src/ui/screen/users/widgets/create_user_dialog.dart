@@ -113,10 +113,21 @@ class CreateUserDialog {
                 }
               } catch (e) {
                 if (context.mounted) {
+                  String errorMessage = 'Ошибка при сохранении пользователя';
+                  if (e.toString().contains('404')) {
+                    errorMessage = 'Пользователь не найден. Обновите список и попробуйте снова.';
+                  } else if (e.toString().contains('400')) {
+                    errorMessage = 'Некорректные данные. Проверьте введенные значения.';
+                  } else if (e.toString().contains('ID пользователя не может быть пустым')) {
+                    errorMessage = 'Ошибка: ID пользователя отсутствует. Обновите список и попробуйте снова.';
+                  } else {
+                    errorMessage = 'Ошибка: ${e.toString().replaceAll('Exception: ', '')}';
+                  }
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Ошибка: $e'),
+                      content: Text(errorMessage),
                       backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 }
@@ -129,6 +140,8 @@ class CreateUserDialog {
     );
   }
 }
+
+
 
 
 

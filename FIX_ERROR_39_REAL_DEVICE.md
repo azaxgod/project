@@ -153,3 +153,5 @@ adb logcat | grep "FIREBASE PHONE AUTH ERROR"
 
 
 
+
+

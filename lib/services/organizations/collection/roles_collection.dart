@@ -296,11 +296,19 @@ class RolesCollection {
       final usersData = response.data;
       
       // Обработка разных форматов ответа
+      // API может возвращать: массив пользователей напрямую или объект с полем users
       List<dynamic> users;
       if (usersData is List) {
         users = usersData;
-      } else if (usersData is Map && usersData['users'] != null) {
-        users = usersData['users'] as List<dynamic>? ?? [];
+      } else if (usersData is Map) {
+        // Проверяем различные возможные ключи
+        if (usersData['users'] != null) {
+          users = usersData['users'] as List<dynamic>? ?? [];
+        } else if (usersData['data'] != null) {
+          users = usersData['data'] as List<dynamic>? ?? [];
+        } else {
+          users = [];
+        }
       } else {
         users = [];
       }
@@ -309,7 +317,11 @@ class RolesCollection {
           .where((json) => json != null)
           .map((json) {
             try {
-              return UserDto.fromJson(json as Map<String, dynamic>);
+              // Убеждаемся, что json - это Map
+              if (json is! Map<String, dynamic>) {
+                return null;
+              }
+              return UserDto.fromJson(json);
             } catch (e) {
               // Логируем ошибку парсинга, но продолжаем обработку остальных пользователей
               print('Error parsing user: $e, data: $json');
@@ -487,10 +499,36 @@ class RolesCollection {
   /// GET /roles/users/:id - Получить пользователя по ID
   Future<UserDto> getUser(String id) async {
     try {
-      final response = await dio.get('/roles/users/$id');
-      return UserDto.fromJson(
-          response.data['user'] as Map<String, dynamic>);
+      // Валидация и нормализация ID
+      final normalizedId = id.trim();
+      if (normalizedId.isEmpty) {
+        throw RolesException('ID пользователя не может быть пустым', 400);
+      }
+      
+      final response = await dio.get('/roles/users/$normalizedId');
+      
+      // Обработка разных форматов ответа
+      Map<String, dynamic> userData;
+      if (response.data is Map) {
+        if (response.data.containsKey('user')) {
+          userData = response.data['user'] as Map<String, dynamic>;
+        } else {
+          // Если ответ - это сам объект пользователя
+          userData = response.data as Map<String, dynamic>;
+        }
+      } else {
+        throw RolesException('Некорректный формат ответа от сервера', 500);
+      }
+      
+      return UserDto.fromJson(userData);
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        final errorData = e.response?.data;
+        final errorMessage = errorData is Map && errorData.containsKey('error')
+            ? errorData['error'] as String
+            : 'Пользователь не найден';
+        throw RolesException(errorMessage, 404);
+      }
       _handleError(e);
       rethrow;
     }
@@ -512,6 +550,12 @@ class RolesCollection {
     String? blockReason,
   }) async {
     try {
+      // Валидация и нормализация ID
+      final normalizedId = id.trim();
+      if (normalizedId.isEmpty) {
+        throw RolesException('ID пользователя не может быть пустым', 400);
+      }
+
       final data = <String, dynamic>{};
       if (phone != null) {
         data['phone'] = phone;
@@ -534,24 +578,71 @@ class RolesCollection {
       if (isActive != null) {
         data['is_active'] = isActive;
       }
-      if (blockReason != null) {
+      // Если blockReason явно передан (включая null), отправляем его
+      // Это нужно для явной очистки block_reason при разблокировке
+      if (blockReason != null || (isActive == true && blockReason == null)) {
+        // Если разблокируем (isActive == true), явно очищаем block_reason
         data['block_reason'] = blockReason;
       }
 
-      final response = await dio.put('/roles/users/$id', data: data);
-      return UserDto.fromJson(
-          response.data['user'] as Map<String, dynamic>);
+      // Убеждаемся, что endpoint правильно сформирован
+      final endpoint = '/roles/users/$normalizedId';
+      final response = await dio.put(endpoint, data: data);
+      
+      // Обработка разных форматов ответа
+      Map<String, dynamic> userData;
+      if (response.data is Map) {
+        if (response.data.containsKey('user')) {
+          userData = response.data['user'] as Map<String, dynamic>;
+        } else {
+          // Если ответ - это сам объект пользователя
+          userData = response.data as Map<String, dynamic>;
+        }
+      } else {
+        throw RolesException('Некорректный формат ответа от сервера', 500);
+      }
+      
+      return UserDto.fromJson(userData);
     } on DioException catch (e) {
+      // Специальная обработка для 404 ошибки
+      if (e.response?.statusCode == 404) {
+        final errorData = e.response?.data;
+        final errorMessage = errorData is Map && errorData.containsKey('error')
+            ? errorData['error'] as String
+            : 'Пользователь не найден';
+        throw RolesException(errorMessage, 404);
+      }
       _handleError(e);
       rethrow;
     }
   }
 
   /// Блокировать пользователя с причиной
+  /// Определяет правильный endpoint на основе роли пользователя
   Future<UserDto> blockUser(
     String id, {
     String? blockReason,
+    String? userRole,
   }) async {
+    // Если роль не указана, получаем пользователя для определения роли
+    String? role = userRole;
+    if (role == null) {
+      try {
+        final user = await getUser(id);
+        role = user.role;
+      } catch (e) {
+        // Если не удалось получить пользователя, используем общий endpoint
+        return updateUser(
+          id,
+          isActive: false,
+          blockReason: blockReason,
+        );
+      }
+    }
+    
+    // Для PUT запросов всегда используем общий endpoint /roles/users/:id
+    // Специфичные endpoints (/roles/akimat/users, /roles/kgu/users) используются только для GET и POST
+    // PUT запросы для обновления пользователей идут через общий endpoint
     return updateUser(
       id,
       isActive: false,
@@ -561,11 +652,77 @@ class RolesCollection {
 
   /// Разблокировать пользователя
   /// При разблокировке block_reason автоматически очищается на бэкенде
-  Future<UserDto> unblockUser(String id) async {
-    return updateUser(
-      id,
-      isActive: true,
-    );
+  /// Определяет правильный endpoint на основе роли пользователя
+  Future<UserDto> unblockUser(String id, {String? userRole}) async {
+    try {
+      // Валидация и нормализация ID
+      final normalizedId = id.trim();
+      if (normalizedId.isEmpty) {
+        throw RolesException('ID пользователя не может быть пустым', 400);
+      }
+      
+      // Сначала получаем пользователя, чтобы убедиться, что он существует
+      // и получить его роль для определения правильного endpoint
+      UserDto existingUser;
+      try {
+        existingUser = await getUser(normalizedId);
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) {
+          throw RolesException('Пользователь не найден. Возможно, он был удален или ID изменился. Обновите список.', 404);
+        }
+        // Если другая ошибка, пробрасываем её
+        rethrow;
+      }
+      
+      // Для PUT запросов всегда используем общий endpoint /roles/users/:id
+      // Специфичные endpoints (/roles/akimat/users, /roles/kgu/users) используются только для GET и POST
+      // PUT запросы для обновления пользователей идут через общий endpoint
+      final endpoint = '/roles/users/$normalizedId';
+      
+      // При разблокировке отправляем только is_active: true
+      // Не отправляем block_reason, бэкенд должен автоматически очистить его
+      // Некоторые API не принимают null значения, поэтому отправляем только нужные поля
+      final data = <String, dynamic>{
+        'is_active': true,
+      };
+      
+      // Логируем для отладки
+      final role = userRole ?? existingUser.role;
+      print('Unblocking user: ID=$normalizedId, role=$role, endpoint=$endpoint, data=$data');
+      print('Existing user: ${existingUser.id}, isActive: ${existingUser.isActive}, role: ${existingUser.role}');
+      
+      final response = await dio.put(endpoint, data: data);
+      
+      // Обработка разных форматов ответа
+      Map<String, dynamic> userData;
+      if (response.data is Map) {
+        if (response.data.containsKey('user')) {
+          userData = response.data['user'] as Map<String, dynamic>;
+        } else {
+          // Если ответ - это сам объект пользователя
+          userData = response.data as Map<String, dynamic>;
+        }
+      } else {
+        throw RolesException('Некорректный формат ответа от сервера', 500);
+      }
+      
+      return UserDto.fromJson(userData);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        final errorData = e.response?.data;
+        final errorMessage = errorData is Map && errorData.containsKey('error')
+            ? errorData['error'] as String
+            : 'Пользователь не найден';
+        throw RolesException('$errorMessage. ID: $id. Обновите список и попробуйте снова.', 404);
+      }
+      _handleError(e);
+      rethrow;
+    } on RolesException {
+      // Пробрасываем RolesException как есть
+      rethrow;
+    } catch (e) {
+      throw RolesException('Ошибка при разблокировке пользователя: ${e.toString()}', null);
+    }
   }
 
   // ==================== Drivers ====================

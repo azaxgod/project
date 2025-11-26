@@ -365,13 +365,18 @@ class MonitoringController extends StateNotifier<MonitoringState> {
 
   /// Выбор техники и загрузка трека
   Future<void> selectVehicle(String? vehicleId) async {
-    state = state.copyWith(selectedVehicleId: vehicleId);
+    // Обновляем selectedVehicleId и очищаем трек в одном обновлении состояния
+    state = state.copyWith(
+      selectedVehicleId: vehicleId,
+      selectedVehicleTrack: null, // Очищаем трек при смене или снятии выбора
+    );
     
     if (vehicleId == null) {
-      state = state.copyWith(selectedVehicleTrack: null);
+      // Если vehicleId null, просто скрываем виджет
       return;
     }
 
+    // Загружаем трек для выбранной машины
     try {
       final track = await _operationsRepository.getVehicleTrack(
         vehicleId,
@@ -380,7 +385,8 @@ class MonitoringController extends StateNotifier<MonitoringState> {
       );
       state = state.copyWith(selectedVehicleTrack: track);
     } catch (e) {
-      // Игнорируем ошибки
+      // Игнорируем ошибки, но оставляем selectedVehicleId установленным
+      debugPrint('Error loading vehicle track: $e');
     }
   }
 
@@ -511,10 +517,19 @@ class MonitoringController extends StateNotifier<MonitoringState> {
   }
 
   /// Добавить точку при рисовании
+  /// Для камеры: заменяет предыдущую точку (только 1 точка)
+  /// Для участков/полигонов: добавляет точку к списку
   void addDrawingPoint(double lon, double lat) {
     final currentGeometry = List<List<double>>.from(state.drawingGeometry);
-    currentGeometry.add([lon, lat]);
-    state = state.copyWith(drawingGeometry: currentGeometry);
+    
+    // Для камеры: заменяем точку (только 1 точка)
+    if (state.createMode == 'camera') {
+      state = state.copyWith(drawingGeometry: [[lon, lat]]);
+    } else {
+      // Для участков и полигонов: добавляем точку
+      currentGeometry.add([lon, lat]);
+      state = state.copyWith(drawingGeometry: currentGeometry);
+    }
   }
 
   /// Очистить геометрию рисования

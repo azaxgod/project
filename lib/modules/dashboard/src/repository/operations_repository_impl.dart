@@ -382,6 +382,14 @@ class OperationsRepositoryImpl implements OperationsRepository {
           // debugPrint('OperationsRepositoryImpl.loadTickets: Loaded ${dtos.length} tickets for contractor');
           return dtos.map((dto) => dto.toDomain()).toList();
           
+        case UserRole.driver:
+          // Для водителя endpoint /driver/tickets автоматически фильтрует по driver_id из JWT токена
+          // Водитель видит только тикеты, где у него есть активное назначение
+          final dtos = await _ticketsServices!.collection.getTicketsDriver(
+            status: statusStr,
+          );
+          return dtos.map((dto) => dto.toDomain()).toList();
+          
         default:
           // Fallback на Operations Service для других ролей
           break;
@@ -478,6 +486,31 @@ class OperationsRepositoryImpl implements OperationsRepository {
     String id, {
     required TicketStatus status,
   }) async {
+    // Используем Ticket Service для подрядчика при завершении тикета
+    if (_ticketsServices != null && 
+        _userRole == UserRole.contractorAdmin && 
+        status == TicketStatus.completed) {
+      final dto = await _ticketsServices!.collection.completeTicketContractor(id);
+      return dto.toDomain();
+    }
+    
+    // Используем Ticket Service для KGU ZKH при отмене тикета
+    if (_ticketsServices != null && 
+        _userRole == UserRole.kguZkhAdmin && 
+        status == TicketStatus.cancelled) {
+      final dto = await _ticketsServices!.collection.cancelTicketKgu(id);
+      return dto.toDomain();
+    }
+    
+    // Используем Ticket Service для KGU ZKH при закрытии тикета
+    if (_ticketsServices != null && 
+        _userRole == UserRole.kguZkhAdmin && 
+        status == TicketStatus.closed) {
+      final dto = await _ticketsServices!.collection.closeTicketKgu(id);
+      return dto.toDomain();
+    }
+    
+    // Для других случаев используем Operations Service
     final dto = await _services.collection.updateTicketStatus(
       id,
       status: TicketDto.statusToString(status),
@@ -556,6 +589,24 @@ class OperationsRepositoryImpl implements OperationsRepository {
     
     // Fallback на Operations Service
     await _services.collection.deleteTicketAssignment(ticketId, assignmentId);
+  }
+
+  @override
+  Future<TicketAssignment> markAssignmentInWork(String assignmentId) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    final dto = await _ticketsServices!.collection.markAssignmentInWork(assignmentId);
+    return dto.toDomain();
+  }
+
+  @override
+  Future<TicketAssignment> markAssignmentCompleted(String assignmentId) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    final dto = await _ticketsServices!.collection.markAssignmentCompleted(assignmentId);
+    return dto.toDomain();
   }
 }
 

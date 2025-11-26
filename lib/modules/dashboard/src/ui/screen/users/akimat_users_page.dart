@@ -147,6 +147,7 @@ class _AkimatUsersContent extends ConsumerWidget {
                     )
                   : UserTable(
                       users: users,
+                      resetPasswords: state.resetPasswords,
                       onBlock: (userId, blockReason) => controller.blockUser(
                         userId,
                         blockReason: blockReason,
@@ -159,6 +160,7 @@ class _AkimatUsersContent extends ConsumerWidget {
                         userType: 'AKIMAT_USER',
                         user: user,
                       ),
+                      onClearPassword: (userId) => controller.clearPassword(userId),
                     ),
             ),
           ),

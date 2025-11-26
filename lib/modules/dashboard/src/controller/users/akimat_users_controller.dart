@@ -56,6 +56,9 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> {
     String? password,
   }) async {
     try {
+      if (userId.isEmpty) {
+        throw Exception('ID пользователя не может быть пустым');
+      }
       await _services.rolesCollection.updateUser(
         userId,
         phone: phone,
@@ -73,10 +76,19 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> {
     String? blockReason,
   }) async {
     try {
+      if (userId.isEmpty) {
+        throw Exception('ID пользователя не может быть пустым');
+      }
+      
+      // Блокируем пользователя
       await _services.rolesCollection.blockUser(
         userId,
         blockReason: blockReason,
       );
+      
+      // Обновляем список после блокировки
+      // Примечание: если API фильтрует заблокированных пользователей из списка,
+      // пользователь может исчезнуть из списка, но это нормально
       await refresh();
     } catch (e) {
       rethrow;
@@ -85,26 +97,64 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> {
 
   Future<void> unblockUser(String userId) async {
     try {
+      if (userId.isEmpty) {
+        throw Exception('ID пользователя не может быть пустым');
+      }
+      
+      // Проверяем, что пользователь существует перед разблокировкой
+      // Это поможет избежать ошибки, если пользователь был удален
+      try {
+        await _services.rolesCollection.getUser(userId);
+      } catch (e) {
+        // Если пользователь не найден, пробуем разблокировать все равно
+        // Возможно, он просто не отображается в списке из-за фильтрации
+        print('Warning: User not found before unblock, but trying to unblock anyway. ID: $userId');
+      }
+      
+      // Разблокируем пользователя
       await _services.rolesCollection.unblockUser(userId);
       await refresh();
     } catch (e) {
+      // Пробрасываем ошибку с более понятным сообщением
+      final errorMessage = e.toString();
+      if (errorMessage.contains('user not found') || 
+          errorMessage.contains('404') || 
+          errorMessage.contains('не найден')) {
+        throw Exception('Пользователь не найден. Возможно, он был удален или ID изменился. Обновите список и попробуйте снова.');
+      }
       rethrow;
     }
   }
 
   Future<String> resetPassword(String userId) async {
     try {
+      if (userId.isEmpty) {
+        throw Exception('ID пользователя не может быть пустым');
+      }
       // Генерируем случайный пароль
       final newPassword = _generateRandomPassword();
       await _services.rolesCollection.updateUser(
         userId,
         password: newPassword,
       );
+      
+      // Сохраняем пароль в состоянии для отображения в таблице
+      final updatedPasswords = Map<String, String>.from(state.resetPasswords);
+      updatedPasswords[userId] = newPassword;
+      state = state.copyWith(resetPasswords: updatedPasswords);
+      
       await refresh();
       return newPassword;
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Очистить отображение пароля для пользователя
+  void clearPassword(String userId) {
+    final updatedPasswords = Map<String, String>.from(state.resetPasswords);
+    updatedPasswords.remove(userId);
+    state = state.copyWith(resetPasswords: updatedPasswords);
   }
 
   String _generateRandomPassword() {
@@ -117,6 +167,8 @@ class AkimatUsersController extends StateNotifier<AkimatUsersState> {
     return buffer.toString();
   }
 }
+
+
 
 
 

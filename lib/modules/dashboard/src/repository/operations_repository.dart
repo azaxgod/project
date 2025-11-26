@@ -207,4 +207,12 @@ abstract class OperationsRepository {
 
   /// Удалить назначение
   Future<void> deleteTicketAssignment(String ticketId, String assignmentId);
+
+  // ==================== Driver Assignments ====================
+
+  /// Установить статус назначения IN_WORK (для водителя)
+  Future<TicketAssignment> markAssignmentInWork(String assignmentId);
+
+  /// Установить статус назначения COMPLETED (для водителя)
+  Future<TicketAssignment> markAssignmentCompleted(String assignmentId);
 }

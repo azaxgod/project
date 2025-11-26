@@ -17,6 +17,9 @@ class TicketAssignmentDto {
   @JsonKey(name: 'vehicle_id')
   final String? vehicleId;
 
+  @JsonKey(name: 'assignment_status')
+  final String? assignmentStatus;
+
   @JsonKey(name: 'is_active')
   final bool isActive;
 
@@ -31,6 +34,7 @@ class TicketAssignmentDto {
     required this.ticketId,
     this.driverId,
     this.vehicleId,
+    this.assignmentStatus,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -41,18 +45,35 @@ class TicketAssignmentDto {
 
   Map<String, dynamic> toJson() => _$TicketAssignmentDtoToJson(this);
 
+  AssignmentStatus? _parseAssignmentStatus(String? status) {
+    if (status == null) return null;
+    switch (status.toUpperCase()) {
+      case 'NOT_STARTED':
+        return AssignmentStatus.notStarted;
+      case 'IN_WORK':
+        return AssignmentStatus.inWork;
+      case 'COMPLETED':
+        return AssignmentStatus.completed;
+      default:
+        return null;
+    }
+  }
+
   TicketAssignment toDomain() {
     return TicketAssignment(
       id: id,
       ticketId: ticketId,
       driverId: driverId,
       vehicleId: vehicleId,
+      assignmentStatus: _parseAssignmentStatus(assignmentStatus),
       isActive: isActive,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
   }
 }
+
+
 
 
 

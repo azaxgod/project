@@ -56,11 +56,16 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
         '/polygons', '/tickets', '/kgu/contracts', '/analytics',
         '/analytics/trips', '/analytics/violations', '/analytics/performance',
         '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
-        '/analytics/vehicles', '/analytics/technical', '/analytics/trips/:id', '/violations'
+        '/analytics/vehicles', '/analytics/technical', '/violations'
       ];
-      if (validRoutes.contains(savedRoute)) {
+      // Проверяем динамические роуты (с параметрами)
+      final isDynamicRoute = savedRoute.startsWith('/violations/') || 
+                             savedRoute.startsWith('/analytics/trips/');
+      if (validRoutes.contains(savedRoute) || isDynamicRoute) {
         initialLocation = savedRoute;
+        debugPrint('GoRouter: Restoring saved route: $savedRoute');
       } else {
+        debugPrint('GoRouter: Saved route not valid, using /dashboard: $savedRoute');
         initialLocation = '/dashboard';
       }
     } else {
@@ -336,6 +341,7 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
   // Сохраняем роут при навигации через listener
   router.routerDelegate.addListener(() {
     final currentLocation = router.routerDelegate.currentConfiguration.uri.path;
+    // Используем finalAuthState, который уже был получен выше
     if (finalAuthState.user != null && currentLocation != '/login') {
       // Сохраняем асинхронно, не блокируя навигацию
       RouteStorage.saveLastRoute(currentLocation).catchError((e) {

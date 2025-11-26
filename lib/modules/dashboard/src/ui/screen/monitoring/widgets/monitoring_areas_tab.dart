@@ -1,3 +1,4 @@
+import 'dart:html' as html;
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
@@ -9,7 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MonitoringAreasTab extends ConsumerWidget {
+class MonitoringAreasTab extends ConsumerStatefulWidget {
   final MonitoringState state;
   final MonitoringData data;
   final MonitoringController controller;
@@ -24,85 +25,186 @@ class MonitoringAreasTab extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MonitoringAreasTab> createState() => _MonitoringAreasTabState();
+}
+
+class _MonitoringAreasTabState extends ConsumerState<MonitoringAreasTab> {
+  int _currentPage = 0;
+  static const int _itemsPerPage = 5;
+  String? _lastTab; // Отслеживаем последнюю вкладку
+  static const String _storageKey = 'monitoring_areas_page';
+
+  @override
+  void initState() {
+    super.initState();
+    _lastTab = widget.state.selectedTab;
+    _restorePage();
+  }
+
+  Future<void> _restorePage() async {
+    if (kIsWeb) {
+      try {
+        final savedPage = html.window.localStorage[_storageKey];
+        if (savedPage != null) {
+          final page = int.tryParse(savedPage);
+          if (page != null && page >= 0) {
+            setState(() {
+              _currentPage = page;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Error restoring page: $e');
+      }
+    }
+  }
+
+  Future<void> _savePage(int page) async {
+    if (kIsWeb) {
+      try {
+        html.window.localStorage[_storageKey] = page.toString();
+      } catch (e) {
+        debugPrint('Error saving page: $e');
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(MonitoringAreasTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Если переключили вкладку, сбрасываем страницу на первую
+    if (oldWidget.state.selectedTab != widget.state.selectedTab) {
+      setState(() {
+        _currentPage = 0;
+        _lastTab = widget.state.selectedTab;
+      });
+      _savePage(0);
+    }
+    // Если обновились данные, но вкладка та же - сохраняем текущую страницу
+    // (не сбрасываем, если количество элементов не изменилось критически)
+    if (oldWidget.data.areas.length != widget.data.areas.length) {
+      // Проверяем, что текущая страница не выходит за границы
+      final totalPages = (widget.data.areas.length / _itemsPerPage).ceil();
+      if (_currentPage >= totalPages && totalPages > 0) {
+        setState(() {
+          _currentPage = totalPages - 1;
+        });
+        _savePage(_currentPage);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // ВАЖНО: Получаем актуальное состояние через ref.watch
     // чтобы виджет перестраивался при изменении createMode
     final currentState = ref.watch(monitoringControllerProvider);
+    final isCreating = currentState.createMode == 'area';
+    
+    // Пагинация
+    final totalPages = (widget.data.areas.length / _itemsPerPage).ceil();
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, widget.data.areas.length);
+    final displayedAreas = widget.data.areas.sublist(startIndex, endIndex);
     
     return Column(
       children: [
-        // Кнопка создания участка (только для тех, кто может редактировать)
-        if (canEdit)
-          Padding(
-            padding: const EdgeInsets.all(AppPadding.normal),
-            child: SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                child: InkWell(
-                  onTap: () {
-                    debugPrint('=== MonitoringAreasTab: Create area button pressed ===');
-                    debugPrint('MonitoringAreasTab: Current createMode=${currentState.createMode}');
-                    debugPrint('MonitoringAreasTab: Controller hash=${controller.hashCode}');
-                    
-                    // Вызываем метод напрямую
-                    controller.setCreateMode('area');
-                    
-                    debugPrint('MonitoringAreasTab: setCreateMode("area") called');
-                    
-                    // Проверяем состояние сразу после вызова
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      final updatedState = ref.read(monitoringControllerProvider);
-                      debugPrint('MonitoringAreasTab: After setCreateMode, createMode=${updatedState.createMode}');
-                      debugPrint('MonitoringAreasTab: State hash=${updatedState.hashCode}');
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.add_circle_outline, size: 22, color: Colors.white),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Создать участок',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+        // Список участков с пагинацией
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: displayedAreas.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Нет участков',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.textSecondary,
                           ),
                         ),
-                      ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(AppPadding.normal),
+                        itemCount: displayedAreas.length,
+                        itemBuilder: (context, index) {
+                          final area = displayedAreas[index];
+                          final isSelected = area.id == currentState.selectedAreaId;
+                          return _buildAreaCard(area, isSelected);
+                        },
+                      ),
+              ),
+              // Пагинация
+              if (totalPages > 1)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppPadding.normal,
+                    vertical: AppPadding.small,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColors.divider, width: 0.5),
                     ),
                   ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        onPressed: _currentPage > 0
+                            ? () {
+                                setState(() {
+                                  _currentPage--;
+                                });
+                                _savePage(_currentPage);
+                              }
+                            : null,
+                        icon: const Icon(Icons.chevron_left),
+                        iconSize: 20,
+                      ),
+                      Text(
+                        '${_currentPage + 1} / $totalPages',
+                        style: AppTextStyles.caption,
+                      ),
+                      IconButton(
+                        onPressed: _currentPage < totalPages - 1
+                            ? () {
+                                setState(() {
+                                  _currentPage++;
+                                });
+                                _savePage(_currentPage);
+                              }
+                            : null,
+                        icon: const Icon(Icons.chevron_right),
+                        iconSize: 20,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Кнопка создания участка снизу (только если не в режиме создания)
+        if (widget.canEdit && !isCreating)
+          Container(
+            padding: const EdgeInsets.all(AppPadding.normal),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AppColors.divider, width: 0.5),
+              ),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  widget.controller.setCreateMode('area');
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 22),
+                label: const Text('Создать участок'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
             ),
           ),
-        // Список участков
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(AppPadding.normal),
-            itemCount: data.areas.length,
-            itemBuilder: (context, index) {
-              final area = data.areas[index];
-              final isSelected = area.id == currentState.selectedAreaId;
-              return _buildAreaCard(area, isSelected);
-            },
-          ),
-        ),
       ],
     );
   }
@@ -114,7 +216,7 @@ class MonitoringAreasTab extends ConsumerWidget {
           ? AppColors.primary.withOpacity(0.1)
           : AppColors.cardBackground,
       child: InkWell(
-        onTap: () => controller.selectArea(area.id),
+        onTap: () => widget.controller.selectArea(area.id),
         child: Padding(
           padding: const EdgeInsets.all(AppPadding.normal),
           child: Column(
@@ -181,7 +283,7 @@ class MonitoringAreasTab extends ConsumerWidget {
 
   Widget _buildContractorChip(String contractorId) {
     // Находим подрядчика по ID
-    final contractor = data.contractors.where(
+    final contractor = widget.data.contractors.where(
       (org) => org.id == contractorId,
     ).firstOrNull;
     
