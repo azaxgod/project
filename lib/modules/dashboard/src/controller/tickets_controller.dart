@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/tickets_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
 import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
@@ -69,7 +70,16 @@ class TicketsController extends StateNotifier<TicketsState> {
     state = state.copyWith(
       data: await AsyncValue.guard(() async {
         // Load contractors and areas for filters
-        final organizations = await _organizationsRepository.loadOrganizations();
+        // Для DRIVER роли не загружаем организации (403 Forbidden)
+        List<Organization> organizations = [];
+        if (state.role != UserRole.driver) {
+          try {
+            organizations = await _organizationsRepository.loadOrganizations();
+          } catch (e) {
+            // Игнорируем ошибки загрузки организаций
+            debugPrint('TicketsController: Failed to load organizations: $e');
+          }
+        }
         final contractors = organizations
             .where((org) => org.type == OrganizationType.contractor)
             .toList();

@@ -84,7 +84,7 @@ class _LandfillActsPageState extends ConsumerState<LandfillActsPage> {
                   icon: const Icon(Icons.refresh),
                   onPressed: controller.refresh,
                   tooltip: 'Обновить',
-                ),
+                  ),
                 ],
               ),
             ),
@@ -225,8 +225,8 @@ class _LandfillActsPageState extends ConsumerState<LandfillActsPage> {
                       'Нет актов',
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
-                      ),
-                    ),
+                ),
+              ),
                   );
                 }
                 return ListView.builder(
@@ -464,7 +464,7 @@ class _LandfillActsPageState extends ConsumerState<LandfillActsPage> {
             onPressed: () {
               if (reasonController.text.trim().isNotEmpty) {
                 Navigator.of(context).pop(true);
-              }
+  }
             },
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,

@@ -24,6 +24,32 @@ class DrawerItem {
 }
 
 final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
+  final authState = ref.watch(authNotifierProvider);
+  final user = authState.user;
+  final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
+  
+  // Для водителя возвращаем упрощенный drawer
+  if (role == UserRole.driver) {
+    return [
+      DrawerItem(
+        title: 'Текущий рейс',
+        icon: Icons.assignment,
+        route: '/driver?tab=current',
+      ),
+      DrawerItem(
+        title: 'Мои задания',
+        icon: Icons.list,
+        route: '/driver?tab=tickets',
+      ),
+      DrawerItem(
+        title: 'Карта',
+        icon: Icons.map,
+        route: '/driver?tab=map',
+      ),
+    ];
+  }
+  
+  // Для остальных ролей - стандартный drawer
   return [
     DrawerItem(
       title: s.dashboard,

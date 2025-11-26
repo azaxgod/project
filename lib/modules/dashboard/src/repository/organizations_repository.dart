@@ -9,6 +9,15 @@ abstract class OrganizationsRepository {
 
   Future<List<Vehicle>> loadVehicles();
 
+  /// Получить организацию по ID (для DRIVER роли)
+  Future<Organization> getOrganization(String id);
+
+  /// Получить водителя по ID (для DRIVER роли)
+  Future<Driver> getDriver(String id);
+
+  /// Получить транспорт по ID (для DRIVER роли)
+  Future<Vehicle> getVehicle(String id);
+
   Future<Organization> createOrganization(Organization organization);
 
   Future<Organization> updateOrganization(Organization organization);

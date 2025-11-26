@@ -4,13 +4,74 @@ import 'package:akimat_project/core/navbar/user_role_badge.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 class NavbarWidgetsProvider {
   /// Get default web navbar widgets with language switcher
+  /// Проверяет роль пользователя и возвращает соответствующий навбар
   static List<Widget> getDefaultWebWidgets(BuildContext context) {
+    // Получаем роль пользователя из контекста
+    final authNotifier = ProviderScope.containerOf(context).read(authNotifierProvider);
+    final user = authNotifier.user;
+    final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
+    
+    // Для водителя возвращаем упрощенный навбар
+    if (role == UserRole.driver) {
+      return getDriverWebWidgets(context);
+    }
+    
+    // Для остальных ролей - стандартный навбар
+    return getStandardWebWidgets(context);
+  }
+
+  /// Навбар для водителя (упрощенный, мобильный-ориентированный)
+  static List<Widget> getDriverWebWidgets(BuildContext context) {
+    String currentRoute = '/';
+    String? currentQuery = '';
+    try {
+      final router = GoRouter.of(context);
+      final uri = router.routerDelegate.currentConfiguration.uri;
+      currentRoute = uri.path;
+      currentQuery = uri.queryParameters['tab'];
+    } catch (e) {
+      // Fallback if route cannot be determined
+    }
+    
+    return [
+      _NavbarButton(
+        label: 'Текущий рейс',
+        icon: Icons.assignment,
+        isActive: (currentRoute == '/driver' && (currentQuery == null || currentQuery == 'current' || currentQuery == '')),
+        route: '/driver?tab=current',
+      ),
+      _NavbarButton(
+        label: 'Мои задания',
+        icon: Icons.list,
+        isActive: currentRoute == '/tickets' || (currentRoute == '/driver' && currentQuery == 'tickets'),
+        route: '/driver?tab=tickets',
+      ),
+      _NavbarButton(
+        label: 'Карта',
+        icon: Icons.map,
+        isActive: currentRoute == '/driver' && currentQuery == 'map',
+        route: '/driver?tab=map',
+      ),
+      const SizedBox(width: AppPadding.small),
+      const UserRoleBadge(), // Отображение роли пользователя
+      const SizedBox(width: AppPadding.small),
+      const LanguageSwitcher(),
+      const SizedBox(width: AppPadding.small),
+      const LogoutButtonWeb(), // Кнопка выхода
+    ];
+  }
+
+  /// Стандартный навбар для остальных ролей
+  static List<Widget> getStandardWebWidgets(BuildContext context) {
     String currentRoute = '/';
     try {
       final router = GoRouter.of(context);
@@ -167,6 +228,7 @@ class _NavbarButton extends StatelessWidget {
       } else if (route != null) {
         debugPrint('Navigating to route: $route');
         try {
+          // Используем go для навигации, чтобы обновить URL
           context.go(route!);
           debugPrint('Navigation successful to: $route');
         } catch (e, stackTrace) {
@@ -188,7 +250,10 @@ class _NavbarButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: handleTap,
+        onTap: () {
+          debugPrint('_NavbarButton InkWell tapped: $label, route=$route');
+          handleTap();
+        },
         borderRadius: BorderRadius.circular(AppSize.buttonRadius),
         child: Container(
           padding: const EdgeInsets.symmetric(

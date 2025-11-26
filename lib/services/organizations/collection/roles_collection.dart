@@ -303,7 +303,7 @@ class RolesCollection {
       } else if (usersData is Map) {
         // Проверяем различные возможные ключи
         if (usersData['users'] != null) {
-          users = usersData['users'] as List<dynamic>? ?? [];
+        users = usersData['users'] as List<dynamic>? ?? [];
         } else if (usersData['data'] != null) {
           users = usersData['data'] as List<dynamic>? ?? [];
         } else {
@@ -632,12 +632,12 @@ class RolesCollection {
         role = user.role;
       } catch (e) {
         // Если не удалось получить пользователя, используем общий endpoint
-        return updateUser(
-          id,
-          isActive: false,
-          blockReason: blockReason,
-        );
-      }
+    return updateUser(
+      id,
+      isActive: false,
+      blockReason: blockReason,
+    );
+  }
     }
     
     // Для PUT запросов всегда используем общий endpoint /roles/users/:id

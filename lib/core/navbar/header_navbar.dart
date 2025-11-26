@@ -2,6 +2,7 @@ import 'package:akimat_project/core/navbar/app_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class HeaderNavbar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? webWidgets;
@@ -20,6 +21,12 @@ class HeaderNavbar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Используем GoRouter.of(context) для отслеживания изменений роута
+    // Это заставит виджет перестраиваться при изменении роута
+    final router = GoRouter.of(context);
+    final uri = router.routerDelegate.currentConfiguration.uri;
+    // Используем uri для принудительного обновления при изменении роута
+    
     return kIsWeb
         ? AppNavbar(
             // scaffoldKey: scaffoldKey,

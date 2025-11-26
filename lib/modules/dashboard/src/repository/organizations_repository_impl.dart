@@ -39,6 +39,27 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
   }
 
   @override
+  Future<Driver> getDriver(String id) async {
+    // Используем реальный API roles-service для получения конкретного водителя
+    final dto = await _services.rolesCollection.getDriver(id);
+    return dto.toDomain();
+  }
+
+  @override
+  Future<Organization> getOrganization(String id) async {
+    // Используем реальный API roles-service для получения конкретной организации
+    final dto = await _services.rolesCollection.getOrganization(id);
+    return dto.toDomain();
+  }
+
+  @override
+  Future<Vehicle> getVehicle(String id) async {
+    // Используем реальный API roles-service для получения конкретного транспорта
+    final dto = await _services.rolesCollection.getVehicle(id);
+    return dto.toDomain();
+  }
+
+  @override
   Future<Organization> createOrganization(Organization organization) async {
     // Для создания организации нужен телефон администратора
     // Используем phone организации как adminPhone, если он указан

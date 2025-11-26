@@ -21,6 +21,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/tickets_p
 import 'package:akimat_project/modules/dashboard/src/ui/screen/contracts/contracts_page.dart';
 import 'package:akimat_project/modules/violations/src/ui/screen/violation_detail_page.dart';
 import 'package:akimat_project/modules/violations/src/ui/screen/violations_page.dart';
+import 'package:akimat_project/modules/trips/src/ui/driver_home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -247,6 +248,10 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
           );
         },
       ),
+      GoRoute(
+        path: '/driver',
+        builder: (context, state) => const DriverHome(),
+      ),
     ],
    redirect: (context, state) async {
   debugPrint('=== GoRouter redirect called: ${state.matchedLocation} ===');
@@ -283,7 +288,7 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
       '/polygons', '/tickets', '/kgu/contracts', '/analytics',
       '/analytics/trips', '/analytics/violations', '/analytics/performance',
       '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
-      '/analytics/vehicles', '/analytics/technical', '/violations'
+      '/analytics/vehicles', '/analytics/technical', '/violations', '/driver'
     ];
     
     // Проверяем динамические роуты
