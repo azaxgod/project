@@ -373,7 +373,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       case UserRole.unknown:
         return [];
     }
-    // This should never be reached, but satisfies the analyzer
+    // Для неожиданного значения роли возвращаем пустой список
     return [];
   }
 }
