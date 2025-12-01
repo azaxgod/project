@@ -44,19 +44,16 @@ class LandfillsPage extends ConsumerWidget {
           onRetry: ref.read(organizationsControllerProvider.notifier).refresh,
         ),
         data: (data) {
-          // Фильтруем только LANDFILL организации (TOO)
           final landfills = data.organizations
               .where((org) => org.type == OrganizationType.too)
               .toList();
 
-          // Подсчитываем количество полигонов для каждой организации
           final landfillsWithPolygonCount = landfills.map((landfill) {
-            final polygonCount = data.polygons
-                .where((polygon) => polygon.organizationId == landfill.id)
-                .length;
+            // TODO: Поддержать реальное количество полигонов, когда backend начнет
+            // возвращать связь полигонов с организациями приёма снега.
             return _LandfillWithPolygonCount(
               organization: landfill,
-              polygonCount: polygonCount,
+              polygonCount: 0,
             );
           }).toList();
 
