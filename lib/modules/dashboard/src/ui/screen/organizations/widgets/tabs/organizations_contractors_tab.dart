@@ -33,8 +33,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
     }).toList();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizationsTabHeader(
           title: 'Подрядчики',
@@ -52,12 +51,15 @@ class OrganizationsContractorsTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (contractors.isEmpty)
-          const OrganizationsEmptyState(
-            title: 'Нет подрядчиков',
-            message: 'Добавьте подрядчика, чтобы управлять водителями и транспортом.',
+          const Expanded(
+            child: OrganizationsEmptyState(
+              title: 'Нет подрядчиков',
+              message: 'Добавьте подрядчика, чтобы управлять водителями и транспортом.',
+            ),
           )
         else
-          OrganizationsDataTable(
+          Expanded(
+            child: OrganizationsDataTable(
             columns: [
               const DataColumn(label: Text('Название')),
               const DataColumn(label: Text('БИН')),
@@ -110,6 +112,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
                 ],
               );
             }).toList(),
+            ),
           ),
       ],
     );

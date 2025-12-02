@@ -29,10 +29,7 @@ class OrganizationsTabs extends StatefulWidget {
   State<OrganizationsTabs> createState() => _OrganizationsTabsState();
 }
 
-class _OrganizationsTabsState extends State<OrganizationsTabs>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _OrganizationsTabsState extends State<OrganizationsTabs> {
   List<_OrganizationsTabDefinition> _getTabs(BuildContext context) {
     return _buildTabs(
       context,
@@ -43,38 +40,9 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
   }
 
   @override
-  void initState() {
-    super.initState();
-    // Initialize with default length, will be updated in build
-    _tabController = TabController(length: 1, vsync: this);
-  }
-
-  @override
-  void didUpdateWidget(covariant OrganizationsTabs oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // TabController length will be updated in build if needed
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final s = S.of(context);
     final tabs = _getTabs(context);
-    
-    // Update TabController length if it changed
-    if (_tabController.length != tabs.length) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _tabController.dispose();
-          _tabController = TabController(length: tabs.length, vsync: this);
-        }
-      });
-    }
     
     if (tabs.isEmpty) {
       return OrganizationsEmptyState(
@@ -83,53 +51,54 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (widget.config.topOffset > 0) SizedBox(height: widget.config.topOffset),
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: widget.config.padding,
-            vertical: 8,
+    return DefaultTabController(
+      length: tabs.length,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.config.topOffset > 0) SizedBox(height: widget.config.topOffset),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.config.padding,
+              vertical: 8,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s!.role_management,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  s.organizations_contractors_drivers,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                s!.role_management,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                s.organizations_contractors_drivers,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
+          TabBar(
+            isScrollable: true,
+            labelColor: Theme.of(context).colorScheme.primary,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            tabs: tabs.map((tab) => Tab(text: tab.getLabel(context))).toList(),
           ),
-        ),
-        TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: Theme.of(context).colorScheme.primary,
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          tabs: tabs.map((tab) => Tab(text: tab.getLabel(context))).toList(),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: tabs
-                .map(
-                  (tab) => Padding(
-                    padding: EdgeInsets.all(
-                      max(widget.config.padding, 16),
+          Expanded(
+            child: TabBarView(
+              children: tabs
+                  .map(
+                    (tab) => Padding(
+                      padding: EdgeInsets.all(
+                        max(widget.config.padding, 16),
+                      ),
+                      child: tab.builder(context, widget.controller),
                     ),
-                    child: tab.builder(context, widget.controller),
-                  ),
-                )
-                .toList(),
+                  )
+                  .toList(),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -145,7 +114,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       case UserRole.akimatAdmin:
         return [
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(context)!.too,
+            getLabel: (ctx) => S.of(ctx)!.too,
             builder: (context, controller) => OrganizationsTooTab(
               data: data,
               controller: controller,
@@ -168,7 +137,38 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
             ),
           ),
         ];
-   case UserRole.landfillAdmin:
+      case UserRole.kguZkhAdmin:
+        if (organizationId != null) {
+          return [
+            _OrganizationsTabDefinition(
+              getLabel: (ctx) => S.of(ctx)!.contractors,
+              builder: (context, controller) => OrganizationsContractorsTab(
+                data: data,
+                controller: controller,
+                parentOrganizationId: organizationId,
+              ),
+            ),
+            _OrganizationsTabDefinition(
+              getLabel: (ctx) => S.of(ctx)!.drivers,
+              builder: (context, controller) => OrganizationsDriversTab(
+                data: data,
+                controller: controller,
+                canManage: false,
+                organizationId: organizationId,
+              ),
+            ),
+            _OrganizationsTabDefinition(
+              getLabel: (ctx) => S.of(ctx)!.vehicles,
+              builder: (context, controller) => OrganizationsVehiclesTab(
+                data: data,
+                controller: controller,
+                contractorId: organizationId,
+              ),
+            ),
+          ];
+        }
+        return [];
+      case UserRole.landfillAdmin:
         if (organizationId != null) {
           return [
             _OrganizationsTabDefinition(
@@ -217,10 +217,13 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
         return [];
       case UserRole.driver:
         return [];
+      case UserRole.akimatUser:
+      case UserRole.kguZkhUser:
+      case UserRole.landfillUser:
+      case UserRole.contractorUser:
       case UserRole.unknown:
         return [];
     }
-    return [];
   }
 }
 

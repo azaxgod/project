@@ -70,12 +70,24 @@ class MonitoringSidebar extends StatelessWidget {
               ],
             ),
           ),
-          // Информация о выбранной машине
-          if (state.selectedVehicleId != null)
-            _buildSelectedVehicleInfo(),
-          // Контент вкладок
+          // Информация о выбранной машине + Контент вкладок
           Expanded(
-            child: _buildTabContent(),
+            child: state.selectedVehicleId != null
+                ? Column(
+                    children: [
+                      // Панель информации о машине с ограниченной высотой и прокруткой
+                      Flexible(
+                        flex: 2,
+                        child: _buildSelectedVehicleInfo(),
+                      ),
+                      // Контент вкладок
+                      Flexible(
+                        flex: 1,
+                        child: _buildTabContent(),
+                      ),
+                    ],
+                  )
+                : _buildTabContent(),
           ),
         ],
       ),
@@ -120,14 +132,15 @@ class MonitoringSidebar extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppPadding.normal),
-      padding: const EdgeInsets.only(bottom: AppPadding.normal),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: AppColors.divider, width: 0.5),
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // Заголовок (не прокручивается)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -151,8 +164,13 @@ class MonitoringSidebar extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppPadding.small),
-          VehicleInfoPanel(vehicle: vehicle),
+          // Прокручиваемый контент
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: AppPadding.normal),
+              child: VehicleInfoPanel(vehicle: vehicle),
+            ),
+          ),
         ],
       ),
     );

@@ -80,6 +80,7 @@ class OrganizationDto {
       case 'KGU_ZKH':
         return OrganizationType.kguZkh;
       case 'TOO':
+      case 'LANDFILL': // Поддержка нового значения с сервера
         return OrganizationType.too;
       case 'CONTRACTOR':
         return OrganizationType.contractor;
@@ -95,7 +96,7 @@ class OrganizationDto {
       case OrganizationType.kguZkh:
         return 'KGU_ZKH';
       case OrganizationType.too:
-        return 'TOO';
+        return 'LANDFILL'; // Сервер работает с LANDFILL
       case OrganizationType.contractor:
         return 'CONTRACTOR';
     }

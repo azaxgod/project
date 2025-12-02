@@ -28,8 +28,7 @@ class OrganizationsVehiclesTab extends StatelessWidget {
         .toList();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizationsTabHeader(
           title: 'Транспорт',
@@ -44,18 +43,23 @@ class OrganizationsVehiclesTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (vehicles.isEmpty)
-          const OrganizationsEmptyState(
-            title: 'Нет транспорта',
-            message: 'Добавьте транспорт, чтобы закреплять водителей.',
+          const Expanded(
+            child: OrganizationsEmptyState(
+              title: 'Нет транспорта',
+              message: 'Добавьте транспорт, чтобы закреплять водителей.',
+            ),
           )
         else
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppPadding.large),
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: vehicles.length,
-              itemBuilder: (context, index) {
+          Expanded(
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: AppPadding.large),
+                    itemCount: vehicles.length,
+                    itemBuilder: (context, index) {
                 final vehicle = vehicles[index];
                 Driver? driver;
                 if (vehicle.driverId != null && vehicle.driverId!.isNotEmpty) {
@@ -103,6 +107,9 @@ class OrganizationsVehiclesTab extends StatelessWidget {
                   ),
                 );
               },
+                  ),
+                ),
+              ),
             ),
           ),
       ],

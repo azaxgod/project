@@ -208,8 +208,8 @@ class _NavbarButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isActive;
-  final String? route; // Добавляем роут вместо VoidCallback
-  final VoidCallback? onPressed; // Оставляем для обратной совместимости
+  final String? route;
+  final VoidCallback? onPressed;
 
   const _NavbarButton({
     required this.label,
@@ -222,77 +222,94 @@ class _NavbarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void handleTap() {
-      debugPrint('NavbarButton tapped: label=$label, route=$route, onPressed=${onPressed != null}');
       if (onPressed != null) {
         onPressed!();
       } else if (route != null) {
-        debugPrint('Navigating to route: $route');
         try {
-          // Используем go для навигации, чтобы обновить URL
           context.go(route!);
-          debugPrint('Navigation successful to: $route');
-        } catch (e, stackTrace) {
-          debugPrint('Navigation error to $route: $e');
-          debugPrint('Stack trace: $stackTrace');
-          // Fallback: try using push
+        } catch (e) {
           try {
             context.push(route!);
-            debugPrint('Navigation push successful to: $route');
-          } catch (e2) {
-            debugPrint('Navigation push error: $e2');
-          }
+          } catch (_) {}
         }
-      } else {
-        debugPrint('No route or onPressed provided for button: $label');
       }
     }
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          debugPrint('_NavbarButton InkWell tapped: $label, route=$route');
-          handleTap();
-        },
-        borderRadius: BorderRadius.circular(AppSize.buttonRadius),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppPadding.normal,
-            vertical: AppPadding.small,
-          ),
-          decoration: BoxDecoration(
-            color: isActive
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppSize.buttonRadius),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: AppSize.iconSizeSmall,
-                color: isActive
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-              ),
-              const SizedBox(width: AppPadding.small),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 15,
-                  letterSpacing: -0.24,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Определяем компактный режим по ширине родителя
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isCompact = screenWidth < 1100;
+        final isVeryCompact = screenWidth < 900;
+        
+        return Tooltip(
+          message: label,
+          waitDuration: isVeryCompact ? const Duration(milliseconds: 300) : const Duration(seconds: 1),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: handleTap,
+              borderRadius: BorderRadius.circular(AppSize.buttonRadius),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isVeryCompact ? 8 : (isCompact ? 10 : AppPadding.normal),
+                  vertical: AppPadding.small,
+                ),
+                decoration: BoxDecoration(
                   color: isActive
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
+                      ? AppColors.primary.withValues(alpha: 0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppSize.buttonRadius),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: isVeryCompact ? 18 : AppSize.iconSizeSmall,
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                    // Показываем текст только на больших экранах
+                    if (!isVeryCompact) ...[
+                      const SizedBox(width: AppPadding.small),
+                      Text(
+                        isCompact ? _getShortLabel(label) : label,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          fontSize: isCompact ? 13 : 15,
+                          letterSpacing: -0.24,
+                          color: isActive
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+  
+  /// Сокращает длинные названия для компактного режима
+  String _getShortLabel(String label) {
+    // Словарь сокращений
+    const shortcuts = {
+      'Организации': 'Орг.',
+      'Мониторинг': 'Монит.',
+      'Задания (Tickets)': 'Задания',
+      'Нарушения': 'Наруш.',
+      'Аналитика': 'Аналит.',
+      'Контракты': 'Контр.',
+      'Текущий рейс': 'Рейс',
+      'Мои задания': 'Задания',
+    };
+    return shortcuts[label] ?? label;
   }
 }
 

@@ -19,59 +19,78 @@ class AppNavbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final config = PlatformConfig.instance;
 
     if (kIsWeb) {
-      return Container(
-        height: 60,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.separator,
-              width: 0.5,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: AppSize.shadowBlur,
-              offset: const Offset(0, 1),
-              spreadRadius: 0,
-            ),
-          ],
-        ),
-        padding: EdgeInsets.symmetric(horizontal: config.padding),
-        child: Row(
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.snowing,
-                  color: AppColors.primary,
-                  size: AppSize.iconSize,
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Определяем режим отображения по ширине экрана
+          final isCompact = constraints.maxWidth < 1100;
+          final isVeryCompact = constraints.maxWidth < 900;
+          
+          return Container(
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.separator,
+                  width: 0.5,
                 ),
-                const SizedBox(width: AppPadding.small),
-                Text(
-                  'SnowOps',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 20,
-                    letterSpacing: -0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: AppSize.shadowBlur,
+                  offset: const Offset(0, 1),
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            padding: EdgeInsets.symmetric(horizontal: isVeryCompact ? 12 : config.padding),
+            child: Row(
+              children: [
+                // Логотип
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.snowing,
+                      color: AppColors.primary,
+                      size: isVeryCompact ? 20 : AppSize.iconSize,
+                    ),
+                    if (!isVeryCompact) ...[
+                      const SizedBox(width: AppPadding.small),
+                      Text(
+                        'SnowOps',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isCompact ? 16 : 20,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(width: 8),
+                // Навигационные кнопки с прокруткой
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: webWidgets.map((widget) => Padding(
+                        padding: EdgeInsets.symmetric(horizontal: isCompact ? 2 : 4),
+                        child: _wrapWidgetForCompact(widget, isCompact, isVeryCompact),
+                      )).toList(),
+                    ),
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            ...webWidgets.map((widget) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: widget,
-                )),
-          ],
-        ),
+          );
+        },
       );
     } else {
       return AppBar(
@@ -120,4 +139,13 @@ class AppNavbar extends StatelessWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  
+  /// Обертка для компактного режима
+  Widget _wrapWidgetForCompact(Widget widget, bool isCompact, bool isVeryCompact) {
+    // Пропускаем SizedBox без изменений
+    if (widget is SizedBox) {
+      return SizedBox(width: isVeryCompact ? 4 : (isCompact ? 6 : 8));
+    }
+    return widget;
+  }
 }

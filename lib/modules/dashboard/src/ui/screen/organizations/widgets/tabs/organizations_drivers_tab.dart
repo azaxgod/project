@@ -69,8 +69,7 @@ class OrganizationsDriversTab extends StatelessWidget {
     }).toList();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizationsTabHeader(
           title: 'Водители',
@@ -89,12 +88,15 @@ class OrganizationsDriversTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (drivers.isEmpty)
-          const OrganizationsEmptyState(
-            title: 'Нет водителей',
-            message: 'Добавьте водителя, чтобы начать планировать рейсы.',
+          const Expanded(
+            child: OrganizationsEmptyState(
+              title: 'Нет водителей',
+              message: 'Добавьте водителя, чтобы начать планировать рейсы.',
+            ),
           )
         else
-          OrganizationsDataTable(
+          Expanded(
+            child: OrganizationsDataTable(
             columns: const [
               DataColumn(label: Text('ФИО')),
               DataColumn(label: Text('ИИН')),
@@ -185,6 +187,7 @@ class OrganizationsDriversTab extends StatelessWidget {
                 ],
               );
             }).toList(),
+            ),
           ),
       ],
     );

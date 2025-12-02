@@ -28,8 +28,7 @@ class OrganizationsTooTab extends StatelessWidget {
         .toList();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizationsTabHeader(
           title: 'Список ТОО',
@@ -44,52 +43,56 @@ class OrganizationsTooTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (organizations.isEmpty)
-          const OrganizationsEmptyState(
-            title: 'Нет ТОО',
-            message: 'Добавьте ТОО, чтобы начать управлять подрядчиками.',
+          const Expanded(
+            child: OrganizationsEmptyState(
+              title: 'Нет ТОО',
+              message: 'Добавьте ТОО, чтобы начать управлять подрядчиками.',
+            ),
           )
         else
-          OrganizationsDataTable(
-            columns: const [
-              DataColumn(label: Text('Название')),
-              DataColumn(label: Text('БИН')),
-              DataColumn(label: Text('Руководитель')),
-              DataColumn(label: Text('Телефон')),
-              DataColumn(label: Text('Статус')),
-              DataColumn(label: Text('Действия')),
-            ],
-            rows: organizations.map((organization) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(organization.name)),
-                  DataCell(Text(organization.bin)),
-                  DataCell(Text(organization.headFullName ?? '—')),
-                  DataCell(Text(organization.phone ?? '—')),
-                  DataCell(OrganizationsStatusChip(isActive: organization.isActive)),
-                  DataCell(
-                    OrganizationsTableActions(
-                      actions: [
-                        OrganizationsTableAction(
-                          label: 'Подробнее',
-                          onPressed: () => OrganizationsDetailsDialogs.showOrganizationDetails(
-                            context: context,
-                            organization: organization,
-                            data: data,
+          Expanded(
+            child: OrganizationsDataTable(
+              columns: const [
+                DataColumn(label: Text('Название')),
+                DataColumn(label: Text('БИН')),
+                DataColumn(label: Text('Руководитель')),
+                DataColumn(label: Text('Телефон')),
+                DataColumn(label: Text('Статус')),
+                DataColumn(label: Text('Действия')),
+              ],
+              rows: organizations.map((organization) {
+                return DataRow(
+                  cells: [
+                    DataCell(Text(organization.name)),
+                    DataCell(Text(organization.bin)),
+                    DataCell(Text(organization.headFullName ?? '—')),
+                    DataCell(Text(organization.phone ?? '—')),
+                    DataCell(OrganizationsStatusChip(isActive: organization.isActive)),
+                    DataCell(
+                      OrganizationsTableActions(
+                        actions: [
+                          OrganizationsTableAction(
+                            label: 'Подробнее',
+                            onPressed: () => OrganizationsDetailsDialogs.showOrganizationDetails(
+                              context: context,
+                              organization: organization,
+                              data: data,
+                            ),
                           ),
-                        ),
-                        OrganizationsTableAction(
-                          label: organization.isActive ? 'Блокировать' : 'Разблокировать',
-                          isDestructive: organization.isActive,
-                          onPressed: () => controller.updateOrganization(
-                            organization.copyWith(isActive: !organization.isActive),
+                          OrganizationsTableAction(
+                            label: organization.isActive ? 'Блокировать' : 'Разблокировать',
+                            isDestructive: organization.isActive,
+                            onPressed: () => controller.updateOrganization(
+                              organization.copyWith(isActive: !organization.isActive),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }).toList(),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
       ],
     );

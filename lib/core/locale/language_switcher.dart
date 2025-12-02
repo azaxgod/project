@@ -10,17 +10,23 @@ class LanguageSwitcher extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentLocale = ref.watch(localeProvider);
     final notifier = ref.read(localeProvider.notifier);
+    
+    // Определяем компактный режим
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVeryCompact = screenWidth < 900;
 
     return PopupMenuButton<Locale>(
       icon: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.language),
-          const SizedBox(width: 4),
-          Text(
-            _getLanguageCode(currentLocale.languageCode),
-            style: const TextStyle(fontSize: 14),
-          ),
+          Icon(Icons.language, size: isVeryCompact ? 20 : 24),
+          if (!isVeryCompact) ...[
+            const SizedBox(width: 4),
+            Text(
+              _getLanguageCode(currentLocale.languageCode),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
         ],
       ),
       tooltip: 'Выбрать язык / Select language / Тілді таңдау',

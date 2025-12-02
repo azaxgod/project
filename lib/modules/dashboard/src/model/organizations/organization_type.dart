@@ -8,7 +8,7 @@ extension OrganizationTypeX on OrganizationType {
       case OrganizationType.kguZkh:
         return 'KGU_ZKH';
       case OrganizationType.too:
-        return 'TOO';
+        return 'LANDFILL'; 
       case OrganizationType.contractor:
         return 'CONTRACTOR';
     }

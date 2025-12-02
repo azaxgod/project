@@ -90,41 +90,77 @@ class UserRoleBadge extends ConsumerWidget {
     final roleLabel = _getRoleLabel(role);
     final roleColor = _getRoleColor(role);
     final roleIcon = _getRoleIcon(role);
+    
+    // Определяем компактный режим
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 1100;
+    final isVeryCompact = screenWidth < 900;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppPadding.normal,
-        vertical: AppPadding.small,
-      ),
-      decoration: BoxDecoration(
-        color: roleColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppSize.buttonRadius),
-        border: Border.all(
-          color: roleColor.withOpacity(0.3),
-          width: 1,
+    return Tooltip(
+      message: roleLabel,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isVeryCompact ? 8 : AppPadding.normal,
+          vertical: AppPadding.small,
+        ),
+        decoration: BoxDecoration(
+          color: roleColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppSize.buttonRadius),
+          border: Border.all(
+            color: roleColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              roleIcon,
+              size: isVeryCompact ? 16 : 18,
+              color: roleColor,
+            ),
+            // Показываем текст только на больших экранах
+            if (!isVeryCompact) ...[
+              const SizedBox(width: AppPadding.small),
+              Text(
+                isCompact ? _getShortRoleLabel(role) : roleLabel,
+                style: TextStyle(
+                  color: roleColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: isCompact ? 12 : 14,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            roleIcon,
-            size: 18,
-            color: roleColor,
-          ),
-          const SizedBox(width: AppPadding.small),
-          Text(
-            roleLabel,
-            style: TextStyle(
-              color: roleColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
-      ),
     );
+  }
+  
+  String _getShortRoleLabel(UserRole role) {
+    switch (role) {
+      case UserRole.akimatAdmin:
+        return 'Акимат';
+      case UserRole.akimatUser:
+        return 'Акимат';
+      case UserRole.kguZkhAdmin:
+        return 'KGU';
+      case UserRole.kguZkhUser:
+        return 'KGU';
+      case UserRole.landfillAdmin:
+        return 'LAND';
+      case UserRole.landfillUser:
+        return 'LAND';
+      case UserRole.contractorAdmin:
+        return 'Подряд.';
+      case UserRole.contractorUser:
+        return 'Подряд.';
+      case UserRole.driver:
+        return 'Водитель';
+      case UserRole.unknown:
+        return '?';
+    }
   }
 }
 

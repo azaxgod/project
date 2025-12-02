@@ -103,8 +103,8 @@ class MonitoringState {
     String? selectedTab,
     String? selectedAreaId,
     String? selectedPolygonId,
-    String? selectedVehicleId,
-    VehicleTrack? selectedVehicleTrack,
+    Object? selectedVehicleId = _keepSelectedVehicleId,
+    Object? selectedVehicleTrack = _keepSelectedVehicleTrack,
     CleaningAreaStatus? statusFilter,
     String? contractorFilter,
     bool? showVehicles,
@@ -122,15 +122,19 @@ class MonitoringState {
       selectedTab: selectedTab ?? this.selectedTab,
       selectedAreaId: selectedAreaId ?? this.selectedAreaId,
       selectedPolygonId: selectedPolygonId ?? this.selectedPolygonId,
-      selectedVehicleId: selectedVehicleId ?? this.selectedVehicleId,
-      selectedVehicleTrack: selectedVehicleTrack ?? this.selectedVehicleTrack,
+      // ВАЖНО: Используем паттерн с Object? для nullable полей, чтобы можно было явно установить null
+      selectedVehicleId: selectedVehicleId == _keepSelectedVehicleId 
+          ? this.selectedVehicleId 
+          : selectedVehicleId as String?,
+      selectedVehicleTrack: selectedVehicleTrack == _keepSelectedVehicleTrack 
+          ? this.selectedVehicleTrack 
+          : selectedVehicleTrack as VehicleTrack?,
       statusFilter: statusFilter ?? this.statusFilter,
       contractorFilter: contractorFilter ?? this.contractorFilter,
       showVehicles: showVehicles ?? this.showVehicles,
       showAreas: showAreas ?? this.showAreas,
       showPolygons: showPolygons ?? this.showPolygons,
       showCameras: showCameras ?? this.showCameras,
-      // ВАЖНО: Используем паттерн с Object? для nullable полей, чтобы можно было явно установить null
       createMode: createMode == _keepCreateMode ? this.createMode : createMode as String?,
       drawingGeometry: drawingGeometry == _keepDrawingGeometry 
           ? this.drawingGeometry 
@@ -141,6 +145,8 @@ class MonitoringState {
 
   static const _keepCreateMode = Object();
   static const _keepDrawingGeometry = Object();
+  static const _keepSelectedVehicleId = Object();
+  static const _keepSelectedVehicleTrack = Object();
 
   /// Безопасное приведение drawingGeometry к правильному типу
   static List<List<double>> _parseDrawingGeometry(Object? value) {
