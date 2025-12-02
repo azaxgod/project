@@ -400,78 +400,56 @@ class _MonitoringContent extends ConsumerWidget {
                      ),
                    ),
                  ),
-               // Панель создания снизу (как модальная карточка)
-               if (currentState.createMode != null)
-                 Positioned(
-                   left: 0,
-                   right: 0,
-                   bottom: 0,
-                   child: TweenAnimationBuilder<double>(
-                         duration: const Duration(milliseconds: 300),
-                         curve: Curves.easeOutCubic,
-                         tween: Tween(begin: 0.0, end: 1.0),
-                         builder: (context, value, child) {
-                           return Transform.translate(
-                             offset: Offset(0, (1 - value) * 100),
-                             child: Opacity(
-                               opacity: value,
-                               child: child,
-                             ),
-                           );
-                         },
-                         child: Material(
-                           elevation: 24,
-                           shadowColor: Colors.black.withValues(alpha: 0.5),
-                           borderRadius: const BorderRadius.only(
-                             topLeft: Radius.circular(24),
-                             topRight: Radius.circular(24),
-                           ),
-                           child: Container(
-                             constraints: BoxConstraints(
-                               maxHeight: MediaQuery.of(context).size.height * 0.7,
-                               minHeight: 400,
-                             ),
-                             decoration: BoxDecoration(
-                               color: AppColors.cardBackground,
-                               borderRadius: const BorderRadius.only(
-                                 topLeft: Radius.circular(24),
-                                 topRight: Radius.circular(24),
-                               ),
-                             ),
-                             child: Column(
-                               mainAxisSize: MainAxisSize.min,
-                               children: [
-                                 // Индикатор перетаскивания
-                                 Container(
-                                   margin: const EdgeInsets.only(top: 12, bottom: 8),
-                                   width: 40,
-                                   height: 4,
-                                   decoration: BoxDecoration(
-                                     color: Colors.grey.withValues(alpha: 0.4),
-                                     borderRadius: BorderRadius.circular(2),
-                                   ),
-                                 ),
-                                 // Контент панели
-                                 Flexible(
-                                   child: MonitoringCreatePanel(
-                                     key: ValueKey('create_panel_${currentState.createMode}'),
-                                     controller: controller,
-                                     mode: currentState.createMode,
-                                     onClose: () {
-                                       debugPrint('MonitoringPage: onClose called');
-                                       controller.setCreateMode(null);
-                                     },
-                                   ),
-                                 ),
-                               ],
-                             ),
-                           ),
-                         ),
-                       ),
-                     ),
-                  //  ),
-             ],
-           );
-         }
+              // Компактная панель создания слева (плавающая)
+              if (currentState.createMode != null)
+                Positioned(
+                  left: 16,
+                  top: 16,
+                  child: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(-20 * (1 - value), 0),
+                        child: Opacity(
+                          opacity: value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Material(
+                      elevation: 8,
+                      shadowColor: Colors.black.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 320,
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: MonitoringCreatePanel(
+                          key: ValueKey('create_panel_${currentState.createMode}'),
+                          controller: controller,
+                          mode: currentState.createMode,
+                          onClose: () {
+                            debugPrint('MonitoringPage: onClose called');
+                            controller.setCreateMode(null);
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }
 }
 

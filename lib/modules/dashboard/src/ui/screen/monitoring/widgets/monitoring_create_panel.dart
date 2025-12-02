@@ -37,7 +37,6 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
   
   String? _selectedContractorId;
   bool _isActive = true;
-  bool _isCloseHovered = false;
   // Поля для камеры
   String? _selectedPolygonId;
   CameraType _cameraType = CameraType.lpr;
@@ -55,270 +54,94 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
   Widget build(BuildContext context) {
     final state = ref.watch(monitoringControllerProvider);
     final drawingGeometry = state.drawingGeometry;
-    final isDrawing = drawingGeometry.isNotEmpty;
 
-    debugPrint('MonitoringCreatePanel: build called, mode=${widget.mode}');
-    debugPrint('MonitoringCreatePanel: drawingGeometry.length=${drawingGeometry.length}');
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.cardBackground,
-            AppColors.cardBackground.withValues(alpha: 0.98),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            blurRadius: 30,
-            offset: const Offset(0, -8),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Заголовок с градиентом
-          Container(
-            padding: const EdgeInsets.all(AppPadding.normal + 4),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary.withValues(alpha: 0.15),
-                  AppColors.primary.withValues(alpha: 0.08),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: AppColors.divider.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Компактный заголовок
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.primary.withOpacity(0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    widget.mode == 'area' 
-                        ? Icons.map_rounded
-                        : widget.mode == 'polygon'
-                            ? Icons.location_city_rounded
-                            : Icons.videocam_rounded,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                widget.mode == 'area' 
+                    ? Icons.map_rounded
+                    : widget.mode == 'polygon'
+                        ? Icons.location_city_rounded
+                        : Icons.videocam_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _getTitle(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
                     color: Colors.white,
-                    size: 26,
+                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(width: AppPadding.normal),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getTitle(),
-                        style: AppTextStyles.title2.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Нарисуйте геометрию на карте',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Material(
-                  color: Colors.transparent,
-                  child: MouseRegion(
-                    onEnter: (_) => setState(() => _isCloseHovered = true),
-                    onExit: (_) => setState(() => _isCloseHovered = false),
-                    child: InkWell(
-                      onTap: () {
-                        _handleClose();
-                      },
-                      borderRadius: BorderRadius.circular(20),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: _isCloseHovered
-                              ? AppColors.error.withOpacity(0.1)
-                              : AppColors.divider.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 20,
-                          color: _isCloseHovered
-                              ? AppColors.error
-                              : AppColors.textSecondary,
-                        ),
-                      ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _handleClose,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          // Контент
+        ),
+          // Компактный контент
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppPadding.normal),
+              padding: const EdgeInsets.all(12),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Поля формы (показываем для камеры, до начала рисования, или после завершения рисования)
-                    if (widget.mode == 'camera' || 
-                        drawingGeometry.isEmpty || 
-                        (drawingGeometry.length >= 3 && !state.isEditingGeometry))
-                      _buildFormFields(),
-                    // Кнопка начала рисования (только если еще не начали рисовать)
-                    if (drawingGeometry.isEmpty && widget.mode != 'camera')
+                    // Инструкция (до начала рисования)
+                    if (drawingGeometry.isEmpty)
+                      _buildDrawingInstructions(),
+                    // Счетчик точек (во время рисования)
+                    if (drawingGeometry.isNotEmpty && widget.mode != 'camera')
+                      _buildPointsCounter(drawingGeometry.length),
+                    // Точка выбрана (для камеры)
+                    if (widget.mode == 'camera' && drawingGeometry.isNotEmpty)
+                      _buildCameraPointSelected(),
+                    // Форма заполнения
+                    if (_shouldShowForm(drawingGeometry))
                       ...[
-                        if (widget.mode != 'camera') const SizedBox(height: AppPadding.large),
-                        _buildStartDrawingButton(),
-                      ],
-                    // Информация о рисовании для участков/полигонов (3 точки минимум)
-                    if (drawingGeometry.isNotEmpty && 
-                        drawingGeometry.length < 3 && 
-                        !state.isEditingGeometry &&
-                        widget.mode != 'camera')
-                      ...[
-                        const SizedBox(height: AppPadding.normal),
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.small),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.edit_location_alt, size: 20, color: AppColors.primary),
-                              const SizedBox(width: AppPadding.small),
-                              Text(
-                                'Точек: ${drawingGeometry.length} / 3 минимум',
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    // Информация о рисовании для камеры (1 точка)
-                    if (drawingGeometry.isNotEmpty && 
-                        widget.mode == 'camera' &&
-                        !state.isEditingGeometry)
-                      ...[
-                        const SizedBox(height: AppPadding.normal),
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.small),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.location_on, size: 20, color: AppColors.success),
-                              const SizedBox(width: AppPadding.small),
-                              Text(
-                                'Точка выбрана: ${drawingGeometry.length}',
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    // Информация в режиме редактирования
-                    if (state.isEditingGeometry)
-                      ...[
-                        const SizedBox(height: AppPadding.normal),
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.normal),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                            border: Border.all(color: Colors.orange, width: 1),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.edit, size: 20, color: Colors.orange),
-                                  const SizedBox(width: AppPadding.small),
-                                  Text(
-                                    'Режим редактирования',
-                                    style: AppTextStyles.body.copyWith(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppPadding.small),
-                              Text(
-                                'Кликните на красную точку на карте для удаления',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: Colors.orange,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
+                        const SizedBox(height: 12),
+                        _buildFormFields(),
                       ],
                     // Кнопки действий
-                    // Для камеры: когда выбрана хотя бы 1 точка
-                    // Для участков/полигонов: когда выбрано минимум 3 точки
-                    if ((widget.mode == 'camera' && drawingGeometry.isNotEmpty) ||
-                        (widget.mode != 'camera' && drawingGeometry.isNotEmpty && drawingGeometry.length >= 3 && !state.isEditingGeometry))
+                    if (_shouldShowActions(drawingGeometry, state.isEditingGeometry))
                       ...[
-                        const SizedBox(height: AppPadding.large),
-                        _buildActionButtons(),
+                        const SizedBox(height: 12),
+                        _buildCompactActionButtons(),
                       ],
                   ],
                 ),
@@ -326,7 +149,146 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
             ),
           ),
         ],
+      );
+    
+  }
+
+  bool _shouldShowForm(List<List<double>> geometry) {
+    if (widget.mode == 'camera') return geometry.isNotEmpty;
+    return geometry.length >= 3;
+  }
+
+  bool _shouldShowActions(List<List<double>> geometry, bool isEditing) {
+    if (widget.mode == 'camera') return geometry.isNotEmpty;
+    return geometry.length >= 3 && !isEditing;
+  }
+
+  Widget _buildDrawingInstructions() {
+    final isCamera = widget.mode == 'camera';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isCamera ? Icons.place_rounded : Icons.touch_app_rounded,
+            size: 28,
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isCamera ? 'Кликните на карту' : 'Добавьте точки на карте',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isCamera 
+                ? 'Выберите место для камеры'
+                : 'Минимум 3 точки для ${widget.mode == "area" ? "участка" : "полигона"}',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPointsCounter(int count) {
+    final isEnough = count >= 3;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: (isEnough ? AppColors.success : AppColors.warning).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isEnough ? AppColors.success : AppColors.warning),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isEnough ? Icons.check_circle : Icons.edit_location_alt,
+            size: 16,
+            color: isEnough ? AppColors.success : AppColors.warning,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isEnough ? 'Точек: $count ✓' : 'Точек: $count / 3',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: isEnough ? AppColors.success : AppColors.warning,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCameraPointSelected() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.success),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle, size: 16, color: AppColors.success),
+          const SizedBox(width: 6),
+          Text(
+            'Место выбрано ✓',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.success,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _handleClose,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              side: BorderSide(color: AppColors.divider),
+            ),
+            child: const Text('Отмена', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: FilledButton.icon(
+            onPressed: _canSave() ? _handleSave : null,
+            icon: const Icon(Icons.check, size: 16),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              backgroundColor: AppColors.primary,
+              disabledBackgroundColor: AppColors.divider,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            label: const Text('Сохранить', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -346,338 +308,137 @@ class _MonitoringCreatePanelState extends ConsumerState<MonitoringCreatePanel> {
   Widget _buildFormFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        TextFormField(
+        _buildCompactTextField(
           controller: _nameController,
-          decoration: InputDecoration(
-            labelText: 'Название*',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSize.cardRadius),
-            ),
-          ),
-          style: AppTextStyles.body,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Введите название';
-            }
-            return null;
-          },
+          label: 'Название',
+          icon: Icons.label_outline,
+          isRequired: true,
         ),
-        const SizedBox(height: AppPadding.normal),
+        const SizedBox(height: 8),
         if (widget.mode == 'area') ...[
-          TextFormField(
+          _buildCompactTextField(
             controller: _cityController,
-            decoration: InputDecoration(
-              labelText: 'Город*',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-              ),
-            ),
-            style: AppTextStyles.body,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Введите город';
-              }
-              return null;
-            },
+            label: 'Город',
+            icon: Icons.location_city_outlined,
+            isRequired: true,
           ),
-          const SizedBox(height: AppPadding.normal),
-          FutureBuilder<List<Organization>>(
-            future: _loadContractors(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const SizedBox.shrink();
-              }
-              final contractors = snapshot.data!
-                  .where((org) => org.type == OrganizationType.contractor)
-                  .toList();
-              return DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Подрядчик по умолчанию',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                  ),
-                ),
-                initialValue: _selectedContractorId,
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('Не выбран'),
-                  ),
-                  ...contractors.map((org) => DropdownMenuItem<String>(
-                        value: org.id,
-                        child: Text(org.name),
-                      )),
-                ],
-                onChanged: (value) {
-                  setState(() => _selectedContractorId = value);
-                },
-              );
-            },
-          ),
+          const SizedBox(height: 8),
         ],
         if (widget.mode == 'polygon') ...[
-          TextFormField(
+          _buildCompactTextField(
             controller: _addressController,
-            decoration: InputDecoration(
-              labelText: 'Адрес',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-              ),
-            ),
-            style: AppTextStyles.body,
+            label: 'Адрес',
+            icon: Icons.place_outlined,
           ),
-          const SizedBox(height: AppPadding.normal),
-          CheckboxListTile(
-            title: const Text('Активен'),
-            value: _isActive,
-            onChanged: (value) {
-              setState(() => _isActive = value ?? true);
-            },
-          ),
+          const SizedBox(height: 8),
         ],
-        const SizedBox(height: AppPadding.normal),
-        TextFormField(
-          controller: _descriptionController,
-          decoration: InputDecoration(
-            labelText: 'Описание',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSize.cardRadius),
-            ),
-          ),
-          style: AppTextStyles.body,
-          maxLines: 3,
-        ),
         if (widget.mode == 'camera') ...[
-          const SizedBox(height: AppPadding.normal),
-          // Выбор полигона для камеры
-          Builder(
-            builder: (context) {
-              final monitoringState = ref.watch(monitoringControllerProvider);
-              final polygons = monitoringState.data.valueOrNull?.polygons ?? [];
-              
-              return DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Полигон*',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                  ),
-                ),
-                value: _selectedPolygonId,
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('Выберите полигон'),
-                  ),
-                  ...polygons.map((polygon) => DropdownMenuItem<String>(
-                        value: polygon.id,
-                        child: Text(polygon.name),
-                      )),
-                ],
-                onChanged: (value) {
-                  setState(() => _selectedPolygonId = value);
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Выберите полигон';
-                  }
-                  return null;
-                },
-              );
-            },
-          ),
-          const SizedBox(height: AppPadding.normal),
-          // Тип камеры
-          DropdownButtonFormField<CameraType>(
-            decoration: InputDecoration(
-              labelText: 'Тип камеры*',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-              ),
-            ),
-            value: _cameraType,
-            items: const [
-              DropdownMenuItem<CameraType>(
-                value: CameraType.lpr,
-                child: Text('LPR (Распознавание номеров)'),
-              ),
-              DropdownMenuItem<CameraType>(
-                value: CameraType.volume,
-                child: Text('VOLUME (Объем)'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _cameraType = value);
-              }
-            },
-          ),
-          const SizedBox(height: AppPadding.normal),
-          CheckboxListTile(
-            title: const Text('Активна'),
-            value: _isActive,
-            onChanged: (value) {
-              setState(() => _isActive = value ?? true);
-            },
-          ),
+          _buildPolygonDropdown(),
+          const SizedBox(height: 8),
+          _buildCameraTypeDropdown(),
+          const SizedBox(height: 8),
         ],
-      ],
-    );
-  }
-
-  Widget _buildStartDrawingButton() {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.normal),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryBackground,
-        borderRadius: BorderRadius.circular(AppSize.smallRadius),
-        border: Border.all(color: AppColors.primary, width: 2, style: BorderStyle.solid),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.edit_location_alt, size: 48, color: AppColors.primary),
-          const SizedBox(height: AppPadding.small),
-          Text(
-            'Нажмите на карту, чтобы начать рисование',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppPadding.small),
-          Text(
-            'Кликните на карте для добавления точек. Двойной клик или кнопка "Завершить" для завершения.',
-            style: AppTextStyles.caption,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawingInfo(List<List<double>> drawingGeometry) {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.normal),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSize.smallRadius),
-        border: Border.all(color: AppColors.success, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: AppColors.success, size: 20),
-              const SizedBox(width: AppPadding.small),
-              Text(
-                'Режим рисования активен',
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.success,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppPadding.small),
-          Text(
-            'Точек: ${drawingGeometry.length}',
-            style: AppTextStyles.caption,
-          ),
-          if (drawingGeometry.length >= 3)
-            Text(
-              'Минимум 3 точки для полигона',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.success,
-              ),
-            ),
-          const SizedBox(height: AppPadding.small),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: drawingGeometry.length >= 3
-                      ? () => widget.controller.finishDrawing()
-                      : null,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Завершить'),
-                ),
-              ),
-              const SizedBox(width: AppPadding.small),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => widget.controller.clearDrawingGeometry(),
-                  icon: const Icon(Icons.clear),
-                  label: const Text('Очистить'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _canSave() ? _handleSave : null,
-            icon: const Icon(Icons.check_circle_rounded, size: 20),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: _canSave() ? 4 : 0,
-              shadowColor: AppColors.primary.withOpacity(0.3),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            label: const Text(
-              'Сохранить',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppPadding.small),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              _handleClose();
-            },
-            icon: const Icon(Icons.close_rounded, size: 18),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              side: BorderSide(
-                color: AppColors.divider.withOpacity(0.5),
-                width: 1.5,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            label: const Text(
-              'Отмена',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+        _buildCompactTextField(
+          controller: _descriptionController,
+          label: 'Описание',
+          icon: Icons.notes_outlined,
+          maxLines: 2,
         ),
       ],
+    );
+  }
+
+  Widget _buildCompactTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isRequired = false,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        labelText: isRequired ? '$label *' : label,
+        labelStyle: const TextStyle(fontSize: 12),
+        prefixIcon: Icon(icon, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.divider),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+      validator: isRequired
+          ? (value) => value == null || value.isEmpty ? 'Обязательно' : null
+          : null,
+    );
+  }
+
+  Widget _buildPolygonDropdown() {
+    final monitoringState = ref.watch(monitoringControllerProvider);
+    final polygons = monitoringState.data.valueOrNull?.polygons ?? [];
+    
+    return DropdownButtonFormField<String>(
+      value: _selectedPolygonId,
+      isDense: true,
+      style: const TextStyle(fontSize: 13, color: Colors.black87),
+      decoration: InputDecoration(
+        labelText: 'Полигон *',
+        labelStyle: const TextStyle(fontSize: 12),
+        prefixIcon: const Icon(Icons.location_city_outlined, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.divider),
+        ),
+      ),
+      items: [
+        const DropdownMenuItem(value: null, child: Text('Выберите', style: TextStyle(fontSize: 13))),
+        ...polygons.map((p) => DropdownMenuItem(
+          value: p.id, 
+          child: Text(p.name, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+        )),
+      ],
+      onChanged: (value) => setState(() => _selectedPolygonId = value),
+      validator: (value) => value == null ? 'Выберите' : null,
+    );
+  }
+
+  Widget _buildCameraTypeDropdown() {
+    return DropdownButtonFormField<CameraType>(
+      value: _cameraType,
+      isDense: true,
+      style: const TextStyle(fontSize: 13, color: Colors.black87),
+      decoration: InputDecoration(
+        labelText: 'Тип камеры',
+        labelStyle: const TextStyle(fontSize: 12),
+        prefixIcon: const Icon(Icons.videocam_outlined, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.divider),
+        ),
+      ),
+      items: const [
+        DropdownMenuItem(value: CameraType.lpr, child: Text('LPR (Номера)', style: TextStyle(fontSize: 13))),
+        DropdownMenuItem(value: CameraType.volume, child: Text('VOLUME', style: TextStyle(fontSize: 13))),
+      ],
+      onChanged: (value) {
+        if (value != null) setState(() => _cameraType = value);
+      },
     );
   }
 
