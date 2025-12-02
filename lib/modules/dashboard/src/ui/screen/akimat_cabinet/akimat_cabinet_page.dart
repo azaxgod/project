@@ -6,6 +6,7 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_cabinet/widgets/akimat_menu_item.dart';
@@ -168,6 +169,8 @@ class _AkimatCabinetPageState extends ConsumerState<AkimatCabinetPage> {
               ],
             ),
           ),
+          // Футер с версией (только для web)
+          if (kIsWeb) const AppFooter(),
         ],
       ),
     );

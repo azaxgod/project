@@ -7,6 +7,7 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
@@ -151,6 +152,8 @@ class MonitoringPage extends ConsumerWidget {
                       },
                     ),
             ),
+            // Футер с версией (только для web)
+            if (kIsWeb) const AppFooter(),
           ],
         ),
       );
