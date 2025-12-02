@@ -202,23 +202,45 @@ class OrganizationsDialogs {
                     phoneNormalized = '+7$phoneNormalized';
                   }
                   
+                  // Получаем значения из контроллеров напрямую
+                  final headFullNameRaw = headController.text;
+                  final headFullNameValue = headFullNameRaw.trim();
+                  final addressValue = type == OrganizationType.kguZkh
+                      ? null
+                      : addressController.text.trim();
+                  
+                  // Отладочный вывод перед созданием
+                  debugPrint('=== DIALOG VALUES ===');
+                  debugPrint('headController.text (raw): "$headFullNameRaw" (length: ${headFullNameRaw.length})');
+                  debugPrint('headController.text (trimmed): "$headFullNameValue" (length: ${headFullNameValue.length})');
+                  debugPrint('headFullNameValue.isEmpty: ${headFullNameValue.isEmpty}');
+                  debugPrint('headFullNameValue.isNotEmpty: ${headFullNameValue.isNotEmpty}');
+                  
+                  // ВАЖНО: Передаем значение только если оно НЕ пустое после trim
+                  // Если пустое - передаем null, чтобы API мог обработать это правильно
+                  final finalHeadFullName = headFullNameValue.isNotEmpty ? headFullNameValue : null;
+                  final finalAddress = (addressValue != null && addressValue.isNotEmpty) ? addressValue : null;
+                  
+                  debugPrint('finalHeadFullName: "$finalHeadFullName" (isNull: ${finalHeadFullName == null})');
+                  debugPrint('finalAddress: "$finalAddress" (isNull: ${finalAddress == null})');
+                  
                   final organization = Organization(
                     id: '',
                     type: type,
                     name: nameController.text.trim(),
                     bin: binNormalized,
-                    headFullName: headController.text.trim().isEmpty
-                        ? null
-                        : headController.text.trim(),
-                    address: type == OrganizationType.kguZkh
-                        ? null
-                        : (addressController.text.trim().isEmpty
-                            ? null
-                            : addressController.text.trim()),
+                    headFullName: finalHeadFullName,
+                    address: finalAddress,
                     phone: phoneNormalized,
                     parentOrgId: type == OrganizationType.contractor ? selectedParentOrgId : null,
                     isActive: true,
                   );
+                  
+                  // Отладочный вывод после создания
+                  debugPrint('=== ORGANIZATION OBJECT ===');
+                  debugPrint('organization.headFullName: "${organization.headFullName}" (isNull: ${organization.headFullName == null})');
+                  debugPrint('organization.address: "${organization.address}" (isNull: ${organization.address == null})');
+                  
                   controller.createOrganization(organization);
                   Navigator.of(context).pop();
                 },

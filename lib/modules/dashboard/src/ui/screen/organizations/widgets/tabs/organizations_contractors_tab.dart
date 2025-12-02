@@ -65,6 +65,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
               const DataColumn(label: Text('БИН')),
               if (_shouldShowParentColumn) const DataColumn(label: Text('Родительская организация KGU ZKH')),
               const DataColumn(label: Text('Руководитель')),
+              const DataColumn(label: Text('Адрес')),
               const DataColumn(label: Text('Телефон')),
               const DataColumn(label: Text('Статус')),
               const DataColumn(label: Text('Действия')),
@@ -86,6 +87,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
                   DataCell(Text(contractor.bin, overflow: TextOverflow.ellipsis)),
                   if (_shouldShowParentColumn) DataCell(Text(parentName, overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.headFullName ?? '—', overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(contractor.address ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.phone ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(OrganizationsStatusChip(isActive: contractor.isActive)),
                   DataCell(

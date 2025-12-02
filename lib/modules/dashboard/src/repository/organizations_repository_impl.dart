@@ -8,6 +8,7 @@ import 'package:akimat_project/services/organizations/model/driver_dto.dart';
 import 'package:akimat_project/services/organizations/model/organization_dto.dart';
 import 'package:akimat_project/services/organizations/model/vehicle_dto.dart';
 import 'package:akimat_project/services/organizations/services.dart';
+import 'package:flutter/foundation.dart';
 
 class OrganizationsRepositoryImpl implements OrganizationsRepository {
   OrganizationsRepositoryImpl({required OrganizationsServices services})
@@ -66,6 +67,11 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
     if (organization.phone == null || organization.phone!.isEmpty) {
       throw Exception('Телефон обязателен для создания организации');
     }
+    
+    // Отладочный вывод
+    debugPrint('=== REPOSITORY ===');
+    debugPrint('organization.headFullName: "${organization.headFullName}"');
+    debugPrint('organization.address: "${organization.address}"');
     
     final result = await _services.rolesCollection.createOrganization(
       name: organization.name,

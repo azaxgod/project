@@ -56,6 +56,7 @@ class OrganizationsTooTab extends StatelessWidget {
                 DataColumn(label: Text('Название')),
                 DataColumn(label: Text('БИН')),
                 DataColumn(label: Text('Руководитель')),
+                DataColumn(label: Text('Адрес')),
                 DataColumn(label: Text('Телефон')),
                 DataColumn(label: Text('Статус')),
                 DataColumn(label: Text('Действия')),
@@ -66,6 +67,7 @@ class OrganizationsTooTab extends StatelessWidget {
                     DataCell(Text(organization.name)),
                     DataCell(Text(organization.bin)),
                     DataCell(Text(organization.headFullName ?? '—')),
+                    DataCell(Text(organization.address ?? '—')),
                     DataCell(Text(organization.phone ?? '—')),
                     DataCell(OrganizationsStatusChip(isActive: organization.isActive)),
                     DataCell(

@@ -3,6 +3,7 @@ import 'package:akimat_project/services/organizations/model/organization_dto.dar
 import 'package:akimat_project/services/organizations/model/user_dto.dart';
 import 'package:akimat_project/services/organizations/model/vehicle_dto.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 /// Результат создания организации
 class CreateOrganizationResult {
@@ -162,28 +163,42 @@ class RolesCollection {
     String? adminPassword,
   }) async {
     try {
-      final response = await dio.post(
-        '/roles/organizations',
-        data: {
-          'name': name,
-          'type': type,
-          if (bin != null) 'bin': bin,
-          if (headFullName != null) 'headFullName': headFullName,
-          if (address != null) 'address': address,
-          if (phone != null) 'phone': phone,
-          if (parentOrgId != null) 'parentOrgID': parentOrgId,
-          if (adminFullName != null) 'adminFullName': adminFullName,
-          'admin_phone': adminPhone, // API ожидает snake_case
-          if (adminPassword != null) 'adminPassword': adminPassword,
-        },
-      );
-      final data = response.data as Map<String, dynamic>;
+      // ВАЖНО: Всегда отправляем HeadFullName и Address (даже если пустые)
+      // Сервер ожидает эти поля в запросе
+      final data = <String, dynamic>{
+        'name': name,
+        'type': type,
+        if (bin != null) 'bin': bin,
+        // Всегда отправляем HeadFullName - если null, отправляем пустую строку
+        // Если не null - отправляем значение (даже если пустое после trim)
+        'HeadFullName': headFullName ?? '',
+        // Всегда отправляем Address - если null, отправляем пустую строку
+        'Address': address ?? '',
+        if (phone != null) 'phone': phone,
+        if (parentOrgId != null) 'parentOrgID': parentOrgId,
+        if (adminFullName != null) 'adminFullName': adminFullName,
+        'admin_phone': adminPhone, // API ожидает snake_case
+        if (adminPassword != null) 'adminPassword': adminPassword,
+      };
+      
+      // Отладочный вывод
+      debugPrint('=== API REQUEST ===');
+      debugPrint('createOrganization - headFullName parameter: "${headFullName}"');
+      debugPrint('createOrganization - headFullName isNull: ${headFullName == null}');
+      debugPrint('createOrganization - headFullName isEmpty: ${headFullName?.isEmpty ?? true}');
+      debugPrint('createOrganization - headFullName isNotEmpty: ${headFullName?.isNotEmpty ?? false}');
+      debugPrint('createOrganization - sending HeadFullName: "${data['HeadFullName']}" (type: ${data['HeadFullName'].runtimeType})');
+      debugPrint('createOrganization - sending Address: "${data['Address']}"');
+      debugPrint('createOrganization full data: $data');
+      
+      final response = await dio.post('/roles/organizations', data: data);
+      final responseData = response.data as Map<String, dynamic>;
       return CreateOrganizationResult(
         organization: OrganizationDto.fromJson(
-          data['organization'] as Map<String, dynamic>,
+          responseData['organization'] as Map<String, dynamic>,
         ),
-        admin: data['admin'] != null
-            ? UserDto.fromJson(data['admin'] as Map<String, dynamic>)
+        admin: responseData['admin'] != null
+            ? UserDto.fromJson(responseData['admin'] as Map<String, dynamic>)
             : null,
       );
     } on DioException catch (e) {
@@ -226,17 +241,14 @@ class RolesCollection {
       if (bin != null) {
         data['bin'] = bin;
       }
-      if (headFullName != null) {
-        data['head_full_name'] = headFullName;
-      }
-      if (address != null) {
-        data['address'] = address;
-      }
+      // Всегда отправляем HeadFullName и Address, даже если пустые
+      data['HeadFullName'] = headFullName ?? '';
+      data['Address'] = address ?? '';
       if (phone != null) {
         data['phone'] = phone;
       }
       if (isActive != null) {
-        data['is_active'] = isActive;
+        data['isActive'] = isActive;
       }
 
       final response = await dio.put('/roles/organizations/$id', data: data);
