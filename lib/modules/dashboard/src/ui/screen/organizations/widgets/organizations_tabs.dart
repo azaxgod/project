@@ -162,7 +162,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs> {
               builder: (context, controller) => OrganizationsVehiclesTab(
                 data: data,
                 controller: controller,
-                contractorId: organizationId,
+                showAll: true, // KGU_ZKH видит весь транспорт
               ),
             ),
           ];

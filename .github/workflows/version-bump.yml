@@ -1,0 +1,54 @@
+name: Version Bump
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Bump build number
+        run: |
+          # Extract current version
+          CURRENT_VERSION=$(grep -E "^version:" pubspec.yaml | sed 's/version: //')
+          
+          # Parse version components
+          MAJOR=$(echo $CURRENT_VERSION | cut -d'.' -f1)
+          MINOR=$(echo $CURRENT_VERSION | cut -d'.' -f2)
+          PATCH_BUILD=$(echo $CURRENT_VERSION | cut -d'.' -f3)
+          PATCH=$(echo $PATCH_BUILD | cut -d'+' -f1)
+          BUILD=$(echo $PATCH_BUILD | cut -d'+' -f2)
+          
+          # Increment build number
+          NEW_BUILD=$((BUILD + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH+$NEW_BUILD"
+          
+          # Update pubspec.yaml
+          sed -i "s/version: $CURRENT_VERSION/version: $NEW_VERSION/" pubspec.yaml
+          
+          echo "VERSION_CHANGED=true" >> $GITHUB_ENV
+          echo "OLD_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          
+          echo "Build number incremented: $CURRENT_VERSION -> $NEW_VERSION"
+      
+      - name: Commit version bump
+        if: env.VERSION_CHANGED == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add pubspec.yaml
+          git commit -m "chore: bump version to ${{ env.NEW_VERSION }} [skip ci]" || exit 0
+          git push
+

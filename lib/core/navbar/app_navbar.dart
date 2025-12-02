@@ -1,6 +1,7 @@
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../platform/platform_utils.dart';
@@ -50,7 +51,7 @@ class AppNavbar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: isVeryCompact ? 12 : config.padding),
             child: Row(
               children: [
-                // Логотип
+                // Логотип с версией
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -70,6 +71,8 @@ class AppNavbar extends StatelessWidget {
                           letterSpacing: -0.5,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      const AppVersionBadge(),
                     ],
                   ],
                 ),

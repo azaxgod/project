@@ -14,32 +14,44 @@ class OrganizationsVehiclesTab extends StatelessWidget {
     super.key,
     required this.data,
     required this.controller,
-    required this.contractorId,
+    this.contractorId,
+    this.showAll = false,
   });
 
   final OrganizationsData data;
   final OrganizationsController controller;
-  final String contractorId;
+  /// ID подрядчика для фильтрации (не используется если showAll = true)
+  final String? contractorId;
+  /// Показывать весь транспорт (для KGU_ZKH_ADMIN)
+  final bool showAll;
 
   @override
   Widget build(BuildContext context) {
-    final vehicles = data.vehicles
-        .where((vehicle) => vehicle.contractorId == contractorId)
-        .toList();
+    // Если указан showAll, показываем весь транспорт
+    // Иначе фильтруем по contractorId
+    final vehicles = showAll 
+        ? data.vehicles.toList()
+        : data.vehicles
+            .where((vehicle) => vehicle.contractorId == contractorId)
+            .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizationsTabHeader(
           title: 'Транспорт',
-          subtitle: 'Управляйте транспортом подрядчика и назначайте водителей',
-          actionLabel: '+ Добавить транспорт',
-          onAction: () => OrganizationsDialogs.showVehicleDialog(
-            context: context,
-            controller: controller,
-            data: data,
-            contractorId: contractorId,
-          ),
+          subtitle: showAll 
+              ? 'Транспорт всех подрядчиков'
+              : 'Управляйте транспортом подрядчика и назначайте водителей',
+          actionLabel: contractorId != null ? '+ Добавить транспорт' : null,
+          onAction: contractorId != null 
+              ? () => OrganizationsDialogs.showVehicleDialog(
+                  context: context,
+                  controller: controller,
+                  data: data,
+                  contractorId: contractorId!,
+                )
+              : () {},
         ),
         const SizedBox(height: 12),
         if (vehicles.isEmpty)
@@ -91,13 +103,15 @@ class OrganizationsVehiclesTab extends StatelessWidget {
                         isActive: false,
                       ),
                     ),
-                    onEdit: () => OrganizationsDialogs.showVehicleDialog(
-                      context: context,
-                      controller: controller,
-                      data: data,
-                      contractorId: contractorId,
-                      vehicle: vehicle,
-                    ),
+                    onEdit: contractorId != null 
+                        ? () => OrganizationsDialogs.showVehicleDialog(
+                            context: context,
+                            controller: controller,
+                            data: data,
+                            contractorId: contractorId!,
+                            vehicle: vehicle,
+                          )
+                        : null,
                     onAssignDriver: () => OrganizationsDialogs.showAssignDriverDialog(
                       context: context,
                       controller: controller,
