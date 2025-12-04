@@ -1,3 +1,4 @@
+import 'package:akimat_project/core/interceptors/token_error_handler.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/acts/collection/acts_collection.dart';
 import 'package:dio/dio.dart';
@@ -40,12 +41,37 @@ final actsDioProvider = Provider<Dio>((ref) {
         debugPrint('Acts API - Response size: ${response.data?.length ?? 0} bytes');
         handler.next(response);
       },
-      onError: (error, handler) {
+      onError: (error, handler) async {
         debugPrint('Acts API - Error: ${error.type}');
         if (error.response != null) {
           debugPrint('Acts API - Error status: ${error.response!.statusCode}');
           debugPrint('Acts API - Error data: ${error.response!.data}');
         }
+        
+        // Автоматический refresh токена при ошибках токена
+        final tokenRefreshed = await handleTokenError(
+          error,
+          dio,
+          authServiceBaseUrl: 'https://snowops-auth-service.onrender.com',
+        );
+        if (tokenRefreshed) {
+          try {
+            // Повторяем оригинальный запрос с новым токеном
+            final opts = error.requestOptions;
+            final newToken = await TokenStorage.getAccessToken();
+            if (newToken != null && newToken.isNotEmpty) {
+              opts.headers['Authorization'] = 'Bearer $newToken';
+            }
+            final response = await dio.fetch(opts);
+            handler.resolve(response);
+            return;
+          } catch (e) {
+            // Если повторный запрос не удался, передаем ошибку дальше
+            handler.next(error);
+            return;
+          }
+        }
+        
         handler.next(error);
       },
     ),

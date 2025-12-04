@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/analytics/src/repository/analytics_reposi
 import 'package:akimat_project/modules/analytics/src/repository/i_analytics_repository.dart';
 import 'package:akimat_project/modules/auth/src/repository/auth_repository_impl.dart';
 import 'package:akimat_project/modules/auth/src/repository/i_auth_repository.dart';
+import 'package:akimat_project/core/interceptors/token_error_handler.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository_impl.dart';
@@ -41,43 +42,23 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
-        // Автоматический refresh токена при 401
-        if (error.response?.statusCode == 401) {
-          final refreshToken = await TokenStorage.getRefreshToken();
-          if (refreshToken != null && refreshToken.isNotEmpty) {
-            try {
-              // Создаем временный Dio без interceptor для refresh, чтобы избежать цикла
-              final tempDio = Dio(
-                BaseOptions(
-                  baseUrl: dio.options.baseUrl,
-                  connectTimeout: const Duration(seconds: 10),
-                  receiveTimeout: const Duration(seconds: 10),
-                  sendTimeout: const Duration(seconds: 10),
-                  headers: dio.options.headers,
-                ),
-              );
-              
-              final refreshResponse = await tempDio.post(
-                '/auth/refresh',
-                data: {'refresh_token': refreshToken},
-              );
-              
-              final authResponse = refreshResponse.data['data'];
-              await TokenStorage.saveAccessToken(authResponse['access_token']);
-              await TokenStorage.saveRefreshToken(authResponse['refresh_token']);
-
-              // Повторяем оригинальный запрос с новым токеном
-              final opts = error.requestOptions;
-              opts.headers['Authorization'] = 'Bearer ${authResponse['access_token']}';
-              
-              final response = await dio.fetch(opts);
-              handler.resolve(response);
-              return;
-            } catch (e) {
-              // Refresh не удался, очищаем токены
-              await TokenStorage.saveAccessToken('');
-              await TokenStorage.saveRefreshToken('');
+        // Автоматический refresh токена при ошибках токена
+        final tokenRefreshed = await handleTokenError(error, dio);
+        if (tokenRefreshed) {
+          try {
+            // Повторяем оригинальный запрос с новым токеном
+            final opts = error.requestOptions;
+            final newToken = await TokenStorage.getAccessToken();
+            if (newToken != null && newToken.isNotEmpty) {
+              opts.headers['Authorization'] = 'Bearer $newToken';
             }
+            final response = await dio.fetch(opts);
+            handler.resolve(response);
+            return;
+          } catch (e) {
+            // Если повторный запрос не удался, передаем ошибку дальше
+            handler.next(error);
+            return;
           }
         }
         handler.next(error);
@@ -120,6 +101,32 @@ final rolesDioProvider = Provider<Dio>((ref) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         handler.next(options);
+      },
+      onError: (error, handler) async {
+        // Автоматический refresh токена при ошибках токена
+        final tokenRefreshed = await handleTokenError(
+          error,
+          dio,
+          authServiceBaseUrl: 'https://snowops-auth-service.onrender.com',
+        );
+        if (tokenRefreshed) {
+          try {
+            // Повторяем оригинальный запрос с новым токеном
+            final opts = error.requestOptions;
+            final newToken = await TokenStorage.getAccessToken();
+            if (newToken != null && newToken.isNotEmpty) {
+              opts.headers['Authorization'] = 'Bearer $newToken';
+            }
+            final response = await dio.fetch(opts);
+            handler.resolve(response);
+            return;
+          } catch (e) {
+            // Если повторный запрос не удался, передаем ошибку дальше
+            handler.next(error);
+            return;
+          }
+        }
+        handler.next(error);
       },
     ),
   );

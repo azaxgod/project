@@ -1,3 +1,4 @@
+import 'package:akimat_project/core/interceptors/token_error_handler.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/tickets/collection/tickets_collection.dart';
 import 'package:akimat_project/services/tickets/services.dart';
@@ -44,43 +45,27 @@ final ticketsDioProvider = Provider<Dio>((ref) {
         debugPrint('TicketService Error Data: ${error.response?.data}');
         debugPrint('TicketService Error Message: ${error.message}');
         
-        // Автоматический refresh токена при 401
-        if (error.response?.statusCode == 401) {
-          final refreshToken = await TokenStorage.getRefreshToken();
-          if (refreshToken != null && refreshToken.isNotEmpty) {
-            try {
-              final tempDio = Dio(
-                BaseOptions(
-                  baseUrl: 'https://snowops-auth-service.onrender.com',
-                  connectTimeout: const Duration(seconds: 10),
-                  receiveTimeout: const Duration(seconds: 10),
-                  sendTimeout: const Duration(seconds: 10),
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                  },
-                ),
-              );
-              
-              final refreshResponse = await tempDio.post(
-                '/auth/refresh',
-                data: {'refresh_token': refreshToken},
-              );
-              
-              final authResponse = refreshResponse.data['data'];
-              await TokenStorage.saveAccessToken(authResponse['access_token']);
-              await TokenStorage.saveRefreshToken(authResponse['refresh_token']);
-
-              final opts = error.requestOptions;
-              opts.headers['Authorization'] = 'Bearer ${authResponse['access_token']}';
-              
-              final response = await dio.fetch(opts);
-              handler.resolve(response);
-              return;
-            } catch (e) {
-              await TokenStorage.saveAccessToken('');
-              await TokenStorage.saveRefreshToken('');
+        // Автоматический refresh токена при ошибках токена
+        final tokenRefreshed = await handleTokenError(
+          error,
+          dio,
+          authServiceBaseUrl: 'https://snowops-auth-service.onrender.com',
+        );
+        if (tokenRefreshed) {
+          try {
+            // Повторяем оригинальный запрос с новым токеном
+            final opts = error.requestOptions;
+            final newToken = await TokenStorage.getAccessToken();
+            if (newToken != null && newToken.isNotEmpty) {
+              opts.headers['Authorization'] = 'Bearer $newToken';
             }
+            final response = await dio.fetch(opts);
+            handler.resolve(response);
+            return;
+          } catch (e) {
+            // Если повторный запрос не удался, передаем ошибку дальше
+            handler.next(error);
+            return;
           }
         }
         handler.next(error);

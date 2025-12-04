@@ -44,9 +44,34 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final IAuthRepository repo;
   StreamSubscription<firebase_auth.User?>? _authStateSubscription;
+  Timer? _tokenCheckTimer;
 
   AuthNotifier(this.repo) : super(const AuthState()) {
     _initAuthListener();
+    _startTokenCheck();
+  }
+  
+  /// Периодическая проверка токена (каждые 30 секунд)
+  void _startTokenCheck() {
+    _tokenCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      await _checkTokenValidity();
+    });
+  }
+  
+  /// Проверяет валидность токена и разлогинивает, если токен был очищен
+  Future<void> _checkTokenValidity() async {
+    // Проверяем только если пользователь авторизован
+    if (state.user == null) return;
+    
+    final accessToken = await TokenStorage.getAccessToken();
+    final refreshToken = await TokenStorage.getRefreshToken();
+    
+    // Если токены были очищены (например, при неудачном refresh), разлогиниваем
+    if ((accessToken == null || accessToken.isEmpty) && 
+        (refreshToken == null || refreshToken.isEmpty)) {
+      debugPrint('AuthNotifier: Tokens were cleared, logging out user');
+      await logout();
+    }
   }
 
   /// Инициализация слушателя изменений состояния Firebase Auth
@@ -369,6 +394,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   @override
   void dispose() {
     _authStateSubscription?.cancel();
+    _tokenCheckTimer?.cancel();
     super.dispose();
   }
 
