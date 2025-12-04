@@ -52,3 +52,5 @@ Set-Content $hookPath $hookContent -NoNewline
 Write-Host "Git pre-commit hook installed!" -ForegroundColor Green
 Write-Host "Build number will auto-increment on each commit." -ForegroundColor Cyan
 
+
+

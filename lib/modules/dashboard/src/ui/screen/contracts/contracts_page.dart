@@ -16,6 +16,8 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/contracts/widgets
 import 'package:akimat_project/modules/dashboard/src/controller/contracts_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/contracts_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_error_state.dart';
@@ -374,7 +376,15 @@ class _ContractsContent extends ConsumerWidget {
                       rows: data.contracts.map((contract) {
                         final contractor = data.contractors.firstWhere(
                           (c) => c.id == contract.contractorId,
-                          orElse: () => data.contractors.first,
+                          orElse: () => data.contractors.isNotEmpty 
+                              ? data.contractors.first 
+                              : Organization(
+                                  id: contract.contractorId ?? '',
+                                  type: OrganizationType.contractor,
+                                  name: '-',
+                                  bin: '',
+                                  isActive: true,
+                                ),
                         );
                         final volumeProgress = contract.usage != null &&
                                 (contract.minimalVolumeM3 ?? 0) > 0
@@ -466,7 +476,15 @@ class _ContractsContent extends ConsumerWidget {
                             final contract = data.contracts[index];
                             final contractor = data.contractors.firstWhere(
                               (c) => c.id == contract.contractorId,
-                              orElse: () => data.contractors.first,
+                              orElse: () => data.contractors.isNotEmpty 
+                                  ? data.contractors.first 
+                                  : Organization(
+                                      id: contract.contractorId ?? '',
+                                      type: OrganizationType.contractor,
+                                      name: '-',
+                                      bin: '',
+                                      isActive: true,
+                                    ),
                             );
 
                             return AnimatedContractCard(

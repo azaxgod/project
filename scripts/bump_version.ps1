@@ -48,3 +48,5 @@ if ($content -match 'version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)') {
     exit 1
 }
 
+
+

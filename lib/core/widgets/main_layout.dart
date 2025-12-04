@@ -3,7 +3,6 @@ import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Основной layout приложения с navbar сверху и footer снизу
 class MainLayout extends StatelessWidget {
   const MainLayout({
     super.key,
@@ -40,4 +39,6 @@ class MainLayout extends StatelessWidget {
     );
   }
 }
+
+
 
