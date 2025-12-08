@@ -43,7 +43,7 @@ class OrganizationsVehiclesTab extends StatelessWidget {
           subtitle: showAll 
               ? 'Транспорт всех подрядчиков'
               : 'Управляйте транспортом подрядчика и назначайте водителей',
-          actionLabel: contractorId != null ? '+ Добавить транспорт' : null,
+          actionLabel: contractorId != null ? 'Добавить транспорт' : null,
           onAction: contractorId != null 
               ? () => OrganizationsDialogs.showVehicleDialog(
                   context: context,

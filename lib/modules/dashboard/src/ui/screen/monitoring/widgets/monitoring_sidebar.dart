@@ -26,7 +26,6 @@ class MonitoringSidebar extends StatelessWidget {
 
   bool _canEdit() {
     return state.role == UserRole.akimatAdmin ||
-        state.role == UserRole.kguZkhAdmin ||
         state.role == UserRole.landfillAdmin;
   }
 

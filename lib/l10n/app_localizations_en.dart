@@ -59,7 +59,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get try_again => 'Try again';
 
   @override
-  String get dashboard => 'Dashboard';
+  String get dashboard => 'Main';
 
   @override
   String get organizations => 'Organizations';

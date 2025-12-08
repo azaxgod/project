@@ -40,7 +40,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
           subtitle: parentOrganizationId == null
               ? 'Управление подрядчиками всех КГУ ЖКХ'
               : 'Подрядчики текущего КГУ ЖКХ',
-          actionLabel: '+ Добавить подрядчика',
+          actionLabel: 'Добавить подрядчика',
           onAction: () => OrganizationsDialogs.showOrganizationDialog(
             context: context,
             controller: controller,

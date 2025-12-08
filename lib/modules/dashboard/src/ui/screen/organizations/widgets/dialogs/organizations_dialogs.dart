@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
@@ -8,6 +10,8 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/organiz
 import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
 import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsDialogs {
@@ -391,8 +395,13 @@ class OrganizationsDialogs {
     final colorController = TextEditingController(text: vehicle?.color ?? '');
     final volumeController =
         TextEditingController(text: vehicle?.bodyVolumeM3.toString() ?? '');
-    final photoController = TextEditingController(text: vehicle?.photoUrl ?? '');
     int? selectedYear = vehicle?.year ?? DateTime.now().year;
+    
+    // Для загрузки файла
+    PlatformFile? selectedFile;
+    Uint8List? selectedFileBytes;
+    String? selectedFileName;
+    String? photoUrl = vehicle?.photoUrl; // Сохраняем существующий URL
 
     final years = List<int>.generate(
       DateTime.now().year - 1980 + 1,
@@ -480,11 +489,38 @@ class OrganizationsDialogs {
                           return null;
                         },
                       ),
-                      OrganizationsTextField(
-                        controller: photoController,
-                        label: 'Фото (URL)',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Укажите ссылку на фото' : null,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Фото',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildFilePicker(
+                        context: context,
+                        selectedFile: selectedFile,
+                        selectedFileBytes: selectedFileBytes,
+                        selectedFileName: selectedFileName,
+                        photoUrl: photoUrl,
+                        onFileSelected: (file, bytes, fileName) {
+                          setModal(() {
+                            selectedFile = file;
+                            selectedFileBytes = bytes;
+                            selectedFileName = fileName;
+                            photoUrl = null; // Очищаем URL при выборе нового файла
+                          });
+                        },
+                        onRemoveFile: () {
+                          setModal(() {
+                            selectedFile = null;
+                            selectedFileBytes = null;
+                            selectedFileName = null;
+                            photoUrl = vehicle?.photoUrl; // Возвращаем исходный URL
+                          });
+                        },
                       ),
                     ],
                   ),
@@ -497,8 +533,46 @@ class OrganizationsDialogs {
                 child: const Text('Отмена'),
               ),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
+                  
+                  String? finalPhotoUrl = photoUrl;
+                  
+                  // Если выбран новый файл, конвертируем в base64 data URL
+                  if (selectedFile != null && selectedFileBytes != null) {
+                    try {
+                      // Определяем MIME тип по расширению файла
+                      String mimeType = 'image/jpeg';
+                      final extension = selectedFileName?.split('.').last.toLowerCase() ?? 'jpg';
+                      switch (extension) {
+                        case 'png':
+                          mimeType = 'image/png';
+                          break;
+                        case 'gif':
+                          mimeType = 'image/gif';
+                          break;
+                        case 'webp':
+                          mimeType = 'image/webp';
+                          break;
+                        default:
+                          mimeType = 'image/jpeg';
+                      }
+                      
+                      // Конвертируем в base64 data URL
+                      final base64String = base64Encode(selectedFileBytes!);
+                      finalPhotoUrl = 'data:$mimeType;base64,$base64String';
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Ошибка при обработке файла: $e'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                  }
+                  
                   final parsedVolume = double.parse(volumeController.text.replaceAll(',', '.'));
                   final updated = Vehicle(
                     id: vehicle?.id ?? '',
@@ -510,7 +584,7 @@ class OrganizationsDialogs {
                     color: colorController.text.trim(),
                     year: selectedYear!,
                     bodyVolumeM3: parsedVolume,
-                    photoUrl: photoController.text.trim(),
+                    photoUrl: finalPhotoUrl,
                     isActive: vehicle?.isActive ?? true,
                   );
                   if (vehicle == null) {
@@ -699,6 +773,163 @@ class OrganizationsDialogs {
         );
       },
     );
+  }
+
+  static Widget _buildFilePicker({
+    required BuildContext context,
+    PlatformFile? selectedFile,
+    Uint8List? selectedFileBytes,
+    String? selectedFileName,
+    String? photoUrl,
+    required Function(PlatformFile?, Uint8List?, String?) onFileSelected,
+    required VoidCallback onRemoveFile,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Превью изображения или кнопка выбора файла
+        if (selectedFileBytes != null || (photoUrl != null && photoUrl!.isNotEmpty))
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: selectedFileBytes != null
+                        ? Image.memory(
+                            selectedFileBytes!,
+                            fit: BoxFit.cover,
+                          )
+                        : photoUrl != null && photoUrl!.isNotEmpty
+                            ? _buildImageFromUrl(photoUrl!)
+                            : null,
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 16),
+                    ),
+                    onPressed: onRemoveFile,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Кнопка выбора файла
+        OutlinedButton.icon(
+          onPressed: () async {
+            try {
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.image,
+                allowMultiple: false,
+                withData: true, // Загружаем файл в память
+              );
+
+              if (result != null && result.files.single.bytes != null) {
+                final file = result.files.single;
+                onFileSelected(file, file.bytes, file.name);
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Ошибка при выборе файла: $e'),
+                  ),
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.upload_file),
+          label: Text(selectedFileBytes != null || (photoUrl != null && photoUrl!.isNotEmpty)
+              ? 'Изменить фото'
+              : 'Выбрать фото'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 48),
+          ),
+        ),
+        if (selectedFileName != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Выбранный файл: $selectedFileName',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Widget _buildImageFromUrl(String url) {
+    // Проверяем, является ли URL base64 data URL
+    if (url.startsWith('data:image/')) {
+      try {
+        // Извлекаем base64 данные из data URL
+        final base64String = url.split(',').last;
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[200],
+              child: const Center(
+                child: Icon(Icons.broken_image, size: 48),
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        return Container(
+          color: Colors.grey[200],
+          child: const Center(
+            child: Icon(Icons.broken_image, size: 48),
+          ),
+        );
+      }
+    } else {
+      // Обычный URL
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Center(
+              child: Icon(Icons.broken_image, size: 48),
+            ),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          );
+        },
+      );
+    }
   }
 }
 

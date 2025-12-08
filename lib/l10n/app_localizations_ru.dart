@@ -59,7 +59,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get try_again => 'Попробовать снова';
 
   @override
-  String get dashboard => 'Дэшборд';
+  String get dashboard => 'Главная';
 
   @override
   String get organizations => 'Организации';

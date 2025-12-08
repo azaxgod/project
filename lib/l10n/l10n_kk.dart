@@ -59,7 +59,7 @@ class SKk extends S {
   String get try_again => 'Қайтадан әрекет жасау';
 
   @override
-  String get dashboard => 'Дэшборд';
+  String get dashboard => 'Басты';
 
   @override
   String get organizations => 'Ұйымдар';

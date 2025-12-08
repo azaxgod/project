@@ -78,7 +78,7 @@ class ContractorVehiclesPage extends ConsumerWidget {
                 child: OrganizationsTabHeader(
                   title: 'Техника',
                   subtitle: 'Управление техникой подрядчика',
-                  actionLabel: '+ Добавить транспорт',
+                  actionLabel: 'Добавить транспорт',
                   onAction: () => OrganizationsDialogs.showVehicleDialog(
                     context: context,
                     controller: ref.read(organizationsControllerProvider.notifier),

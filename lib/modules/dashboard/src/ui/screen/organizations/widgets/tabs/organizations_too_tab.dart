@@ -33,7 +33,7 @@ class OrganizationsTooTab extends StatelessWidget {
         OrganizationsTabHeader(
           title: 'Список ТОО',
           subtitle: 'Создание, редактирование и блокировка ТОО',
-          actionLabel: '+ Добавить ТОО',
+          actionLabel: 'Добавить ТОО',
           onAction: () => OrganizationsDialogs.showOrganizationDialog(
             context: context,
             controller: controller,

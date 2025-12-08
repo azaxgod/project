@@ -196,7 +196,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashboard.
   ///
   /// In en, this message translates to:
-  /// **'Dashboard'**
+  /// **'Main'**
   String get dashboard;
 
   /// No description provided for @organizations.

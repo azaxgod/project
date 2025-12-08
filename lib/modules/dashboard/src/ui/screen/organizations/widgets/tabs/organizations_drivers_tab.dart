@@ -76,7 +76,7 @@ class OrganizationsDriversTab extends StatelessWidget {
           subtitle: canManage
               ? 'Добавляйте и блокируйте водителей своей организации'
               : 'Просмотр водителей доступных организаций',
-          actionLabel: canManage ? '+ Добавить водителя' : null,
+          actionLabel: canManage ? 'Добавить водителя' : null,
           onAction: canManage
               ? () => OrganizationsDialogs.showDriverDialog(
                     context: context,

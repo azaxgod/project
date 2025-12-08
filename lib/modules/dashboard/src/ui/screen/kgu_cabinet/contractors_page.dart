@@ -61,7 +61,7 @@ class ContractorsPage extends ConsumerWidget {
                 child: OrganizationsTabHeader(
                   title: 'Подрядчики',
                   subtitle: 'Управление подрядчиками КГУ ЖКХ',
-                  actionLabel: '+ Создать подрядчика',
+                  actionLabel: 'Создать подрядчика',
                   onAction: () => OrganizationsDialogs.showOrganizationDialog(
                     context: context,
                     controller: ref.read(organizationsControllerProvider.notifier),

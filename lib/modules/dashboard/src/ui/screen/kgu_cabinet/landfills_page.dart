@@ -71,7 +71,7 @@ class LandfillsPage extends ConsumerWidget {
                 child: OrganizationsTabHeader(
                   title: 'Организации приёма снега (LANDFILL)',
                   subtitle: 'Управление организациями приёма снега',
-                  actionLabel: '+ Создать организацию приёма снега',
+                  actionLabel: 'Создать организацию приёма снега',
                   onAction: () => OrganizationsDialogs.showOrganizationDialog(
                     context: context,
                     controller: ref.read(organizationsControllerProvider.notifier),
