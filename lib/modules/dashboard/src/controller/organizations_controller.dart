@@ -50,9 +50,20 @@ class OrganizationsController extends StateNotifier<OrganizationsState> {
     );
   }
 
-  Future<void> refresh() => _loadData();
+  /// Обновить данные с принудительной перезагрузкой
+  Future<void> refresh() async {
+    // Принудительно обновляем состояние, чтобы UI увидел изменения
+    debugPrint('OrganizationsController.refresh: Starting refresh...');
+    state = state.copyWith(data: const AsyncLoading());
+    // Даем время на обновление UI перед загрузкой данных
+    await Future.delayed(const Duration(milliseconds: 100));
+    await _loadData();
+    debugPrint('OrganizationsController.refresh: Data loaded, state updated');
+    // Дополнительно даем время на обновление после загрузки
+    await Future.delayed(const Duration(milliseconds: 150));
+  }
 
-  Future<void> createOrganization(Organization organization) async {
+  Future<void> createOrganization(Organization organization, {bool skipReload = false}) async {
     final result = await AsyncValue.guard(
       () => _repository.createOrganization(organization),
     );
@@ -60,10 +71,15 @@ class OrganizationsController extends StateNotifier<OrganizationsState> {
       lastAction: result.whenData((_) => null),
       message: result.hasError ? 'Ошибка при создании организации' : 'Организация создана',
     );
-    await _loadData();
+    if (!skipReload) {
+      await _loadData();
+    }
+    if (result.hasError) {
+      throw result.error!;
+    }
   }
 
-  Future<void> updateOrganization(Organization organization) async {
+  Future<void> updateOrganization(Organization organization, {bool skipReload = false}) async {
     final result = await AsyncValue.guard(
       () => _repository.updateOrganization(organization),
     );
@@ -71,43 +87,68 @@ class OrganizationsController extends StateNotifier<OrganizationsState> {
       lastAction: result.whenData((_) => null),
       message: result.hasError ? 'Ошибка при обновлении организации' : 'Изменения сохранены',
     );
-    await _loadData();
+    if (!skipReload) {
+      await _loadData();
+    }
+    if (result.hasError) {
+      throw result.error!;
+    }
   }
 
-  Future<void> createDriver(Driver driver) async {
+  Future<void> createDriver(Driver driver, {bool skipReload = false}) async {
     final result = await AsyncValue.guard(() => _repository.createDriver(driver));
     state = state.copyWith(
       lastAction: result.whenData((_) => null),
       message: result.hasError ? 'Ошибка при создании водителя' : 'Водитель создан',
     );
-    await _loadData();
+    if (!skipReload) {
+      await _loadData();
+    }
+    if (result.hasError) {
+      throw result.error!;
+    }
   }
 
-  Future<void> updateDriver(Driver driver) async {
+  Future<void> updateDriver(Driver driver, {bool skipReload = false}) async {
     final result = await AsyncValue.guard(() => _repository.updateDriver(driver));
     state = state.copyWith(
       lastAction: result.whenData((_) => null),
       message: result.hasError ? 'Ошибка при обновлении водителя' : 'Данные водителя обновлены',
     );
-    await _loadData();
+    if (!skipReload) {
+      await _loadData();
+    }
+    if (result.hasError) {
+      throw result.error!;
+    }
   }
 
-  Future<void> createVehicle(Vehicle vehicle) async {
+  Future<void> createVehicle(Vehicle vehicle, {bool skipReload = false}) async {
     final result = await AsyncValue.guard(() => _repository.createVehicle(vehicle));
     state = state.copyWith(
       lastAction: result.whenData((_) => null),
       message: result.hasError ? 'Ошибка при создании транспорта' : 'Транспорт добавлен',
     );
-    await _loadData();
+    if (!skipReload) {
+      await _loadData();
+    }
+    if (result.hasError) {
+      throw result.error!;
+    }
   }
 
-  Future<void> updateVehicle(Vehicle vehicle) async {
+  Future<void> updateVehicle(Vehicle vehicle, {bool skipReload = false}) async {
     final result = await AsyncValue.guard(() => _repository.updateVehicle(vehicle));
     state = state.copyWith(
       lastAction: result.whenData((_) => null),
       message: result.hasError ? 'Ошибка при обновлении транспорта' : 'Транспорт обновлён',
     );
-    await _loadData();
+    if (!skipReload) {
+      await _loadData();
+    }
+    if (result.hasError) {
+      throw result.error!;
+    }
   }
 }
 

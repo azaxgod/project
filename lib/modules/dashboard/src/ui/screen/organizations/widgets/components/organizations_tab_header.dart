@@ -43,6 +43,7 @@ class OrganizationsTabHeader extends StatelessWidget {
             label: actionLabel!,
             onPressed: onAction,
             icon: Icons.add,
+            useBlackText: true,
           ),
       ],
     );

@@ -7,6 +7,11 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/ui/widgets/animated_card.dart';
+import 'package:akimat_project/core/ui/widgets/animated_button.dart';
+import 'package:akimat_project/core/ui/widgets/animated_list_item.dart';
+import 'package:akimat_project/core/ui/widgets/professional_badge.dart';
+import 'package:akimat_project/core/ui/widgets/professional_chip.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/polygons_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/polygons_state.dart';
@@ -41,10 +46,13 @@ class PolygonsPage extends ConsumerWidget {
 
     return Scaffold(
       key: scaffoldKey,
+      backgroundColor: AppColors.background,
       drawer: !kIsWeb ? const DrawerMobile() : null,
       appBar: kIsWeb
           ? null
           : AppBar(
+              backgroundColor: AppColors.surface,
+              elevation: 0,
               title: Text(s.polygons),
               leading: Builder(
                 builder: (context) => IconButton(
@@ -57,7 +65,20 @@ class PolygonsPage extends ConsumerWidget {
                 mobileNavbarWidgets,
               ),
             ),
-      body: Column(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.background,
+              AppColors.background.withOpacity(0.95),
+              AppColors.secondaryBackground.withOpacity(0.3),
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: Column(
         children: [
           if (kIsWeb)
             HeaderNavbar(
@@ -65,7 +86,25 @@ class PolygonsPage extends ConsumerWidget {
             ),
           Expanded(
             child: state.data.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: AppPadding.large),
+                    Text(
+                      'Загрузка полигонов...',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               error: (error, stack) => OrganizationsErrorState(
                 message: s.failed_to_load_data(error),
                 onRetry: controller.refresh,
@@ -78,6 +117,7 @@ class PolygonsPage extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -121,24 +161,23 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
               top: config.padding,
               bottom: config.padding,
             ),
-            decoration: BoxDecoration(
-              color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(AppSize.cardRadius),
-              border: Border.all(color: AppColors.divider, width: 0.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: AppSize.shadowBlur,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
+            child: AnimatedCard(
+              delay: 0,
+              padding: EdgeInsets.zero,
+              child: Column(
               children: [
                 // Header
                 Container(
                   padding: const EdgeInsets.all(AppPadding.large),
                   decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary.withOpacity(0.05),
+                        AppColors.cardBackground,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     border: Border(
                       bottom: BorderSide(color: AppColors.divider, width: 0.5),
                     ),
@@ -149,27 +188,53 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              s.polygons,
-                              style: AppTextStyles.title2,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.map_outlined,
+                                  color: AppColors.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: AppPadding.small),
+                                Text(
+                                  s.polygons,
+                                  style: AppTextStyles.title2.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: AppPadding.xs),
-                            Text(
-                              '${widget.data.polygons.length} полигонов',
-                              style: AppTextStyles.footnote,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppPadding.small,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${widget.data.polygons.length} полигонов',
+                                style: AppTextStyles.footnote.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
                       if (canEdit)
-                        IconButton(
-                          icon: const Icon(Icons.add),
+                        AnimatedButton(
+                          label: 'Добавить',
+                          icon: Icons.add_circle,
                           onPressed: () {
                             setState(() {
                               _isDrawingMode = true;
                             });
                           },
-                          tooltip: 'Создать полигон',
+                          isOutlined: false,
                         ),
                     ],
                   ),
@@ -181,16 +246,32 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.map_outlined,
-                                size: 64,
-                                color: AppColors.textTertiary,
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 800),
+                                curve: Curves.easeOutBack,
+                                padding: const EdgeInsets.all(AppPadding.large),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondaryBackground,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.map_outlined,
+                                  size: 64,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
-                              const SizedBox(height: AppPadding.normal),
+                              const SizedBox(height: AppPadding.large),
                               Text(
                                 'Нет полигонов',
                                 style: AppTextStyles.headline.copyWith(
                                   color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: AppPadding.xs),
+                              Text(
+                                'Добавьте первый полигон',
+                                style: AppTextStyles.footnote.copyWith(
+                                  color: AppColors.textTertiary,
                                 ),
                               ),
                             ],
@@ -205,16 +286,15 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                                 .where((c) => c.polygonId == polygon.id)
                                 .toList();
 
-                            return InkWell(
+                            return AnimatedListItem(
+                              index: index,
+                              isSelected: isSelected,
                               onTap: () {
                                 widget.controller.selectPolygon(polygon);
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(AppPadding.normal),
                                 decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.primary.withOpacity(0.1)
-                                      : null,
                                   border: Border(
                                     bottom: BorderSide(
                                       color: AppColors.divider,
@@ -230,44 +310,63 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                                         Expanded(
                                           child: Text(
                                             polygon.name,
-                                            style: AppTextStyles.headline,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: AppPadding.small,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: polygon.isActive
-                                                ? AppColors.success.withOpacity(0.2)
-                                                : AppColors.textTertiary.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            polygon.isActive ? 'Активный' : 'Неактивный',
-                                            style: AppTextStyles.caption.copyWith(
-                                              color: polygon.isActive
-                                                  ? AppColors.success
-                                                  : AppColors.textSecondary,
+                                            style: AppTextStyles.headline.copyWith(
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w600,
+                                              color: isSelected
+                                                  ? AppColors.primary
+                                                  : AppColors.textPrimary,
                                             ),
                                           ),
+                                        ),
+                                        ProfessionalBadge(
+                                          text: polygon.isActive ? 'Активный' : 'Неактивный',
+                                          type: polygon.isActive
+                                              ? BadgeType.success
+                                              : BadgeType.secondary,
+                                          size: BadgeSize.small,
+                                          icon: polygon.isActive ? Icons.check_circle : null,
                                         ),
                                       ],
                                     ),
                                     if (polygon.address != null) ...[
                                       const SizedBox(height: AppPadding.xs),
-                                      Text(
-                                        polygon.address!,
-                                        style: AppTextStyles.footnote,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.location_on_outlined,
+                                            size: 14,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              polygon.address!,
+                                              style: AppTextStyles.footnote,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                    const SizedBox(height: AppPadding.xs),
-                                    Text(
-                                      'Камер: ${cameras.length}',
-                                      style: AppTextStyles.footnote,
+                                    const SizedBox(height: AppPadding.small),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.videocam_outlined,
+                                          size: 16,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Камер: ${cameras.length}',
+                                          style: AppTextStyles.footnote.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -277,6 +376,7 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                         ),
                 ),
               ],
+            ),
             ),
           ),
         ),
@@ -294,19 +394,10 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                     bottom: config.padding,
                     right: config.padding / 2,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBackground,
-                    borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                    border: Border.all(color: AppColors.divider, width: 0.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: AppSize.shadowBlur,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
+                  child: AnimatedCard(
+                    delay: 100,
+                    padding: EdgeInsets.zero,
+                    child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppSize.cardRadius),
                     child: Stack(
                       children: [
@@ -328,39 +419,53 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                           Positioned(
                             top: AppPadding.normal,
                             left: AppPadding.normal,
-                            child: Container(
-                              padding: const EdgeInsets.all(AppPadding.normal),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                  ),
-                                ],
-                              ),
+                            child: AnimatedCard(
+                              delay: 0,
+                              padding: const EdgeInsets.all(AppPadding.large),
+                              backgroundColor: AppColors.cardBackground,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    'Режим рисования',
-                                    style: AppTextStyles.headline,
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          gradient: AppColors.primaryGradient,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                          Icons.edit_location_alt,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppPadding.small),
+                                      Text(
+                                        'Режим рисования',
+                                        style: AppTextStyles.headline.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: AppPadding.xs),
+                                  const SizedBox(height: AppPadding.normal),
                                   Text(
                                     'Кликните на карте минимум 3 точки, затем закройте полигон, кликнув на первую точку',
                                     style: AppTextStyles.footnote,
                                   ),
-                                  const SizedBox(height: AppPadding.small),
-                                  TextButton(
+                                  const SizedBox(height: AppPadding.normal),
+                                  AnimatedButton(
+                                    label: 'Отмена',
+                                    icon: Icons.close,
                                     onPressed: () {
                                       setState(() {
                                         _isDrawingMode = false;
                                         _draftGeometry = null;
                                       });
                                     },
-                                    child: const Text('Отмена'),
+                                    isOutlined: false,
                                   ),
                                 ],
                               ),
@@ -368,6 +473,7 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                           ),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ),
@@ -382,25 +488,17 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
                       left: config.padding / 2,
                       right: config.padding,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                      border: Border.all(color: AppColors.divider, width: 0.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: AppSize.shadowBlur,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: _PolygonInfoPanel(
+                    child: AnimatedCard(
+                      delay: 200,
+                      padding: EdgeInsets.zero,
+                      child: _PolygonInfoPanel(
                       polygon: widget.state.selectedPolygon!,
                       cameras: widget.data.cameras
                           .where((c) => c.polygonId == widget.state.selectedPolygon!.id)
                           .toList(),
                       canEdit: canEdit,
                       controller: widget.controller,
+                    ),
                     ),
                   ),
                 ),
@@ -442,6 +540,14 @@ class _PolygonInfoPanel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(AppPadding.large),
           decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.08),
+                AppColors.cardBackground,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             border: Border(
               bottom: BorderSide(color: AppColors.divider, width: 0.5),
             ),
@@ -451,40 +557,50 @@ class _PolygonInfoPanel extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.location_on,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: AppPadding.small),
                   Expanded(
                     child: Text(
                       polygon.name,
-                      style: AppTextStyles.title2,
+                      style: AppTextStyles.title2.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   if (canEdit)
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryBackground,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.close, size: 18),
+                      ),
                       onPressed: () => controller.selectPolygon(null),
                       tooltip: 'Закрыть',
                     ),
                 ],
               ),
-              const SizedBox(height: AppPadding.xs),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppPadding.small,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: polygon.isActive
-                      ? AppColors.success.withValues(alpha: 0.2)
-                      : AppColors.textTertiary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  polygon.isActive ? 'Активный' : 'Неактивный',
-                  style: AppTextStyles.caption.copyWith(
-                    color: polygon.isActive
-                        ? AppColors.success
-                        : AppColors.textSecondary,
-                  ),
-                ),
+              const SizedBox(height: AppPadding.small),
+              ProfessionalBadge(
+                text: polygon.isActive ? 'Активный' : 'Неактивный',
+                type: polygon.isActive
+                    ? BadgeType.success
+                    : BadgeType.secondary,
+                size: BadgeSize.medium,
+                icon: polygon.isActive ? Icons.check_circle : Icons.cancel_outlined,
               ),
             ],
           ),
@@ -497,81 +613,183 @@ class _PolygonInfoPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (polygon.address != null) ...[
-                  Text(
-                    'Адрес',
-                    style: AppTextStyles.footnote.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Адрес',
+                        style: AppTextStyles.footnote.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppPadding.xs),
-                  Text(
-                    polygon.address!,
-                    style: AppTextStyles.body,
+                  Container(
+                    padding: const EdgeInsets.all(AppPadding.small),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryBackground,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      polygon.address!,
+                      style: AppTextStyles.body,
+                    ),
                   ),
                   const SizedBox(height: AppPadding.normal),
                 ],
                 if (polygon.description != null) ...[
-                  Text(
-                    'Описание',
-                    style: AppTextStyles.footnote.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Описание',
+                        style: AppTextStyles.footnote.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppPadding.xs),
-                  Text(
-                    polygon.description!,
-                    style: AppTextStyles.body,
+                  Container(
+                    padding: const EdgeInsets.all(AppPadding.small),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryBackground,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      polygon.description!,
+                      style: AppTextStyles.body,
+                    ),
                   ),
                   const SizedBox(height: AppPadding.normal),
                 ],
-                const Divider(),
+                Divider(
+                  color: AppColors.divider,
+                  thickness: 0.5,
+                ),
                 const SizedBox(height: AppPadding.normal),
                 Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.secondaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.videocam,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: AppPadding.small),
                     Text(
-                      'Камеры (${cameras.length})',
-                      style: AppTextStyles.headline,
+                      'Камеры',
+                      style: AppTextStyles.headline.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: AppPadding.xs),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${cameras.length}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                     const Spacer(),
                     if (canEdit)
-                      IconButton(
-                        icon: const Icon(Icons.add),
+                      AnimatedButton(
+                        label: 'Добавить',
+                        icon: Icons.add,
                         onPressed: () => PolygonsDialogs.showCreateCameraDialog(
                           context: context,
                           controller: controller,
                           polygonId: polygon.id,
                         ),
-                        tooltip: 'Добавить камеру',
+                        isOutlined: false,
                       ),
                   ],
                 ),
                 const SizedBox(height: AppPadding.small),
                 if (cameras.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(AppPadding.normal),
-                    child: Text(
-                      'Нет камер',
-                      style: AppTextStyles.footnote.copyWith(
-                        color: AppColors.textSecondary,
+                    padding: const EdgeInsets.all(AppPadding.large),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.videocam_off_outlined,
+                            size: 48,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(height: AppPadding.normal),
+                          Text(
+                            'Нет камер',
+                            style: AppTextStyles.footnote.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   )
                 else
-                  ...cameras.map((camera) => Container(
+                  ...cameras.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final camera = entry.value;
+                    return AnimatedListItem(
+                      index: index,
+                      child: Container(
                         margin: const EdgeInsets.only(bottom: AppPadding.small),
                         padding: const EdgeInsets.all(AppPadding.normal),
                         decoration: BoxDecoration(
                           color: AppColors.secondaryBackground,
                           borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          border: Border.all(
+                            color: AppColors.divider.withOpacity(0.5),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              camera.type == CameraType.lpr
-                                  ? Icons.camera_alt
-                                  : Icons.camera,
-                              size: 20,
-                              color: AppColors.textSecondary,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                camera.type == CameraType.lpr
+                                    ? Icons.camera_alt
+                                    : Icons.camera,
+                                size: 20,
+                                color: AppColors.primary,
+                              ),
                             ),
                             const SizedBox(width: AppPadding.small),
                             Expanded(
@@ -580,40 +798,46 @@ class _PolygonInfoPanel extends StatelessWidget {
                                 children: [
                                   Text(
                                     camera.name,
-                                    style: AppTextStyles.body,
+                                    style: AppTextStyles.body.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                  Text(
-                                    camera.type == CameraType.lpr
-                                        ? 'LPR'
-                                        : 'VOLUME',
-                                    style: AppTextStyles.caption,
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      camera.type == CameraType.lpr
+                                          ? 'LPR'
+                                          : 'VOLUME',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.secondary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppPadding.small,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: camera.isActive
-                                    ? AppColors.success.withValues(alpha: 0.2)
-                                    : AppColors.textTertiary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                camera.isActive ? 'Активна' : 'Неактивна',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: camera.isActive
-                                      ? AppColors.success
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
+                            ProfessionalBadge(
+                              text: camera.isActive ? 'Активна' : 'Неактивна',
+                              type: camera.isActive
+                                  ? BadgeType.success
+                                  : BadgeType.secondary,
+                              size: BadgeSize.small,
                             ),
                           ],
                         ),
-                      )),
+                      ),
+                    );
+                  }),
               ],
             ),
           ),

@@ -39,6 +39,7 @@ class LandfillUsersController extends StateNotifier<AkimatUsersState> implements
     required String phone,
     required String login,
     required String password,
+    bool skipReload = false,
   }) async {
     try {
       await _services.rolesCollection.createLandfillUser(
@@ -46,7 +47,9 @@ class LandfillUsersController extends StateNotifier<AkimatUsersState> implements
         login: login,
         password: password,
       );
-      await refresh();
+      if (!skipReload) {
+        await refresh();
+      }
     } catch (e) {
       rethrow;
     }
@@ -58,6 +61,7 @@ class LandfillUsersController extends StateNotifier<AkimatUsersState> implements
     String? phone,
     String? login,
     String? password,
+    bool skipReload = false,
   }) async {
     try {
       if (userId.isEmpty) {
@@ -69,7 +73,9 @@ class LandfillUsersController extends StateNotifier<AkimatUsersState> implements
         login: login,
         password: password,
       );
-      await refresh();
+      if (!skipReload) {
+        await refresh();
+      }
     } catch (e) {
       rethrow;
     }

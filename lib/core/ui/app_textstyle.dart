@@ -105,4 +105,27 @@ class AppTextStyles {
   // Legacy support
   static const title = title2;
   static const subtitle = callout;
+  
+  // Professional enhancements
+  static TextStyle withGradient(TextStyle base, List<Color> colors) {
+    return base.copyWith(
+      foreground: Paint()
+        ..shader = LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(
+          const Rect.fromLTWH(0, 0, 200, 70),
+        ),
+    );
+  }
+  
+  // Enhanced button text
+  static const buttonBold = TextStyle(
+    fontSize: 17,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.2,
+    color: Colors.white,
+    height: 1.3,
+  );
 }

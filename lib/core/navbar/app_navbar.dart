@@ -30,9 +30,17 @@ class AppNavbar extends StatelessWidget {
           final isVeryCompact = constraints.maxWidth < 900;
           
           return Container(
-            height: 60,
+            height: 70,
             decoration: BoxDecoration(
               color: AppColors.surface,
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.surface,
+                  AppColors.surface.withOpacity(0.98),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
               border: Border(
                 bottom: BorderSide(
                   color: AppColors.separator,
@@ -41,9 +49,15 @@ class AppNavbar extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withOpacity(0.04),
                   blurRadius: AppSize.shadowBlur,
-                  offset: const Offset(0, 1),
+                  offset: const Offset(0, 2),
+                  spreadRadius: 0,
+                ),
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 0),
                   spreadRadius: 0,
                 ),
               ],
@@ -52,29 +66,53 @@ class AppNavbar extends StatelessWidget {
             child: Row(
               children: [
                 // Логотип с версией
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.snowing,
-                      color: AppColors.primary,
-                      size: isVeryCompact ? 20 : AppSize.iconSize,
-                    ),
-                    if (!isVeryCompact) ...[
-                      const SizedBox(width: AppPadding.small),
-                      Text(
-                        'SnowOps',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: isCompact ? 16 : 20,
-                          letterSpacing: -0.5,
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.snowing,
+                          color: Colors.white,
+                          size: isVeryCompact ? 18 : 22,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const AppVersionBadge(),
+                      if (!isVeryCompact) ...[
+                        const SizedBox(width: AppPadding.small),
+                        Text(
+                          'SnowOps',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: isCompact ? 18 : 22,
+                            letterSpacing: -0.5,
+                            shadows: [
+                              Shadow(
+                                color: AppColors.primary.withOpacity(0.1),
+                                offset: const Offset(0, 1),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const AppVersionBadge(),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
                 const SizedBox(width: 8),
                 // Навигационные кнопки с прокруткой
@@ -103,17 +141,24 @@ class AppNavbar extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         title: Row(
           children: [
-            Icon(
-              Icons.snowing,
-              color: AppColors.primary,
-              size: AppSize.iconSize,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.snowing,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             const SizedBox(width: AppPadding.small),
             Text(
               'SnowOps',
               style: TextStyle(
                 color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 fontSize: 18,
                 letterSpacing: -0.5,
               ),
@@ -132,7 +177,15 @@ class AppNavbar extends StatelessWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0.5),
           child: Container(
-            color: AppColors.separator,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  AppColors.separator,
+                  Colors.transparent,
+                ],
+              ),
+            ),
             height: 0.5,
           ),
         ),

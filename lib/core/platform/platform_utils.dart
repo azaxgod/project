@@ -33,7 +33,7 @@ class PlatformConfigWeb implements PlatformConfig {
   Axis get scrollDirection => Axis.vertical;
 
   @override
-  Color get backgroundColor => const Color(0xFFF9F9F9);
+  Color get backgroundColor => const Color(0xFFF5F7FA);
 }
 
 class PlatformConfigMobile implements PlatformConfig {
@@ -53,5 +53,5 @@ class PlatformConfigMobile implements PlatformConfig {
   Axis get scrollDirection => Axis.horizontal;
 
   @override
-  Color get backgroundColor => Colors.white;
+  Color get backgroundColor => const Color(0xFFF5F7FA);
 }

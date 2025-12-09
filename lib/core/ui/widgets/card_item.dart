@@ -1,13 +1,13 @@
-import 'package:akimat_project/core/ui/app_colors.dart';
-import 'package:akimat_project/core/ui/app_padding.dart';
-import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/widgets/animated_card.dart';
 import 'package:flutter/material.dart';
+
 
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final Color? backgroundColor;
   final bool elevated;
+  final bool animateOnBuild;
 
   const AppCard({
     super.key,
@@ -15,36 +15,16 @@ class AppCard extends StatelessWidget {
     this.padding,
     this.backgroundColor,
     this.elevated = true,
+    this.animateOnBuild = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding ?? const EdgeInsets.all(AppPadding.card),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(
-          color: AppColors.divider,
-          width: 0.5,
-        ),
-        boxShadow: elevated
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: AppSize.shadowBlur,
-                  offset: const Offset(0, 2),
-                  spreadRadius: 0,
-                ),
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: AppSize.shadowBlurLarge,
-                  offset: const Offset(0, 4),
-                  spreadRadius: 0,
-                ),
-              ]
-            : null,
-      ),
+    return AnimatedCard(
+      padding: padding,
+      backgroundColor: backgroundColor,
+      elevated: elevated,
+      animateOnBuild: animateOnBuild,
       child: child,
     );
   }

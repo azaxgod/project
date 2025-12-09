@@ -8,6 +8,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/wid
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_table_actions.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_details_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_dialogs.dart';
+import 'package:akimat_project/core/utils/notification_helper.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsContractorsTab extends StatelessWidget {
@@ -104,9 +105,28 @@ class OrganizationsContractorsTab extends StatelessWidget {
                         OrganizationsTableAction(
                           label: contractor.isActive ? 'Блокировать' : 'Разблокировать',
                           isDestructive: contractor.isActive,
-                          onPressed: () => controller.updateOrganization(
-                            contractor.copyWith(isActive: !contractor.isActive),
-                          ),
+                          onPressed: () async {
+                            try {
+                              await controller.updateOrganization(
+                                contractor.copyWith(isActive: !contractor.isActive),
+                                skipReload: true,
+                              );
+                              if (context.mounted) {
+                                await context.showSuccessWithReload(
+                                  contractor.isActive 
+                                      ? 'Подрядчик успешно заблокирован'
+                                      : 'Подрядчик успешно разблокирован',
+                                  () async {
+                                    await controller.refresh();
+                                  },
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                context.showErrorNotificationFromException(e);
+                              }
+                            }
+                          },
                         ),
                       ],
                     ),

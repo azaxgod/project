@@ -1,6 +1,7 @@
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/utils/notification_helper.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/users/users_controller_base.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
 import 'package:akimat_project/services/organizations/model/user_dto.dart';
@@ -96,6 +97,7 @@ class CreateUserDialog {
                     phone: phoneNormalized,
                     login: loginController.text.trim(),
                     password: passwordController.text.trim(),
+                    skipReload: true,
                   );
                 } else {
                   // Редактирование
@@ -106,30 +108,24 @@ class CreateUserDialog {
                     password: passwordController.text.trim().isEmpty
                         ? null
                         : passwordController.text.trim(),
+                    skipReload: true,
                   );
                 }
                 if (context.mounted) {
                   Navigator.of(context).pop();
+                  // Показываем уведомление и обновляем данные после 4 секунд
+                  await context.showSuccessWithReload(
+                    user == null 
+                        ? 'Пользователь успешно создан'
+                        : 'Данные пользователя успешно обновлены',
+                    () async {
+                      await controller.refresh();
+                    },
+                  );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  String errorMessage = 'Ошибка при сохранении пользователя';
-                  if (e.toString().contains('404')) {
-                    errorMessage = 'Пользователь не найден. Обновите список и попробуйте снова.';
-                  } else if (e.toString().contains('400')) {
-                    errorMessage = 'Некорректные данные. Проверьте введенные значения.';
-                  } else if (e.toString().contains('ID пользователя не может быть пустым')) {
-                    errorMessage = 'Ошибка: ID пользователя отсутствует. Обновите список и попробуйте снова.';
-                  } else {
-                    errorMessage = 'Ошибка: ${e.toString().replaceAll('Exception: ', '')}';
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(errorMessage),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
+                  context.showErrorNotificationFromException(e);
                 }
               }
             },

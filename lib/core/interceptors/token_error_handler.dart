@@ -1,11 +1,12 @@
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/core/ui/widgets/session_expired_dialog.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 /// Проверяет, является ли ошибка ошибкой токена (invalid, expired и т.д.)
 bool _isTokenError(DioException error) {
-  // Проверяем статус код
-  if (error.response?.statusCode == 401) {
+  // Проверяем статус код (401 Unauthorized или 403 Forbidden)
+  if (error.response?.statusCode == 401 || error.response?.statusCode == 403) {
     return true;
   }
 
@@ -56,6 +57,10 @@ Future<bool> handleTokenError(
     debugPrint('No refresh token found. Clearing access token.');
     await TokenStorage.saveAccessToken('');
     await TokenStorage.saveRefreshToken('');
+    
+    // Показываем модальное окно об истекшей сессии
+    SessionExpiredService.show();
+    
     return false;
   }
 
@@ -100,16 +105,20 @@ Future<bool> handleTokenError(
 
     debugPrint('Token refreshed successfully');
 
-    // Обновляем заголовок в оригинальном запросе
+
     final opts = error.requestOptions;
     opts.headers['Authorization'] = 'Bearer ${authResponse['access_token']}';
 
     return true;
   } catch (e) {
     debugPrint('Failed to refresh token: $e');
-    // Очищаем токены при неудачном обновлении
+
     await TokenStorage.saveAccessToken('');
     await TokenStorage.saveRefreshToken('');
+    
+    // Показываем модальное окно об истекшей сессии
+    SessionExpiredService.show();
+    
     return false;
   }
 }

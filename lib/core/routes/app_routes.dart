@@ -23,48 +23,70 @@ import 'package:akimat_project/modules/violations/src/ui/screen/violation_detail
 import 'package:akimat_project/modules/violations/src/ui/screen/violations_page.dart';
 import 'package:akimat_project/modules/trips/src/ui/driver_home.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouterProvider = FutureProvider<GoRouter>((ref) async {
-  final authState = ref.watch(authNotifierProvider);
-  
   // Ждем, пока Firebase Auth восстановит состояние (особенно важно на вебе)
-  // Если идет проверка токена, ждем ее завершения
-  if (authState.isCheckingToken) {
-    // Ждем до 2 секунд, пока состояние восстановится
-    int attempts = 0;
-    while (authState.isCheckingToken && attempts < 20) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      final currentState = ref.read(authNotifierProvider);
-      if (!currentState.isCheckingToken) break;
-      attempts++;
+  // Проверяем состояние асинхронно и ждем его восстановления
+  int attempts = 0;
+  const maxAttempts = 50; // Увеличено до 5 секунд для надежности
+  while (attempts < maxAttempts) {
+    final authState = ref.read(authNotifierProvider);
+    
+    // Если проверка завершена И пользователь восстановлен, выходим из цикла
+    if (!authState.isCheckingToken && authState.user != null) {
+      break;
     }
+    
+    // Если проверка завершена, но пользователь не найден - тоже выходим
+    if (!authState.isCheckingToken && authState.user == null) {
+      // Даем еще немного времени на восстановление (для веба)
+      await Future.delayed(const Duration(milliseconds: 200));
+      final retryState = ref.read(authNotifierProvider);
+      if (!retryState.isCheckingToken) {
+        break;
+      }
+    }
+    
+    // Ждем между попытками
+    await Future.delayed(const Duration(milliseconds: 100));
+    attempts++;
   }
   
-  // Получаем актуальное состояние после ожидания
+  // Получаем финальное состояние после ожидания
   final finalAuthState = ref.read(authNotifierProvider);
   
   // Загружаем сохраненный роут асинхронно
+  // ВАЖНО: initialLocation не поддерживает query параметры, поэтому используем только путь
+  // Query параметры будут восстановлены через redirect
+  // НИКОГДА не используем сохраненный роут для initialLocation если пользователь не авторизован
   String initialLocation = '/login';
   if (finalAuthState.user != null) {
     final savedRoute = await RouteStorage.getLastRoute();
-    if (savedRoute != null && savedRoute != '/login') {
+    if (savedRoute != null && savedRoute != '/login' && !savedRoute.startsWith('/login')) {
+      // Извлекаем путь без query параметров для initialLocation
+      final routePath = savedRoute.contains('?') 
+          ? savedRoute.split('?')[0] 
+          : savedRoute;
+      
       final validRoutes = [
         '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
         '/polygons', '/tickets', '/kgu/contracts', '/analytics',
         '/analytics/trips', '/analytics/violations', '/analytics/performance',
         '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
-        '/analytics/vehicles', '/analytics/technical', '/violations'
+        '/analytics/vehicles', '/analytics/technical', '/violations', '/driver'
       ];
       // Проверяем динамические роуты (с параметрами)
-      final isDynamicRoute = savedRoute.startsWith('/violations/') || 
-                             savedRoute.startsWith('/analytics/trips/');
-      if (validRoutes.contains(savedRoute) || isDynamicRoute) {
-        initialLocation = savedRoute;
-        debugPrint('GoRouter: Restoring saved route: $savedRoute');
+      final isDynamicRoute = routePath.startsWith('/violations/') || 
+                             routePath.startsWith('/analytics/trips/');
+      if (validRoutes.contains(routePath) || isDynamicRoute) {
+        // Используем только путь без query параметров для initialLocation
+        initialLocation = routePath;
+        debugPrint('GoRouter: Restoring saved route path: $routePath (full route: $savedRoute)');
       } else {
         debugPrint('GoRouter: Saved route not valid, using /dashboard: $savedRoute');
         initialLocation = '/dashboard';
@@ -72,11 +94,27 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
     } else {
       initialLocation = '/dashboard';
     }
+  } else {
+    // Пользователь не авторизован - всегда начинаем с /login
+    debugPrint('GoRouter: User not authenticated, initial location: /login');
+    initialLocation = '/login';
   }
 
+  // Создаем ValueNotifier для обновления роутера при изменении auth state
+  final authStateNotifier = ValueNotifier<AuthState>(finalAuthState);
+  
+  // Подписываемся на изменения auth state для обновления роутера
+  ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+    if (authStateNotifier.value.user != next.user) {
+      authStateNotifier.value = next;
+      debugPrint('GoRouter: Auth state changed, user=${next.user != null}');
+    }
+  });
+
   final router = GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: initialLocation,
+    refreshListenable: authStateNotifier,
     onException: (context, state, exception) {
       // Обработка ошибок навигации
       debugPrint('Navigation error: $exception');
@@ -258,7 +296,24 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
   
   // Получаем authState через Container из контекста
   final container = ProviderScope.containerOf(context);
-  final authState = container.read(authNotifierProvider);
+  var authState = container.read(authNotifierProvider);
+  
+  // Если идет проверка токена, ждем ее завершения (особенно важно при обновлении страницы)
+  if (authState.isCheckingToken || (authState.user == null && !authState.isCheckingToken)) {
+    debugPrint('GoRouter redirect: Waiting for token check to complete or user to be restored...');
+    int attempts = 0;
+    const maxAttempts = 30; // До 3 секунд
+    while ((authState.isCheckingToken || authState.user == null) && attempts < maxAttempts) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      authState = container.read(authNotifierProvider);
+      // Если пользователь восстановлен, выходим
+      if (authState.user != null && !authState.isCheckingToken) {
+        break;
+      }
+      attempts++;
+    }
+    debugPrint('GoRouter redirect: Token check completed, user=${authState.user != null}, attempts=$attempts');
+  }
   
   debugPrint('GoRouter redirect: loggedIn=${authState.user != null}, location=${state.matchedLocation}');
   
@@ -266,9 +321,21 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
   final currentLocation = state.matchedLocation;
   final isLoggingIn = currentLocation == '/login';
 
+  // Загружаем сохраненный роут один раз для всей функции (если пользователь авторизован)
+  String? savedRoute;
+  if (loggedIn) {
+    savedRoute = await RouteStorage.getLastRoute();
+  }
+
   // Сохраняем роут при каждой навигации (если пользователь авторизован и не на логине)
-  if (loggedIn && !isLoggingIn && currentLocation != '/login') {
-    RouteStorage.saveLastRoute(currentLocation).catchError((e) {
+  // Включаем query параметры для сохранения состояния вкладок
+  if (loggedIn && !isLoggingIn && currentLocation != '/login' && !currentLocation.startsWith('/login')) {
+    // Используем state.uri вместо GoRouterState.of(context).uri
+    final uri = state.uri;
+    final fullLocation = uri.hasQuery 
+        ? '${uri.path}?${uri.query}' 
+        : uri.path;
+    RouteStorage.saveLastRoute(fullLocation).catchError((e) {
       debugPrint('Error saving route in redirect: $e');
     });
   }
@@ -281,58 +348,106 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
   }
 
   // Если авторизован и на странице логина - перенаправить на сохраненный роут или dashboard
+  // Это важно при восстановлении после обновления страницы
   if (loggedIn && isLoggingIn) {
-    final savedRoute = await RouteStorage.getLastRoute();
+    debugPrint('GoRouter redirect: User logged in on /login, checking saved route: $savedRoute');
+    if (savedRoute != null && savedRoute != '/login' && !savedRoute.startsWith('/login')) {
+      // Извлекаем путь без query параметров для проверки
+      final routePath = savedRoute.contains('?') 
+          ? savedRoute.split('?')[0] 
+          : savedRoute;
+      
+      final validRoutes = [
+        '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
+        '/polygons', '/tickets', '/kgu/contracts', '/analytics',
+        '/analytics/trips', '/analytics/violations', '/analytics/performance',
+        '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
+        '/analytics/vehicles', '/analytics/technical', '/violations', '/driver'
+      ];
+      
+      // Проверяем динамические роуты
+      final isDynamicRoute = routePath.startsWith('/violations/') || 
+                             routePath.startsWith('/analytics/trips/');
+      
+      if (validRoutes.contains(routePath) || isDynamicRoute) {
+        debugPrint('GoRouter redirect: Redirecting from /login to saved route: $savedRoute');
+        return savedRoute; // Возвращаем полный путь с query параметрами
+      } else {
+        debugPrint('GoRouter redirect: Saved route is not valid: $savedRoute');
+      }
+    } else {
+      debugPrint('GoRouter redirect: No saved route or invalid route: $savedRoute');
+    }
+    debugPrint('GoRouter redirect: Redirecting to /dashboard');
+    return '/dashboard';
+  }
+
+  // Если авторизован - проверить валидность роута (с поддержкой query параметров)
+  if (loggedIn) {
+    // Извлекаем путь без query параметров для проверки
+    final routePath = currentLocation.contains('?') 
+        ? currentLocation.split('?')[0] 
+        : currentLocation;
+    
     final validRoutes = [
-      '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
+      '/login', '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
       '/polygons', '/tickets', '/kgu/contracts', '/analytics',
       '/analytics/trips', '/analytics/violations', '/analytics/performance',
       '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
       '/analytics/vehicles', '/analytics/technical', '/violations', '/driver'
     ];
     
-    // Проверяем динамические роуты
-    if (savedRoute != null && savedRoute.startsWith('/violations/')) {
-      debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
-      return savedRoute;
-    }
-    
-    if (savedRoute != null && validRoutes.contains(savedRoute)) {
-      debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
-      return savedRoute;
-    }
-    debugPrint('GoRouter redirect: No valid saved route, redirecting to /dashboard');
-    return '/dashboard';
-  }
-
-  // Если авторизован - проверить валидность роута
-  if (loggedIn) {
-    final validRoutes = [
-      '/login', '/home', '/dashboard', '/organization', '/monitoring', '/areas', 
-      '/polygons', '/tickets', '/kgu/contracts', '/analytics',
-      '/analytics/trips', '/analytics/violations', '/analytics/performance',
-      '/analytics/contracts', '/analytics/areas', '/analytics/drivers',
-      '/analytics/vehicles', '/analytics/technical', '/violations'
-    ];
-    
     // Проверяем динамические роуты (с параметрами)
-    if (currentLocation.startsWith('/violations/')) {
+    if (routePath.startsWith('/violations/')) {
       debugPrint('GoRouter redirect: Allowing violations detail route');
       return null; // Разрешаем доступ к детальным страницам нарушений
     }
     
-    // Если роут валидный - оставить как есть
-    if (validRoutes.contains(currentLocation)) {
+    // ВАЖНО: Проверяем сохраненный роут при восстановлении (после обновления страницы)
+    // Это происходит когда роутер инициализируется с путем без query параметров
+    // но сохраненный роут содержит query параметры (например, вкладки)
+    // savedRoute уже объявлен выше для всей функции redirect
+    if (savedRoute != null && savedRoute != '/login' && !savedRoute.startsWith('/login')) {
+      final savedRoutePath = savedRoute.contains('?') 
+          ? savedRoute.split('?')[0] 
+          : savedRoute;
+      
+      // Если текущий путь совпадает с сохраненным, но сохраненный имеет query параметры
+      // и текущий их не имеет - перенаправляем на сохраненный роут с параметрами
+      if (routePath == savedRoutePath && savedRoute.contains('?') && !currentLocation.contains('?')) {
+        debugPrint('GoRouter redirect: Restoring saved route with query params: $savedRoute (current: $currentLocation)');
+        return savedRoute; // Возвращаем полный путь с query параметрами
+      }
+      
+      // Если пользователь на /login или /dashboard после восстановления - проверяем сохраненный роут
+      if ((routePath == '/login' || routePath == '/dashboard') && routePath != savedRoutePath) {
+        final isDynamicRoute = savedRoutePath.startsWith('/violations/') || 
+                               savedRoutePath.startsWith('/analytics/trips/');
+        
+        if (validRoutes.contains(savedRoutePath) || isDynamicRoute) {
+          debugPrint('GoRouter redirect: Restoring saved route from /login or /dashboard: $savedRoute');
+          return savedRoute; // Возвращаем полный путь с query параметрами
+        }
+      }
+    }
+    
+
+    if (validRoutes.contains(routePath)) {
       debugPrint('GoRouter redirect: Route is valid, allowing: $currentLocation');
       return null;
     }
     
     debugPrint('GoRouter redirect: Route is not valid: $currentLocation');
     // Если роут не валидный - перенаправить на сохраненный роут или dashboard
-    final savedRoute = await RouteStorage.getLastRoute();
-    if (savedRoute != null && validRoutes.contains(savedRoute)) {
-      debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
-      return savedRoute;
+    // savedRoute уже объявлен выше
+    if (savedRoute != null && savedRoute != '/login' && !savedRoute.startsWith('/login')) {
+      final savedRoutePath = savedRoute.contains('?') 
+          ? savedRoute.split('?')[0] 
+          : savedRoute;
+      if (validRoutes.contains(savedRoutePath)) {
+        debugPrint('GoRouter redirect: Redirecting to saved route: $savedRoute');
+        return savedRoute; // Возвращаем полный путь с query параметрами
+      }
     }
     debugPrint('GoRouter redirect: Redirecting to /dashboard');
     return '/dashboard';
@@ -343,11 +458,15 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
 },
   );
   
-  // Сохраняем роут при навигации через listener
+  // Сохраняем роут при навигации через listener (включая query параметры)
   router.routerDelegate.addListener(() {
-    final currentLocation = router.routerDelegate.currentConfiguration.uri.path;
+    final uri = router.routerDelegate.currentConfiguration.uri;
+    // Сохраняем полный путь с query параметрами
+    final currentLocation = uri.hasQuery 
+        ? '${uri.path}?${uri.query}' 
+        : uri.path;
     // Используем finalAuthState, который уже был получен выше
-    if (finalAuthState.user != null && currentLocation != '/login') {
+    if (finalAuthState.user != null && currentLocation != '/login' && !currentLocation.startsWith('/login')) {
       // Сохраняем асинхронно, не блокируя навигацию
       RouteStorage.saveLastRoute(currentLocation).catchError((e) {
         debugPrint('Error saving route: $e');

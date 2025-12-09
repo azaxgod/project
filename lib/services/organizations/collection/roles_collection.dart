@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:akimat_project/services/organizations/model/driver_dto.dart';
 import 'package:akimat_project/services/organizations/model/organization_dto.dart';
 import 'package:akimat_project/services/organizations/model/user_dto.dart';
@@ -919,25 +921,150 @@ class RolesCollection {
   /// PATCH /roles/vehicles/:id - Обновить транспорт
   Future<VehicleDto> updateVehicle(
     String id, {
+    String? plateNumber,
+    String? brand,
+    String? model,
     String? color,
+    int? year,
     double? bodyVolumeM3,
+    Uint8List? photoBytes,
+    String? photoFileName,
+    String? existingPhotoUrl, // URL существующего фото для сохранения
+    bool shouldDeletePhoto = false,
+    bool keepExistingPhoto = false, // Флаг для сохранения существующего фото
     String? driverId, // пустая строка для отвязки
   }) async {
     try {
-      final data = <String, dynamic>{};
-      if (color != null) {
-        data['color'] = color;
-      }
-      if (bodyVolumeM3 != null) {
-        data['body_volume_m3'] = bodyVolumeM3;
-      }
-      if (driverId != null) {
-        data['driver_id'] = driverId;
-      }
+      // Если нужно удалить фото, используем multipart/form-data с пустым значением
+      // или отправляем JSON без поля photo (в зависимости от требований сервера)
+      if (shouldDeletePhoto) {
+        // Пробуем использовать multipart/form-data для удаления фото
+        final formData = FormData.fromMap({
+          if (plateNumber != null) 'plate_number': plateNumber,
+          if (brand != null) 'brand': brand,
+          if (model != null) 'model': model,
+          if (color != null) 'color': color,
+          if (year != null) 'year': year.toString(),
+          if (bodyVolumeM3 != null) 'body_volume_m3': bodyVolumeM3.toString(),
+          if (driverId != null) 'driver_id': driverId,
+        });
+        
+        // Добавляем пустое значение для удаления фото через multipart
+        // Сервер должен обработать пустое поле как удаление
+        formData.fields.add(MapEntry('photo', ''));
 
-      final response = await dio.patch('/roles/vehicles/$id', data: data);
-      return VehicleDto.fromJson(
-          response.data['vehicle'] as Map<String, dynamic>);
+        final response = await dio.patch('/roles/vehicles/$id', data: formData);
+        return VehicleDto.fromJson(
+            response.data['vehicle'] as Map<String, dynamic>);
+      }
+      // Если есть фото для загрузки, используем multipart/form-data
+      else if (photoBytes != null && photoBytes.isNotEmpty) {
+        final formData = FormData.fromMap({
+          if (plateNumber != null) 'plate_number': plateNumber,
+          if (brand != null) 'brand': brand,
+          if (model != null) 'model': model,
+          if (color != null) 'color': color,
+          if (year != null) 'year': year.toString(),
+          if (bodyVolumeM3 != null) 'body_volume_m3': bodyVolumeM3.toString(),
+          if (driverId != null) 'driver_id': driverId,
+        });
+        
+        // Определяем MIME тип по расширению файла
+        String mimeType = 'image/png';
+        final extension = photoFileName?.split('.').last.toLowerCase() ?? 'png';
+        if (extension == 'jpg' || extension == 'jpeg') {
+          mimeType = 'image/jpeg';
+        } else if (extension == 'png') {
+          mimeType = 'image/png';
+        } else if (extension == 'webp') {
+          mimeType = 'image/webp';
+        } else if (extension == 'gif') {
+          mimeType = 'image/gif';
+        }
+        
+        // Добавляем фото как multipart file с правильным MIME типом
+        formData.files.add(
+          MapEntry(
+            'photo',
+            MultipartFile.fromBytes(
+              photoBytes,
+              filename: photoFileName ?? 'photo.png',
+            ),
+          ),
+        );
+        
+        final response = await dio.patch('/roles/vehicles/$id', data: formData);
+        return VehicleDto.fromJson(
+            response.data['vehicle'] as Map<String, dynamic>);
+      } else if (photoBytes != null && photoBytes.isNotEmpty) {
+        // Если есть photoBytes (новое фото или загруженное существующее фото), используем multipart
+        final formData = FormData.fromMap({
+          if (plateNumber != null) 'plate_number': plateNumber,
+          if (brand != null) 'brand': brand,
+          if (model != null) 'model': model,
+          if (color != null) 'color': color,
+          if (year != null) 'year': year.toString(),
+          if (bodyVolumeM3 != null) 'body_volume_m3': bodyVolumeM3.toString(),
+          if (driverId != null) 'driver_id': driverId,
+        });
+        
+        // Определяем MIME тип по расширению файла
+        String mimeType = 'image/png';
+        final extension = photoFileName?.split('.').last.toLowerCase() ?? 'png';
+        if (extension == 'jpg' || extension == 'jpeg') {
+          mimeType = 'image/jpeg';
+        } else if (extension == 'png') {
+          mimeType = 'image/png';
+        } else if (extension == 'webp') {
+          mimeType = 'image/webp';
+        } else if (extension == 'gif') {
+          mimeType = 'image/gif';
+        }
+        
+        // Добавляем фото как multipart file с правильным MIME типом
+        formData.files.add(
+          MapEntry(
+            'photo',
+            MultipartFile.fromBytes(
+              photoBytes,
+              filename: photoFileName ?? 'photo.png',
+            ),
+          ),
+        );
+        
+        final response = await dio.patch('/roles/vehicles/$id', data: formData);
+        return VehicleDto.fromJson(
+            response.data['vehicle'] as Map<String, dynamic>);
+      } else {
+        // Если нет фото вообще (ни нового, ни загруженного существующего)
+        // Отправляем обычный JSON БЕЗ поля photo
+        final data = <String, dynamic>{};
+        if (plateNumber != null) {
+          data['plate_number'] = plateNumber;
+        }
+        if (brand != null) {
+          data['brand'] = brand;
+        }
+        if (model != null) {
+          data['model'] = model;
+        }
+        if (color != null) {
+          data['color'] = color;
+        }
+        if (year != null) {
+          data['year'] = year;
+        }
+        if (bodyVolumeM3 != null) {
+          data['body_volume_m3'] = bodyVolumeM3;
+        }
+        if (driverId != null) {
+          data['driver_id'] = driverId;
+        }
+
+        final response = await dio.patch('/roles/vehicles/$id', data: data);
+        return VehicleDto.fromJson(
+            response.data['vehicle'] as Map<String, dynamic>);
+      }
     } on DioException catch (e) {
       _handleError(e);
       rethrow;

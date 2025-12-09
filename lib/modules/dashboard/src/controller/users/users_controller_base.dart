@@ -11,6 +11,7 @@ abstract class UsersControllerBase {
     required String phone,
     required String login,
     required String password,
+    bool skipReload = false,
   });
 
   /// Обновить пользователя
@@ -19,6 +20,7 @@ abstract class UsersControllerBase {
     String? phone,
     String? login,
     String? password,
+    bool skipReload = false,
   });
 
   /// Заблокировать пользователя

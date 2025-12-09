@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
@@ -8,11 +9,14 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
+import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
+import 'package:akimat_project/core/utils/notification_helper.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_text_field.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class OrganizationsDialogs {
   const OrganizationsDialogs._();
@@ -190,7 +194,7 @@ class OrganizationsDialogs {
                 child: const Text('Отмена'),
               ),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
                   
                   // Нормализация БИН: оставляем только цифры
@@ -245,8 +249,22 @@ class OrganizationsDialogs {
                   debugPrint('organization.headFullName: "${organization.headFullName}" (isNull: ${organization.headFullName == null})');
                   debugPrint('organization.address: "${organization.address}" (isNull: ${organization.address == null})');
                   
-                  controller.createOrganization(organization);
-                  Navigator.of(context).pop();
+                  try {
+                    await controller.createOrganization(organization, skipReload: true);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      await context.showSuccessWithReload(
+                        'Организация успешно создана',
+                        () async {
+                          await controller.refresh();
+                        },
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      context.showErrorNotificationFromException(e);
+                    }
+                  }
                 },
                 child: const Text('Сохранить'),
               ),
@@ -354,7 +372,7 @@ class OrganizationsDialogs {
               child: const Text('Отмена'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 final parsedYear = int.tryParse(birthYearController.text.trim());
                 final updated = Driver(
@@ -366,12 +384,28 @@ class OrganizationsDialogs {
                   phone: phoneController.text.trim(),
                   isActive: driver?.isActive ?? true,
                 );
-                if (driver == null) {
-                  controller.createDriver(updated);
-                } else {
-                  controller.updateDriver(updated);
+                try {
+                  if (driver == null) {
+                    await controller.createDriver(updated, skipReload: true);
+                  } else {
+                    await controller.updateDriver(updated, skipReload: true);
+                  }
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    await context.showSuccessWithReload(
+                      driver == null 
+                          ? 'Водитель успешно создан'
+                          : 'Данные водителя успешно обновлены',
+                      () async {
+                        await controller.refresh();
+                      },
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    context.showErrorNotificationFromException(e);
+                  }
                 }
-                Navigator.of(context).pop();
               },
               child: const Text('Сохранить'),
             ),
@@ -402,6 +436,8 @@ class OrganizationsDialogs {
     Uint8List? selectedFileBytes;
     String? selectedFileName;
     String? photoUrl = vehicle?.photoUrl; // Сохраняем существующий URL
+    // Если у транспортного средства нет фото, показываем дефолтную иконку
+    bool useDefaultIcon = vehicle?.photoUrl == null || vehicle!.photoUrl!.isEmpty;
 
     final years = List<int>.generate(
       DateTime.now().year - 1980 + 1,
@@ -505,12 +541,14 @@ class OrganizationsDialogs {
                         selectedFileBytes: selectedFileBytes,
                         selectedFileName: selectedFileName,
                         photoUrl: photoUrl,
+                        useDefaultIcon: useDefaultIcon,
                         onFileSelected: (file, bytes, fileName) {
                           setModal(() {
                             selectedFile = file;
                             selectedFileBytes = bytes;
                             selectedFileName = fileName;
                             photoUrl = null; // Очищаем URL при выборе нового файла
+                            useDefaultIcon = false; // Сбрасываем флаг дефолтной иконки
                           });
                         },
                         onRemoveFile: () {
@@ -518,7 +556,8 @@ class OrganizationsDialogs {
                             selectedFile = null;
                             selectedFileBytes = null;
                             selectedFileName = null;
-                            photoUrl = vehicle?.photoUrl; // Возвращаем исходный URL
+                            photoUrl = null; // Убираем фото
+                            useDefaultIcon = true; // Устанавливаем флаг для дефолтной иконки
                           });
                         },
                       ),
@@ -541,36 +580,117 @@ class OrganizationsDialogs {
                   // Если выбран новый файл, конвертируем в base64 data URL
                   if (selectedFile != null && selectedFileBytes != null) {
                     try {
+                      // Дополнительная валидация перед отправкой
+                      const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+                      if (selectedFileBytes!.length > maxSizeBytes) {
+                        if (context.mounted) {
+                          context.showErrorNotification(
+                            'Размер файла слишком большой. Максимальный размер: 5MB'
+                          );
+                        }
+                        return;
+                      }
+                      
                       // Определяем MIME тип по расширению файла
                       String mimeType = 'image/jpeg';
                       final extension = selectedFileName?.split('.').last.toLowerCase() ?? 'jpg';
-                      switch (extension) {
-                        case 'png':
-                          mimeType = 'image/png';
-                          break;
-                        case 'gif':
-                          mimeType = 'image/gif';
-                          break;
-                        case 'webp':
-                          mimeType = 'image/webp';
-                          break;
-                        default:
-                          mimeType = 'image/jpeg';
+                      final allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                      
+                      if (!allowedExtensions.contains(extension)) {
+                        if (context.mounted) {
+                          context.showErrorNotification(
+                            'Неподдерживаемый формат файла. Используйте: JPG, PNG или GIF'
+                          );
+                        }
+                        return;
+                      }
+                      
+                      Uint8List processedBytes = selectedFileBytes!;
+                      String finalExtension = extension;
+                      
+                      // Проверяем, что это действительно изображение и декодируем
+                      ui.Image? decodedImage;
+                      try {
+                        decodedImage = await decodeImageFromList(selectedFileBytes!);
+                      } catch (e) {
+                        if (context.mounted) {
+                          context.showErrorNotification(
+                            'Не удалось прочитать изображение. Файл поврежден или не является изображением.'
+                          );
+                        }
+                        return;
+                      }
+                      
+                      // Если формат webp или gif, конвертируем в JPEG
+                      // (бэкенд не поддерживает эти форматы)
+                      if (extension == 'webp' || extension == 'gif') {
+                        try {
+                          // Конвертируем изображение в JPEG используя canvas
+                          final byteData = await decodedImage!.toByteData(
+                            format: ui.ImageByteFormat.png,
+                          );
+                          if (byteData != null) {
+                            processedBytes = byteData.buffer.asUint8List();
+                            finalExtension = 'png';
+                            mimeType = 'image/png';
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            context.showErrorNotificationFromException(e);
+                          }
+                          return;
+                        }
+                      } else {
+                        switch (extension) {
+                          case 'png':
+                            mimeType = 'image/png';
+                            break;
+                          case 'jpg':
+                          case 'jpeg':
+                          default:
+                            mimeType = 'image/jpeg';
+                        }
                       }
                       
                       // Конвертируем в base64 data URL
-                      final base64String = base64Encode(selectedFileBytes!);
+                      // Убеждаемся, что данные не пустые
+                      if (processedBytes.isEmpty) {
+                        if (context.mounted) {
+                          context.showErrorNotification('Ошибка: файл изображения пуст');
+                        }
+                        return;
+                      }
+                      
+                      final base64String = base64Encode(processedBytes);
+                      
+                      // Проверяем, что base64 строка не пустая
+                      if (base64String.isEmpty) {
+                        if (context.mounted) {
+                          context.showErrorNotification('Ошибка: не удалось закодировать изображение');
+                        }
+                        return;
+                      }
+                      
                       finalPhotoUrl = 'data:$mimeType;base64,$base64String';
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Ошибка при обработке файла: $e'),
-                          ),
-                        );
+                        context.showErrorNotificationFromException(e);
                       }
                       return;
                     }
+                  }
+                  
+                  // Если установлен флаг дефолтной иконки, устанавливаем null для photoUrl
+                  if (useDefaultIcon) {
+                    finalPhotoUrl = null; // null означает использовать дефолтную иконку
+                  } else if (vehicle != null && finalPhotoUrl == null && selectedFile == null) {
+                    // Если редактирование и фото не изменялось, используем существующее
+                    // НО только если это обычный URL, не data URL
+                    if (vehicle.photoUrl != null && !vehicle.photoUrl!.startsWith('data:image/')) {
+                      finalPhotoUrl = vehicle.photoUrl;
+                    }
+                    // Если photoUrl начинается с data:, это означает временные данные
+                    // которые уже обработаны, не сохраняем их
                   }
                   
                   final parsedVolume = double.parse(volumeController.text.replaceAll(',', '.'));
@@ -584,15 +704,33 @@ class OrganizationsDialogs {
                     color: colorController.text.trim(),
                     year: selectedYear!,
                     bodyVolumeM3: parsedVolume,
-                    photoUrl: finalPhotoUrl,
+                    photoUrl: finalPhotoUrl, // null означает использовать дефолтную иконку
                     isActive: vehicle?.isActive ?? true,
                   );
-                  if (vehicle == null) {
-                    controller.createVehicle(updated);
-                  } else {
-                    controller.updateVehicle(updated);
+                  
+                  try {
+                    if (vehicle == null) {
+                      await controller.createVehicle(updated, skipReload: true);
+                    } else {
+                      await controller.updateVehicle(updated, skipReload: true);
+                    }
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      // Показываем уведомление и перезагружаем данные через 4 секунды
+                      await context.showSuccessWithReload(
+                        vehicle == null 
+                            ? 'Транспорт успешно добавлен'
+                            : 'Данные транспорта успешно обновлены',
+                        () async {
+                          await controller.refresh();
+                        },
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      context.showErrorNotificationFromException(e);
+                    }
                   }
-                  Navigator.of(context).pop();
                 },
                 child: const Text('Сохранить'),
               ),
@@ -634,11 +772,7 @@ class OrganizationsDialogs {
     }).toList();
 
     if (availableVehicles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Нет доступного транспорта. Добавьте транспорт подрядчика.'),
-        ),
-      );
+      context.showWarningNotification('Нет доступного транспорта. Добавьте транспорт подрядчика.');
       return;
     }
 
@@ -671,17 +805,41 @@ class OrganizationsDialogs {
                 child: const Text('Отмена'),
               ),
               FilledButton(
-                onPressed: () {
-                  for (final vehicle in data.vehicles) {
-                    if (vehicle.driverId == driver.id) {
-                      controller.updateVehicle(vehicle.copyWith(driverId: null));
+                onPressed: () async {
+                  try {
+                    // Сначала отвязываем старые транспортные средства от водителя
+                    for (final vehicle in data.vehicles) {
+                      if (vehicle.driverId == driver.id && vehicle.id != selectedVehicleId) {
+                        await controller.updateVehicle(
+                          vehicle.copyWith(driverId: null),
+                          skipReload: true,
+                        );
+                      }
+                    }
+                    // Затем назначаем новый транспорт
+                    if (selectedVehicleId != null) {
+                      final vehicle = data.vehicles.firstWhere((item) => item.id == selectedVehicleId);
+                      await controller.updateVehicle(
+                        vehicle.copyWith(driverId: driver.id),
+                        skipReload: true,
+                      );
+                    }
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      // Показываем уведомление и перезагружаем страницу после 4 секунд
+                      await context.showSuccessWithReload(
+                        'Транспорт успешно назначен',
+                        () async {
+                          // Принудительно обновляем данные для отображения изменений
+                          await controller.refresh();
+                        },
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      context.showErrorNotificationFromException(e);
                     }
                   }
-                  if (selectedVehicleId != null) {
-                    final vehicle = data.vehicles.firstWhere((item) => item.id == selectedVehicleId);
-                    controller.updateVehicle(vehicle.copyWith(driverId: driver.id));
-                  }
-                  Navigator.of(context).pop();
                 },
                 child: const Text('Сохранить'),
               ),
@@ -721,11 +879,7 @@ class OrganizationsDialogs {
     }).toList();
 
     if (availableDrivers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Нет доступных водителей. Добавьте или разблокируйте водителя.'),
-        ),
-      );
+      context.showWarningNotification('Нет доступных водителей. Добавьте или разблокируйте водителя.');
       return;
     }
 
@@ -758,13 +912,30 @@ class OrganizationsDialogs {
                 child: const Text('Отмена'),
               ),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   if (selectedDriverId == vehicle.driverId) {
                     Navigator.of(context).pop();
                     return;
                   }
-                  controller.updateVehicle(vehicle.copyWith(driverId: selectedDriverId));
-                  Navigator.of(context).pop();
+                  try {
+                    await controller.updateVehicle(
+                      vehicle.copyWith(driverId: selectedDriverId),
+                      skipReload: true,
+                    );
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      await context.showSuccessWithReload(
+                        'Водитель успешно назначен',
+                        () async {
+                          await controller.refresh();
+                        },
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      context.showErrorNotificationFromException(e);
+                    }
+                  }
                 },
                 child: const Text('Сохранить'),
               ),
@@ -781,14 +952,20 @@ class OrganizationsDialogs {
     Uint8List? selectedFileBytes,
     String? selectedFileName,
     String? photoUrl,
+    bool useDefaultIcon = false,
     required Function(PlatformFile?, Uint8List?, String?) onFileSelected,
     required VoidCallback onRemoveFile,
   }) {
+    // Определяем, нужно ли показывать превью
+    final hasImage = selectedFileBytes != null || 
+                     (photoUrl != null && photoUrl!.isNotEmpty) ||
+                     useDefaultIcon;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Превью изображения или кнопка выбора файла
-        if (selectedFileBytes != null || (photoUrl != null && photoUrl!.isNotEmpty))
+        // Превью изображения или дефолтная иконка
+        if (hasImage)
           Container(
             margin: const EdgeInsets.only(bottom: 12),
             child: Stack(
@@ -799,17 +976,36 @@ class OrganizationsDialogs {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey[300]!),
+                    gradient: useDefaultIcon
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.primary.withOpacity(0.1),
+                              AppColors.primary.withOpacity(0.05),
+                            ],
+                          )
+                        : null,
+                    color: useDefaultIcon ? null : Colors.white,
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: selectedFileBytes != null
-                        ? Image.memory(
-                            selectedFileBytes!,
-                            fit: BoxFit.cover,
+                    child: useDefaultIcon
+                        ? Center(
+                            child: Icon(
+                              Icons.local_shipping_rounded,
+                              size: 80,
+                              color: AppColors.primary.withOpacity(0.7),
+                            ),
                           )
-                        : photoUrl != null && photoUrl!.isNotEmpty
-                            ? _buildImageFromUrl(photoUrl!)
-                            : null,
+                        : selectedFileBytes != null
+                            ? Image.memory(
+                                selectedFileBytes!,
+                                fit: BoxFit.cover,
+                              )
+                            : photoUrl != null && photoUrl!.isNotEmpty
+                                ? _buildImageFromUrl(photoUrl!)
+                                : null,
                   ),
                 ),
                 Positioned(
@@ -821,6 +1017,13 @@ class OrganizationsDialogs {
                       decoration: BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: const Icon(Icons.close, color: Colors.white, size: 16),
                     ),
@@ -831,7 +1034,7 @@ class OrganizationsDialogs {
             ),
           ),
         // Кнопка выбора файла
-        OutlinedButton.icon(
+        FilledButton.icon(
           onPressed: () async {
             try {
               final result = await FilePicker.platform.pickFiles(
@@ -842,15 +1045,71 @@ class OrganizationsDialogs {
 
               if (result != null && result.files.single.bytes != null) {
                 final file = result.files.single;
-                onFileSelected(file, file.bytes, file.name);
+                Uint8List bytes = file.bytes!;
+                
+                // Валидация размера файла (максимум 5MB)
+                const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+                if (bytes.length > maxSizeBytes) {
+                  if (context.mounted) {
+                    context.showErrorNotification('Размер файла слишком большой. Максимальный размер: 5MB');
+                  }
+                  return;
+                }
+                
+                // Валидация формата файла
+                final extension = file.extension?.toLowerCase();
+                final allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                if (extension == null || !allowedExtensions.contains(extension)) {
+                  if (context.mounted) {
+                    context.showErrorNotification('Неподдерживаемый формат файла. Используйте: JPG, PNG, WEBP или GIF');
+                  }
+                  return;
+                }
+                
+                // Проверяем, что это действительно изображение
+                ui.Image? decodedImage;
+                try {
+                  // Пытаемся декодировать изображение для проверки
+                  decodedImage = await decodeImageFromList(bytes);
+                } catch (e) {
+                  if (context.mounted) {
+                    context.showErrorNotification('Не удалось прочитать изображение. Проверьте файл.');
+                  }
+                  return;
+                }
+                
+                // Если формат webp или gif, конвертируем в PNG для лучшей совместимости
+                Uint8List processedBytes = bytes;
+                String? convertedFileName = file.name;
+                if (extension == 'webp' || extension == 'gif') {
+                  try {
+                    // Конвертируем изображение в PNG
+                    final byteData = await decodedImage!.toByteData(
+                      format: ui.ImageByteFormat.png,
+                    );
+                    if (byteData != null) {
+                      processedBytes = byteData.buffer.asUint8List();
+                      // Обновляем имя файла с новым расширением
+                      final nameWithoutExt = file.name.replaceAll(RegExp(r'\.[^.]+$'), '');
+                      convertedFileName = '$nameWithoutExt.png';
+                    }
+                  } catch (e) {
+                    // Если конвертация не удалась, показываем предупреждение
+                    if (context.mounted) {
+                      context.showWarningNotification(
+                        'Предупреждение: формат $extension может не поддерживаться сервером. Ошибка конвертации: $e'
+                      );
+                    }
+                    // Продолжаем с оригинальными байтами
+                    processedBytes = bytes;
+                  }
+                }
+                
+                onFileSelected(file, processedBytes, convertedFileName ?? file.name);
               }
             } catch (e) {
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Ошибка при выборе файла: $e'),
-                  ),
-                );
+                context.showErrorNotificationFromException(e);
               }
             }
           },
@@ -858,7 +1117,9 @@ class OrganizationsDialogs {
           label: Text(selectedFileBytes != null || (photoUrl != null && photoUrl!.isNotEmpty)
               ? 'Изменить фото'
               : 'Выбрать фото'),
-          style: OutlinedButton.styleFrom(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 48),
           ),
         ),
