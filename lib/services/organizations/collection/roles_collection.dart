@@ -463,7 +463,7 @@ class RolesCollection {
     }
   }
 
-  /// GET /roles/users - Список сотрудников подрядчика
+  /// GET /roles/contractor/users - Список сотрудников подрядчика
   /// Доступ: CONTRACTOR_ADMIN
   /// Возвращает: всех CONTRACTOR_USER текущего подрядчика
   Future<List<UserDto>> getContractorUsers() async {

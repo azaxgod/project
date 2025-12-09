@@ -212,21 +212,29 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
         if (!_tabController.indexIsChanging) {
           // Временно отключаем слушатель, чтобы избежать цикла
           _tabController.removeListener(_onTabControllerChanged);
+          // Используем animateTo для плавного переключения
           _tabController.animateTo(tabIndex);
-          // Включаем слушатель обратно после небольшой задержки
-          Future.delayed(const Duration(milliseconds: 150), () {
+          // Включаем слушатель обратно после завершения анимации
+          Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
               _tabController.addListener(_onTabControllerChanged);
+              // Проверяем, что синхронизация прошла успешно
+              if (_tabController.index != tabIndex) {
+                debugPrint('DriverHome: Tab sync failed, retrying...');
+                _syncTabFromRoute();
+              }
             }
           });
         } else {
           // Если идет анимация, ждем её завершения и синхронизируем снова
-          Future.delayed(const Duration(milliseconds: 300), () {
+          Future.delayed(const Duration(milliseconds: 400), () {
             if (mounted) {
               _syncTabFromRoute();
             }
           });
         }
+      } else {
+        debugPrint('DriverHome: Tab already synced (index=$tabIndex, tab=$tab)');
       }
     } catch (e) {
       debugPrint('Error syncing tab from route: $e');

@@ -10,6 +10,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/wid
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_drivers_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_too_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_vehicles_tab.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/contractor_cabinet/contractor_users_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:akimat_project/l10n/l10n.dart';       
@@ -448,6 +449,12 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       case UserRole.contractorAdmin:
         if (organizationId != null) {
           return [
+            _OrganizationsTabDefinition(
+              getLabel: (ctx) => 'Пользователи подрядчика',
+              builder: (context, controller) => ContractorUsersPage(
+                scaffoldKey: GlobalKey<ScaffoldState>(),
+              ),
+            ),
             _OrganizationsTabDefinition(
               getLabel: (ctx) => S.of(ctx)!.drivers,
               builder: (context, controller) => OrganizationsDriversTab(

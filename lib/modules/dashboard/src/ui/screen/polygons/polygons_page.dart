@@ -146,9 +146,9 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
   Widget build(BuildContext context) {
     final s = S.of(context)!;
     final config = PlatformConfig.instance;
+    // AKIMAT_ADMIN только просматривает, не может создавать/редактировать
     // LANDFILL_ADMIN может редактировать полигоны и камеры
-    final canEdit = widget.state.role == UserRole.akimatAdmin ||
-                    widget.state.role == UserRole.landfillAdmin;
+    final canEdit = widget.state.role == UserRole.landfillAdmin;
 
     return Row(
       children: [

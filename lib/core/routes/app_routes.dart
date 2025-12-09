@@ -111,17 +111,36 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
     }
   });
 
+  // Убеждаемся, что initialLocation всегда валидный
+  // Если пользователь не авторизован, всегда используем /login
+  final validInitialLocation = finalAuthState.user == null 
+      ? '/login'
+      : (initialLocation == '/login' || 
+         initialLocation.startsWith('/dashboard') || 
+         initialLocation.startsWith('/home') ||
+         initialLocation.startsWith('/organization') ||
+         initialLocation.startsWith('/monitoring') ||
+         initialLocation.startsWith('/driver')
+         ? initialLocation 
+         : '/dashboard');
+  
+  debugPrint('GoRouter: Creating router with initialLocation: $validInitialLocation (user=${finalAuthState.user != null})');
+  
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: initialLocation,
+    initialLocation: validInitialLocation,
     refreshListenable: authStateNotifier,
     onException: (context, state, exception) {
       // Обработка ошибок навигации
       debugPrint('Navigation error: $exception');
+      debugPrint('Navigation error state: ${state.uri}');
+      debugPrint('Navigation error exception: $exception');
+      // Не возвращаем значение из onException - это не поддерживается
     },
     routes: [
       GoRoute(
         path: '/login',
+        name: 'login',
         builder: (context, state) {
           // Очищаем сохраненный роут при переходе на логин
           RouteStorage.clearLastRoute();

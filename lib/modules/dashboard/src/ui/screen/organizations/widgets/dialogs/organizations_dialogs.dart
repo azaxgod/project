@@ -392,14 +392,14 @@ class OrganizationsDialogs {
                   }
                   if (context.mounted) {
                     Navigator.of(context).pop();
-                    await context.showSuccessWithReload(
+                    // Показываем уведомление об успехе
+                    context.showSuccessNotification(
                       driver == null 
                           ? 'Водитель успешно создан'
                           : 'Данные водителя успешно обновлены',
-                      () async {
-                        await controller.refresh();
-                      },
                     );
+                    // Сразу перезагружаем данные
+                    await controller.refresh();
                   }
                 } catch (e) {
                   if (context.mounted) {
@@ -716,15 +716,14 @@ class OrganizationsDialogs {
                     }
                     if (context.mounted) {
                       Navigator.of(context).pop();
-                      // Показываем уведомление и перезагружаем данные через 4 секунды
-                      await context.showSuccessWithReload(
+                      // Показываем уведомление об успехе
+                      context.showSuccessNotification(
                         vehicle == null 
                             ? 'Транспорт успешно добавлен'
                             : 'Данные транспорта успешно обновлены',
-                        () async {
-                          await controller.refresh();
-                        },
                       );
+                      // Сразу перезагружаем данные
+                      await controller.refresh();
                     }
                   } catch (e) {
                     if (context.mounted) {
@@ -826,14 +825,10 @@ class OrganizationsDialogs {
                     }
                     if (context.mounted) {
                       Navigator.of(context).pop();
-                      // Показываем уведомление и перезагружаем страницу после 4 секунд
-                      await context.showSuccessWithReload(
-                        'Транспорт успешно назначен',
-                        () async {
-                          // Принудительно обновляем данные для отображения изменений
-                          await controller.refresh();
-                        },
-                      );
+                      // Показываем уведомление об успехе
+                      context.showSuccessNotification('Транспорт успешно назначен');
+                      // Сразу перезагружаем данные
+                      await controller.refresh();
                     }
                   } catch (e) {
                     if (context.mounted) {
@@ -924,12 +919,10 @@ class OrganizationsDialogs {
                     );
                     if (context.mounted) {
                       Navigator.of(context).pop();
-                      await context.showSuccessWithReload(
-                        'Водитель успешно назначен',
-                        () async {
-                          await controller.refresh();
-                        },
-                      );
+                      // Показываем уведомление об успехе
+                      context.showSuccessNotification('Водитель успешно назначен');
+                      // Сразу перезагружаем данные
+                      await controller.refresh();
                     }
                   } catch (e) {
                     if (context.mounted) {

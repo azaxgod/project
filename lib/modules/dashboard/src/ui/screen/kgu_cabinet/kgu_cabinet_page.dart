@@ -19,6 +19,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/kgu_cabinet/acts_
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/monitoring_page.dart';
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_dashboard_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/kgu_cabinet/kgu_users_page.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_cabinet/organizational_structure_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -189,6 +190,17 @@ class _KguCabinetPageState extends ConsumerState<KguCabinetPage> {
         onTap: () {},
       ),
       _MenuItems(
+        icon: Icons.account_tree,
+        label: 'Организационная структура',
+        onTap: () {},
+      ),
+      if (isAdmin)
+        _MenuItems(
+          icon: Icons.people,
+          label: 'Пользователи КГУ',
+          onTap: () {},
+        ),
+      _MenuItems(
         icon: Icons.local_shipping,
         label: 'Подрядчики',
         onTap: () {},
@@ -223,12 +235,6 @@ class _KguCabinetPageState extends ConsumerState<KguCabinetPage> {
         label: 'Аналитика',
         onTap: () => context.go('/analytics'),
       ),
-      if (isAdmin)
-        _MenuItems(
-          icon: Icons.people,
-          label: 'Пользователи КГУ',
-          onTap: () {},
-        ),
     ];
   }
 
@@ -238,41 +244,45 @@ class _KguCabinetPageState extends ConsumerState<KguCabinetPage> {
         return KguHomePage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
-      case 1: // Подрядчики
-        return ContractorsPage(
+      case 1: // Организационная структура
+        return OrganizationalStructurePage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
-      case 2: // Организации приёма снега
-        return LandfillsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 3: // Полигоны
-        return PolygonsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 4: // Контракты
-        return ContractsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 5: // Акты
-        return ActsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 6: // Мониторинг
-        return MonitoringPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 7: // Аналитика
-        return AnalyticsDashboardPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 8: // Пользователи КГУ (только для ADMIN)
+      case 2: // Пользователи КГУ (только для ADMIN)
         if (isAdmin) {
           return KguUsersPage(
             scaffoldKey: GlobalKey<ScaffoldState>(),
           );
         }
         return const SizedBox.shrink();
+      case 3: // Подрядчики
+        return ContractorsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 4: // Организации приёма снега
+        return LandfillsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 5: // Полигоны
+        return PolygonsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 6: // Контракты
+        return ContractsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 7: // Акты
+        return ActsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 8: // Мониторинг
+        return MonitoringPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 9: // Аналитика
+        return AnalyticsDashboardPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
       default:
         return KguHomePage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
@@ -372,21 +382,23 @@ class _KguCabinetPageState extends ConsumerState<KguCabinetPage> {
       case 0:
         return 'Главная';
       case 1:
-        return 'Подрядчики';
+        return 'Организационная структура';
       case 2:
-        return 'Организации приёма снега';
-      case 3:
-        return 'Полигоны';
-      case 4:
-        return 'Контракты';
-      case 5:
-        return 'Акты';
-      case 6:
-        return 'Мониторинг';
-      case 7:
-        return 'Аналитика';
-      case 8:
         return 'Пользователи КГУ';
+      case 3:
+        return 'Подрядчики';
+      case 4:
+        return 'Организации приёма снега';
+      case 5:
+        return 'Полигоны';
+      case 6:
+        return 'Контракты';
+      case 7:
+        return 'Акты';
+      case 8:
+        return 'Мониторинг';
+      case 9:
+        return 'Аналитика';
       default:
         return 'Личный кабинет КГУ';
     }

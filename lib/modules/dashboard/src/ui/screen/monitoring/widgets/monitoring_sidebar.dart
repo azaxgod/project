@@ -25,8 +25,8 @@ class MonitoringSidebar extends StatelessWidget {
   });
 
   bool _canEdit() {
-    return state.role == UserRole.akimatAdmin ||
-        state.role == UserRole.landfillAdmin;
+    // AKIMAT_ADMIN только просматривает, не может создавать/редактировать
+    return state.role == UserRole.landfillAdmin;
   }
 
   @override

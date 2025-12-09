@@ -19,6 +19,8 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/monito
 import 'package:akimat_project/modules/dashboard/src/ui/screen/contractor_cabinet/contractor_acts_page.dart';
 import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_dashboard_page.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/contractor_cabinet/contractor_users_page.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_cabinet/organizational_structure_page.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,10 +51,21 @@ class _ContractorCabinetPageState extends ConsumerState<ContractorCabinetPage> {
     final s = S.of(context)!;
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
-    final isAdmin = user?.role == 'CONTRACTOR_ADMIN';
+    // Используем enum для надежной проверки роли
+    final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
+    // Проверяем роль несколькими способами для надежности
+    final roleString = user?.role?.toUpperCase()?.trim() ?? '';
+    final isAdmin = role == UserRole.contractorAdmin || roleString == 'CONTRACTOR_ADMIN';
+    debugPrint('ContractorCabinet: user=${user?.id}, role="${user?.role}", normalized="$roleString", enum=$role, isAdmin=$isAdmin');
+    debugPrint('ContractorCabinet: role check details: enum=${role == UserRole.contractorAdmin}, string=$roleString == CONTRACTOR_ADMIN: ${roleString == 'CONTRACTOR_ADMIN'}');
     final config = PlatformConfig.instance;
 
     final menuItems = _buildMenuItems(isAdmin);
+    debugPrint('ContractorCabinet: Built ${menuItems.length} menu items');
+    
+    // Проверяем, что пункт "Пользователи подрядчика" действительно в списке
+    final hasUsersItem = menuItems.any((item) => item.label.contains('Пользователи подрядчика') || item.label.contains('Пользователи'));
+    debugPrint('ContractorCabinet: Menu contains "Пользователи подрядчика": $hasUsersItem');
 
     return Scaffold(
       key: widget.scaffoldKey,
@@ -148,11 +161,13 @@ class _ContractorCabinetPageState extends ConsumerState<ContractorCabinetPage> {
                             children: menuItems.asMap().entries.map((entry) {
                               final index = entry.key;
                               final item = entry.value;
+                              debugPrint('ContractorCabinet: Menu item[$index]: ${item.label}, isAdmin=$isAdmin');
                               return ContractorMenuItem(
                                 icon: item.icon,
                                 label: item.label,
                                 isSelected: _selectedMenuIndex == index,
                                 onTap: () {
+                                  debugPrint('ContractorCabinet: Menu item[$index] tapped: ${item.label}');
                                   setState(() {
                                     _selectedMenuIndex = index;
                                   });
@@ -182,12 +197,35 @@ class _ContractorCabinetPageState extends ConsumerState<ContractorCabinetPage> {
   }
 
   List<_MenuItems> _buildMenuItems(bool isAdmin) {
-    return [
+    debugPrint('ContractorCabinet: Building menu items, isAdmin=$isAdmin');
+    final items = <_MenuItems>[
       _MenuItems(
         icon: Icons.dashboard,
         label: 'Главная',
         onTap: () {},
       ),
+      _MenuItems(
+        icon: Icons.account_tree,
+        label: 'Организационная структура',
+        onTap: () {},
+      ),
+    ];
+    
+    // Добавляем пункт "Пользователи подрядчика" только для админа
+    if (isAdmin) {
+      debugPrint('ContractorCabinet: Adding "Пользователи подрядчика" menu item (isAdmin=true)');
+      items.add(
+        _MenuItems(
+          icon: Icons.people,
+          label: 'Пользователи подрядчика',
+          onTap: () {},
+        ),
+      );
+    } else {
+      debugPrint('ContractorCabinet: NOT adding "Пользователи подрядчика" menu item (isAdmin=false)');
+    }
+    
+    items.addAll([
       _MenuItems(
         icon: Icons.location_on,
         label: 'Участки уборки',
@@ -223,56 +261,62 @@ class _ContractorCabinetPageState extends ConsumerState<ContractorCabinetPage> {
         label: 'Аналитика',
         onTap: () => context.go('/analytics'),
       ),
-      if (isAdmin)
-        _MenuItems(
-          icon: Icons.people,
-          label: 'Пользователи',
-          onTap: () {},
-        ),
-    ];
+    ]);
+    
+    debugPrint('ContractorCabinet: Total menu items: ${items.length}');
+    // Выводим список всех пунктов меню для отладки
+    for (int i = 0; i < items.length; i++) {
+      debugPrint('ContractorCabinet: Menu[$i]: ${items[i].label}');
+    }
+    return items;
   }
 
   Widget _buildContent(int index, bool isAdmin) {
+    debugPrint('ContractorCabinet: _buildContent called with index=$index, isAdmin=$isAdmin');
     switch (index) {
       case 0: // Главная
         return ContractorHomePage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
-      case 1: // Участки уборки
-        return AreasPage(
+      case 1: // Организационная структура
+        return OrganizationalStructurePage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
-      case 2: // Водители
-        return ContractorDriversPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 3: // Техника
-        return ContractorVehiclesPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 4: // Тикеты и рейсы
-        return TicketsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 5: // Мониторинг
-        return MonitoringPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 6: // Акты
-        return ContractorActsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 7: // Аналитика
-        return AnalyticsDashboardPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 8: // Пользователи (только для ADMIN)
+      case 2: // Пользователи подрядчика (только для ADMIN)
         if (isAdmin) {
           return ContractorUsersPage(
             scaffoldKey: GlobalKey<ScaffoldState>(),
           );
         }
         return const SizedBox.shrink();
+      case 3: // Участки уборки
+        return AreasPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 4: // Водители
+        return ContractorDriversPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 5: // Техника
+        return ContractorVehiclesPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 6: // Тикеты и рейсы
+        return TicketsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 7: // Мониторинг
+        return MonitoringPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 8: // Акты
+        return ContractorActsPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
+      case 9: // Аналитика
+        return AnalyticsDashboardPage(
+          scaffoldKey: GlobalKey<ScaffoldState>(),
+        );
       default:
         return ContractorHomePage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
@@ -372,21 +416,23 @@ class _ContractorCabinetPageState extends ConsumerState<ContractorCabinetPage> {
       case 0:
         return 'Главная';
       case 1:
-        return 'Участки уборки';
+        return 'Организационная структура';
       case 2:
-        return 'Водители';
+        return 'Пользователи подрядчика';
       case 3:
-        return 'Техника';
+        return 'Участки уборки';
       case 4:
-        return 'Тикеты и рейсы';
+        return 'Водители';
       case 5:
-        return 'Мониторинг';
+        return 'Техника';
       case 6:
-        return 'Акты';
+        return 'Тикеты и рейсы';
       case 7:
-        return 'Аналитика';
+        return 'Мониторинг';
       case 8:
-        return 'Пользователи';
+        return 'Акты';
+      case 9:
+        return 'Аналитика';
       default:
         return 'Личный кабинет';
     }

@@ -185,14 +185,14 @@ class OrganizationsDriversTab extends StatelessWidget {
                                   skipReload: true,
                                 );
                                 if (context.mounted) {
-                                  await context.showSuccessWithReload(
+                                  // Показываем уведомление об успехе
+                                  context.showSuccessNotification(
                                     driver.isActive 
                                         ? 'Водитель успешно заблокирован'
                                         : 'Водитель успешно разблокирован',
-                                    () async {
-                                      await controller.refresh();
-                                    },
                                   );
+                                  // Сразу перезагружаем данные
+                                  await controller.refresh();
                                 }
                               } catch (e) {
                                 if (context.mounted) {
