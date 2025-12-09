@@ -9,11 +9,20 @@ import 'package:akimat_project/modules/dashboard/src/repository/organizations_re
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository_impl.dart';
 import 'package:akimat_project/services/operations/module.dart';
 import 'package:akimat_project/services/organizations/module.dart';
+import 'package:akimat_project/services/tickets/module.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final operationsRepositoryProvider = Provider<OperationsRepository>((ref) {
   final services = ref.watch(operationsServicesProvider);
-  return OperationsRepositoryImpl(services: services);
+  final ticketsServices = ref.watch(ticketsServicesProvider);
+  final authState = ref.watch(authNotifierProvider);
+  final role = userRoleFromString(authState.user?.role);
+  
+  return OperationsRepositoryImpl(
+    services: services,
+    ticketsServices: ticketsServices,
+    userRole: role,
+  );
 });
 
 final areasControllerProvider = StateNotifierProvider<AreasController, AreasState>((ref) {

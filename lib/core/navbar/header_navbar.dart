@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class HeaderNavbar extends StatelessWidget implements PreferredSizeWidget {
+class HeaderNavbar extends StatelessWidget {
   final List<Widget>? webWidgets;
   final List<Widget>? mobileWidgets;
   final GlobalKey<ScaffoldState>? scaffoldKey;
@@ -17,9 +17,6 @@ class HeaderNavbar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(70);
-
-  @override
   Widget build(BuildContext context) {
     // Используем GoRouter.of(context) для отслеживания изменений роута
     // Это заставит виджет перестраиваться при изменении роута
@@ -27,20 +24,20 @@ class HeaderNavbar extends StatelessWidget implements PreferredSizeWidget {
     final uri = router.routerDelegate.currentConfiguration.uri;
     // Используем uri для принудительного обновления при изменении роута
     
+    // Если webWidgets или mobileWidgets уже переданы, используем их напрямую
+    // БЕЗ дополнительного комбинирования через combineWebWidgets,
+    // чтобы избежать дублирования навбара
+    final widgetsToUse = kIsWeb 
+        ? (webWidgets ?? NavbarWidgetsProvider.getDefaultWebWidgets(context))
+        : (mobileWidgets ?? NavbarWidgetsProvider.getDefaultMobileWidgets(context));
+    
     return kIsWeb
         ? AppNavbar(
-            // scaffoldKey: scaffoldKey,
-            webWidgets: NavbarWidgetsProvider.combineWebWidgets(
-              context,
-              webWidgets,
-            ),
+            webWidgets: widgetsToUse,
           )
         : AppNavbar(
             scaffoldKey: scaffoldKey,
-            mobileWidgets: NavbarWidgetsProvider.combineMobileWidgets(
-              context,
-              mobileWidgets,
-            ),
+            mobileWidgets: widgetsToUse,
           );
   }
 }

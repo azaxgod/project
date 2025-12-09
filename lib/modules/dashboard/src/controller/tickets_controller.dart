@@ -117,26 +117,24 @@ class TicketsController extends StateNotifier<TicketsState> {
         List<Ticket> tickets = [];
         try {
           // Фильтруем по роли
-          // ВАЖНО: Для подрядчика НЕ передаем contractorId в loadTickets(),
-          // так как endpoint /contractor/tickets автоматически фильтрует по contractor_id из JWT токена
+          // ВАЖНО: 
+          // - Для подрядчика НЕ передаем contractorId в loadTickets(),
+          //   так как endpoint /contractor/tickets автоматически фильтрует по contractor_id из JWT токена
+          // - Для водителя НЕ передаем driverId в loadTickets(),
+          //   так как endpoint /driver/tickets автоматически фильтрует по driver_id из JWT токена
           String? contractorFilter;
-          String? driverFilter;
           
-          // Для подрядчика НЕ устанавливаем contractorFilter, так как сервер сам фильтрует по JWT
+          // Для подрядчика и водителя НЕ устанавливаем фильтры, так как сервер сам фильтрует по JWT
           // Для других ролей (Akimat, KGU ZKH) можно передать contractorFilter для фильтрации
           if (state.role != UserRole.contractorAdmin && state.role != UserRole.driver) {
             contractorFilter = state.contractorFilter;
-          } else if (state.role == UserRole.driver && state.organizationId != null) {
-            // TODO: Получить driverId из organizationId или из authState
-            // Пока используем organizationId как driverId (временное решение)
-            driverFilter = state.organizationId;
           }
 
           debugPrint('TicketsController._loadData: Loading tickets with filters:');
           debugPrint('  - role: ${state.role}');
           debugPrint('  - organizationId: ${state.organizationId}');
           debugPrint('  - statusFilter: ${state.statusFilter}');
-          debugPrint('  - contractorFilter: ${contractorFilter ?? state.contractorFilter} (will be ignored for contractor)');
+          debugPrint('  - contractorFilter: ${contractorFilter ?? state.contractorFilter} (will be ignored for contractor/driver)');
           debugPrint('  - areaFilter: ${state.areaFilter}');
           debugPrint('  - contractFilter: ${state.contractFilter}');
           debugPrint('  - periodStart: ${state.periodStart}');
@@ -149,9 +147,13 @@ class TicketsController extends StateNotifier<TicketsState> {
             contractId: state.contractFilter,
             plannedStartFrom: state.periodStart,
             plannedStartTo: state.periodEnd,
+            plannedEndFrom: state.periodStart,
+            plannedEndTo: state.periodEnd,
             factStartFrom: state.factPeriodStart,
             factStartTo: state.factPeriodEnd,
-            driverId: driverFilter,
+            factEndFrom: state.factPeriodStart,
+            factEndTo: state.factPeriodEnd,
+            // НЕ передаем driverId для роли водителя - endpoint /driver/tickets автоматически определяет водителя из JWT
           );
           
           debugPrint('TicketsController._loadData: Loaded ${tickets.length} tickets');

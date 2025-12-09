@@ -1,3 +1,4 @@
+import 'package:akimat_project/core/navbar/drawer_mobile.dart';
 import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
@@ -46,6 +47,8 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
   Position? _currentPosition;
   late TabController _tabController;
   String? _lastTabParam; // Отслеживаем последний tab параметр для предотвращения циклов
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Для мобильного drawer
+  VoidCallback? _routeListener; // Слушатель изменений роута
 
   void _onTabControllerChanged() {
     // Обновляем URL только когда анимация завершена
@@ -74,7 +77,64 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       _startLocationTracking();
       _getCurrentPosition();
       _syncTabFromRoute();
+      // Добавляем слушатель изменений роута после первой отрисовки
+      _setupRouteListener();
     });
+  }
+  
+  /// Настраивает слушатель изменений роута для синхронизации вкладок
+  void _setupRouteListener() {
+    if (!mounted || _routeListener != null) return; // Не создаем слушатель дважды
+    
+    try {
+      final router = GoRouter.of(context);
+      // Создаем слушатель, который будет вызываться при изменении роута
+      _routeListener = () {
+        if (mounted) {
+          final uri = router.routerDelegate.currentConfiguration.uri;
+          final newTabParam = uri.queryParameters['tab'] ?? '';
+          if (newTabParam != _lastTabParam) {
+            debugPrint('DriverHome: Route listener detected tab change: "$_lastTabParam" -> "$newTabParam"');
+            _lastTabParam = newTabParam;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _syncTabFromRoute();
+              }
+            });
+          }
+        }
+      };
+      // Добавляем слушатель к routerDelegate
+      router.routerDelegate.addListener(_routeListener!);
+      debugPrint('DriverHome: Route listener set up successfully');
+    } catch (e) {
+      debugPrint('DriverHome: Error setting up route listener: $e');
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Синхронизируем вкладку при изменении зависимостей (включая роут)
+    // Это обеспечивает синхронизацию при клике на кнопки навбара
+    // Проверяем, изменился ли tab параметр
+    try {
+      final router = GoRouter.of(context);
+      final uri = router.routerDelegate.currentConfiguration.uri;
+      final currentTabParam = uri.queryParameters['tab'] ?? '';
+      
+      if (currentTabParam != _lastTabParam) {
+        _lastTabParam = currentTabParam;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            debugPrint('DriverHome: Syncing tab from didChangeDependencies (tab=$currentTabParam)');
+            _syncTabFromRoute();
+          }
+        });
+      }
+    } catch (e) {
+      // Игнорируем ошибки
+    }
   }
 
   /// Обновляет URL при переключении вкладки
@@ -154,9 +214,16 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
           _tabController.removeListener(_onTabControllerChanged);
           _tabController.animateTo(tabIndex);
           // Включаем слушатель обратно после небольшой задержки
-          Future.delayed(const Duration(milliseconds: 100), () {
+          Future.delayed(const Duration(milliseconds: 150), () {
             if (mounted) {
               _tabController.addListener(_onTabControllerChanged);
+            }
+          });
+        } else {
+          // Если идет анимация, ждем её завершения и синхронизируем снова
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _syncTabFromRoute();
             }
           });
         }
@@ -170,6 +237,16 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
   void dispose() {
     _tabController.removeListener(_onTabControllerChanged);
     _tabController.dispose();
+    // Удаляем слушатель роутера
+    if (_routeListener != null) {
+      try {
+        final router = GoRouter.of(context);
+        router.routerDelegate.removeListener(_routeListener!);
+      } catch (e) {
+        // Игнорируем ошибки
+      }
+      _routeListener = null;
+    }
     // Останавливаем отслеживание при выходе
     final service = ref.read(driverLocationServiceProvider);
     service.stopTracking();
@@ -231,12 +308,16 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
     final uri = router.routerDelegate.currentConfiguration.uri;
     final currentTabParam = uri.queryParameters['tab'] ?? '';
     
-    // Если tab параметр изменился, синхронизируем вкладку
+    // Всегда синхронизируем вкладку с URL при изменении tab параметра
+    // Это обеспечивает синхронизацию при клике на кнопки навбара
     if (currentTabParam != _lastTabParam) {
+      final previousTabParam = _lastTabParam;
       _lastTabParam = currentTabParam;
+      debugPrint('DriverHome: Tab param changed from "$previousTabParam" to "$currentTabParam"');
       // Синхронизируем сразу после build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && currentTabParam == _lastTabParam) {
+          debugPrint('DriverHome: Syncing tab from route in build (tab=$currentTabParam)');
           _syncTabFromRoute();
         }
       });
@@ -245,93 +326,29 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       _lastTabParam = currentTabParam;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          debugPrint('DriverHome: Initial sync tab from route (tab=$currentTabParam)');
           _syncTabFromRoute();
         }
       });
     }
 
     return Scaffold(
-      appBar: kIsWeb
-          ? null
-          : AppBar(
-              title: const Text('Панель Водителя'),
-              bottom: TabBar(
-                controller: _tabController,
-                onTap: (index) {
-                  debugPrint('DriverHome: TabBar onTap - index: $index, current: ${_tabController.index}');
-                  // TabBar автоматически переключит TabController при клике
-                  // Слушатель _onTabControllerChanged обновит URL
-                  // Но мы можем явно переключить, если нужно
-                  if (_tabController.index != index) {
-                    _tabController.animateTo(index);
-                  }
-                },
-                tabs: const [
-                  Tab(icon: Icon(Icons.assignment), text: 'Текущий рейс'),
-                  Tab(icon: Icon(Icons.list), text: 'Мои задания'),
-                  Tab(icon: Icon(Icons.map), text: 'Карта'),
-                ],
-              ),
-              actions: [
-                // Индикатор статуса GPS-отслеживания
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _isLocationTracking ? Icons.location_on : Icons.location_off,
-                        color: _isLocationTracking ? Colors.green : Colors.grey,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 4),
-                      if (_locationStatus != null)
-                        Text(
-                          _locationStatus!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _isLocationTracking ? Colors.green : Colors.grey,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      key: _scaffoldKey, // Для мобильного drawer
+      // Убираем AppBar - навигация теперь только в HeaderNavbar
+      appBar: null,
+      // Drawer для мобильной версии (навигация через боковое меню)
+      drawer: !kIsWeb ? const DrawerMobile() : null,
       body: Column(
         children: [
-          // Навигация для веб-версии
-          if (kIsWeb)
-            HeaderNavbar(
-              webWidgets: NavbarWidgetsProvider.getDefaultWebWidgets(context),
-            ),
-          // TabBar для веб-версии
-          if (kIsWeb)
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: Border(
-                  bottom: BorderSide(
-                    color: AppColors.separator,
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                onTap: (index) {
-                  debugPrint('DriverHome: TabBar onTap (web) - index: $index, current: ${_tabController.index}');
-                  if (_tabController.index != index) {
-                    _tabController.animateTo(index);
-                  }
-                },
-                tabs: const [
-                  Tab(icon: Icon(Icons.assignment), text: 'Текущий рейс'),
-                  Tab(icon: Icon(Icons.list), text: 'Мои задания'),
-                  Tab(icon: Icon(Icons.map), text: 'Карта'),
-                ],
-              ),
-            ),
-          // Контент вкладок
+          // Единая навигация в HeaderNavbar (для веб и мобильной версии)
+          // Используем getDefaultWebWidgets/getDefaultMobileWidgets напрямую,
+          // они уже содержат правильную навигацию для водителя
+          HeaderNavbar(
+            webWidgets: kIsWeb ? NavbarWidgetsProvider.getDefaultWebWidgets(context) : null,
+            mobileWidgets: !kIsWeb ? NavbarWidgetsProvider.getDefaultMobileWidgets(context) : null,
+            scaffoldKey: !kIsWeb ? _scaffoldKey : null,
+          ),
+          // Контент вкладок (работает через TabBarView для синхронизации с навигацией)
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -423,20 +440,24 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
                 vehicle: data.vehicle,
                 onStartTrip: () async {
                   try {
+                    // Переводим assignment в IN_WORK (статус IN_PROGRESS)
                     await driverController.startTrip(currentAssignment.id);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Задание начато'),
+                          content: Text('Рейс начат. Статус: IN_PROGRESS. Машина на карте стала зелёной.'),
                           backgroundColor: Colors.green,
+                          duration: Duration(seconds: 3),
                         ),
                       );
+                      // Обновляем данные для обновления карты
+                      await driverController.refresh();
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Ошибка: $e'),
+                          content: Text('Ошибка при начале рейса: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -445,20 +466,26 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
                 },
                 onCompleteTrip: () async {
                   try {
+                    // Переводим assignment в COMPLETED
+                    // Примечание: Рейс также может быть завершён автоматически после выезда с полигона
+                    // (фиксируется камерами LANDFILL на бэкенде)
                     await driverController.completeTrip(currentAssignment.id);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Задание завершено'),
+                          content: Text('Рейс завершён. Статус: COMPLETED.'),
                           backgroundColor: Colors.green,
+                          duration: Duration(seconds: 3),
                         ),
                       );
+                      // Обновляем данные
+                      await driverController.refresh();
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Ошибка: $e'),
+                          content: Text('Ошибка при завершении рейса: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -527,10 +554,10 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
           cleaningArea = data.cleaningAreas[currentTicket.cleaningAreaId];
         }
 
-        // Полигон определяется по заданиям тикета
-        // TODO: Загрузить полигон из заданий тикета или из контракта
+        // Полигон загружается из контракта тикета (через DriverController)
         model.Polygon? polygon;
         if (data.polygons.isNotEmpty) {
+          // Используем первый доступный полигон из контракта
           polygon = data.polygons.values.first;
         }
 

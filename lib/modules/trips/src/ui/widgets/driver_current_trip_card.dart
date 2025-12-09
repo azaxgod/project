@@ -42,14 +42,18 @@ class DriverCurrentTripCard extends StatelessWidget {
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(AppSize.cardRadius),
         border: Border.all(
+          // Зелёная рамка когда рейс в работе (IN_PROGRESS)
           color: isInWork ? Colors.green : AppColors.divider,
-          width: isInWork ? 2 : 1,
+          width: isInWork ? 3 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
+            color: isInWork 
+                ? Colors.green.withOpacity(0.2)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: isInWork ? 8 : 4,
             offset: const Offset(0, 2),
+            spreadRadius: isInWork ? 2 : 0,
           ),
         ],
       ),
@@ -145,7 +149,7 @@ class DriverCurrentTripCard extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onStartTrip,
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Начать задание'),
+                label: const Text('Начать рейс'),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
@@ -153,17 +157,33 @@ class DriverCurrentTripCard extends StatelessWidget {
               ),
             ),
           if (canComplete)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onCompleteTrip,
-                icon: const Icon(Icons.check_circle),
-                label: const Text('Завершить задание'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onCompleteTrip,
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Завершить рейс'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: AppPadding.small),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
+                  child: Text(
+                    'Примечание: Рейс также может быть завершён автоматически после выезда с полигона (фиксируется камерами LANDFILL)',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
             ),
           if (isCompleted)
             Container(

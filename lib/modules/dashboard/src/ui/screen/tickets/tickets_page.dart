@@ -486,7 +486,10 @@ class _TicketsContent extends ConsumerWidget {
                         DataColumn(label: Text(s.trips_count)),
                         DataColumn(label: Text(s.volume_shipped)),
                         DataColumn(label: Text(s.violations)),
-                        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.contractorAdmin)
+                        // Колонка "Действия" для KGU ZKH, Подрядчика и Водителя
+                        if (state.role == UserRole.kguZkhAdmin || 
+                            state.role == UserRole.contractorAdmin || 
+                            state.role == UserRole.driver)
                           DataColumn(label: Text(s.actions)),
                       ],
                       rows: filteredTickets.map((ticket) {

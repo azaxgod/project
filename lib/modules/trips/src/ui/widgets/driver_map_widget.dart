@@ -70,7 +70,9 @@ class DriverMapWidget extends StatelessWidget {
               ),
             ],
           ),
-        // Маркер текущей позиции водителя (зеленый, если машина в работе)
+        // Маркер текущей позиции водителя
+        // Зелёный цвет = машина в работе (статус IN_PROGRESS после нажатия "Начать рейс")
+        // Синий цвет = машина не в работе (статус NOT_STARTED или COMPLETED)
         MarkerLayer(
           markers: [
             Marker(
@@ -82,9 +84,16 @@ class DriverMapWidget extends StatelessWidget {
                   color: isVehicleInWork ? Colors.green : Colors.blue,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isVehicleInWork ? Colors.green : Colors.blue).withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.person_pin_circle,
+                child: Icon(
+                  isVehicleInWork ? Icons.local_shipping : Icons.person_pin_circle,
                   color: Colors.white,
                   size: 24,
                 ),
@@ -130,12 +139,13 @@ class DriverMapWidget extends StatelessWidget {
               ),
             ],
           ),
-        // Маршруты (упрощенная версия - прямые линии)
-        // TODO: Интегрировать с API построения маршрутов (OSRM, OpenRouteService)
+        // Маршруты до участка (если водитель вне зоны участка)
+        // Показываем 1 основной маршрут (зеленый) и 4 альтернативных (серые)
+        // TODO: Интегрировать с API построения маршрутов (OSRM, OpenRouteService) для реалистичных маршрутов
         if (cleaningArea != null && !isInArea)
           PolylineLayer(
             polylines: [
-              // Основной маршрут до участка (зеленый)
+              // Основной маршрут до участка (зеленый, толще)
               Polyline(
                 points: [
                   currentLocation,
@@ -144,32 +154,39 @@ class DriverMapWidget extends StatelessWidget {
                     _calculatePolygonCenter(cleaningArea!.geometry)[0],
                   ),
                 ],
-                strokeWidth: 4,
+                strokeWidth: 5,
                 color: Colors.green,
               ),
-              // Альтернативные маршруты (серые) - упрощенная версия
-              // В реальности нужно использовать API построения маршрутов
+              // Альтернативные маршруты (серые, тоньше) - 4 варианта
+              // В реальности нужно использовать API построения маршрутов для получения реальных путей
               ...List.generate(4, (index) {
-                final offset = (index + 1) * 0.01;
+                // Создаем альтернативные маршруты с небольшими смещениями
+                final offsetLat = (index + 1) * 0.008; // Смещение по широте
+                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008; // Смещение по долготе
+                final areaCenter = _calculatePolygonCenter(cleaningArea!.geometry);
                 return Polyline(
                   points: [
                     currentLocation,
                     LatLng(
-                      _calculatePolygonCenter(cleaningArea!.geometry)[1] + offset,
-                      _calculatePolygonCenter(cleaningArea!.geometry)[0] + offset,
+                      areaCenter[1] + offsetLat,
+                      areaCenter[0] + offsetLon,
                     ),
                   ],
                   strokeWidth: 2,
-                  color: Colors.grey.withOpacity(0.5),
+                  color: Colors.grey.withOpacity(0.4),
                 );
               }),
             ],
           ),
         // Маршруты от участка до полигона (если водитель в зоне участка)
+        // Показываем 1 основной маршрут (зеленый) и 4 альтернативных (серые)
+        // TODO: Интегрировать с API построения маршрутов для реалистичных путей
+        // Примечание: При въезде на полигон камеры LANDFILL фиксируют госномер и объем
+        // После выезда с полигона рейс автоматически завершается (обрабатывается на бэкенде)
         if (cleaningArea != null && polygon != null && isInArea)
           PolylineLayer(
             polylines: [
-              // Основной маршрут от участка до полигона (зеленый)
+              // Основной маршрут от участка до полигона (зеленый, толще)
               Polyline(
                 points: [
                   LatLng(
@@ -181,25 +198,29 @@ class DriverMapWidget extends StatelessWidget {
                     _calculatePolygonCenter(polygon!.geometry)[0],
                   ),
                 ],
-                strokeWidth: 4,
+                strokeWidth: 5,
                 color: Colors.green,
               ),
-              // Альтернативные маршруты (серые)
+              // Альтернативные маршруты (серые, тоньше) - 4 варианта
               ...List.generate(4, (index) {
-                final offset = (index + 1) * 0.01;
+                // Создаем альтернативные маршруты с небольшими смещениями
+                final offsetLat = (index + 1) * 0.008; // Смещение по широте
+                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008; // Смещение по долготе
+                final areaCenter = _calculatePolygonCenter(cleaningArea!.geometry);
+                final polygonCenter = _calculatePolygonCenter(polygon!.geometry);
                 return Polyline(
                   points: [
                     LatLng(
-                      _calculatePolygonCenter(cleaningArea!.geometry)[1] + offset,
-                      _calculatePolygonCenter(cleaningArea!.geometry)[0] + offset,
+                      areaCenter[1] + offsetLat,
+                      areaCenter[0] + offsetLon,
                     ),
                     LatLng(
-                      _calculatePolygonCenter(polygon!.geometry)[1] + offset,
-                      _calculatePolygonCenter(polygon!.geometry)[0] + offset,
+                      polygonCenter[1] + offsetLat,
+                      polygonCenter[0] + offsetLon,
                     ),
                   ],
                   strokeWidth: 2,
-                  color: Colors.grey.withOpacity(0.5),
+                  color: Colors.grey.withOpacity(0.4),
                 );
               }),
             ],

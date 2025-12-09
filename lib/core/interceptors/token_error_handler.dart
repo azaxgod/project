@@ -5,6 +5,14 @@ import 'package:flutter/foundation.dart';
 
 /// Проверяет, является ли ошибка ошибкой токена (invalid, expired и т.д.)
 bool _isTokenError(DioException error) {
+  // Не обрабатываем ошибки для эндпоинтов авторизации - это не ошибки токена
+  final path = error.requestOptions.path.toLowerCase();
+  if (path.contains('/auth/login') ||
+      path.contains('/auth/verify-code') ||
+      path.contains('/auth/send-code')) {
+    return false;
+  }
+
   // Проверяем статус код (401 Unauthorized или 403 Forbidden)
   if (error.response?.statusCode == 401 || error.response?.statusCode == 403) {
     return true;
@@ -25,13 +33,14 @@ bool _isTokenError(DioException error) {
     if (errorMessage.contains('invalid token') ||
         errorMessage.contains('expired token') ||
         errorMessage.contains('token expired') ||
-        errorMessage.contains('unauthorized') ||
         errorMessage.contains('invalid_token') ||
         errorMessage.contains('token_invalid') ||
-        errorMessage.contains('access denied') ||
-        errorMessage.contains('authentication failed')) {
+        errorMessage.contains('access denied')) {
       return true;
     }
+    
+    // Не считаем "unauthorized" или "authentication failed" ошибкой токена для эндпоинтов авторизации
+    // Эти сообщения могут быть из-за неправильных учетных данных
   }
 
   return false;

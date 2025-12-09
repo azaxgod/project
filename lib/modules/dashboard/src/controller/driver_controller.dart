@@ -9,8 +9,11 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart' as model;
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/contracts_repository.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/contracts_repository_impl.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
+import 'package:akimat_project/services/contracts/module.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,6 +76,9 @@ final driverControllerProvider =
   return DriverController(
     operationsRepository: ref.watch(operationsRepositoryProvider),
     organizationsRepository: ref.watch(organizationsRepositoryProvider),
+    contractsRepository: ContractsRepositoryImpl(
+      services: ref.watch(contractsServicesProvider),
+    ),
     driverId: driverId,
     organizationId: organizationId,
   );
@@ -82,10 +88,12 @@ class DriverController extends StateNotifier<DriverState> {
   DriverController({
     required OperationsRepository operationsRepository,
     required OrganizationsRepository organizationsRepository,
+    required ContractsRepository contractsRepository,
     String? driverId,
     String? organizationId,
   })  : _operationsRepository = operationsRepository,
         _organizationsRepository = organizationsRepository,
+        _contractsRepository = contractsRepository,
         _driverId = driverId,
         _organizationId = organizationId,
         super(DriverState.initial()) {
@@ -94,6 +102,7 @@ class DriverController extends StateNotifier<DriverState> {
 
   final OperationsRepository _operationsRepository;
   final OrganizationsRepository _organizationsRepository;
+  final ContractsRepository _contractsRepository;
   final String? _driverId;
   final String? _organizationId;
 
@@ -102,12 +111,10 @@ class DriverController extends StateNotifier<DriverState> {
     state = state.copyWith(
       data: await AsyncValue.guard(() async {
         // Загружаем тикеты водителя
+        // ВАЖНО: Для роли водителя endpoint /driver/tickets автоматически определяет водителя из JWT токена
+        // НЕ передаем driverId, так как сервер сам фильтрует по driver_id из токена
         List<Ticket> tickets = [];
-        if (_driverId != null) {
-          tickets = await _operationsRepository.loadTickets(
-            driverId: _driverId,
-          );
-        }
+        tickets = await _operationsRepository.loadTickets();
 
         // Загружаем назначения для всех тикетов
         Map<String, List<TicketAssignment>> assignments = {};
@@ -210,12 +217,28 @@ class DriverController extends StateNotifier<DriverState> {
           }
         }
 
-        // Загружаем полигоны из рейсов тикета (если есть)
-        // Полигон определяется по рейсам, связанным с тикетом
-        // Для упрощения, можно получить полигон из контракта или из первого рейса
+        // Загружаем полигоны из контракта тикета
         Map<String, model.Polygon> polygons = {};
-        // TODO: Загрузить полигон из рейсов тикета или из контракта
-        // Пока оставляем пустым, так как полигон определяется динамически по рейсам
+        if (currentTicket != null) {
+          try {
+            // Получаем контракт по contractId из тикета
+            final contract = await _contractsRepository.getContract(currentTicket.contractId);
+            
+            // Если контракт имеет polygonIds (для LANDFILL_SERVICE), загружаем полигоны
+            if (contract.polygonIds != null && contract.polygonIds!.isNotEmpty) {
+              for (final polygonId in contract.polygonIds!) {
+                try {
+                  final polygon = await _operationsRepository.getPolygon(polygonId);
+                  polygons[polygonId] = polygon;
+                } catch (e) {
+                  debugPrint('DriverController: Failed to load polygon $polygonId: $e');
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('DriverController: Failed to load contract or polygons: $e');
+          }
+        }
 
         // Обновляем состояние с текущим рейсом
         state = state.copyWith(
