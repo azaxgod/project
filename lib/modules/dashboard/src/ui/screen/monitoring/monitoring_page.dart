@@ -11,6 +11,7 @@ import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/monitoring_create_panel.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/monitoring_map_widget.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/monitoring_sidebar.dart';
@@ -203,58 +204,82 @@ class _MonitoringContent extends ConsumerWidget {
            // чтобы виджет перестраивался при изменении createMode
            final currentState = ref.watch(monitoringControllerProvider);
            
+           // Для LANDFILL_ADMIN показываем только полигоны, скрываем остальное
+           final isLandfillAdmin = currentState.role == UserRole.landfillAdmin;
+           
            // Логируем для отладки
            WidgetsBinding.instance.addPostFrameCallback((_) {
-             debugPrint('_MonitoringContent.build: createMode=${currentState.createMode}');
+             debugPrint('_MonitoringContent.build: createMode=${currentState.createMode}, isLandfillAdmin=$isLandfillAdmin');
            });
            
            return Stack(
              clipBehavior: Clip.none,
              children: [
-               Row(
-                 children: [
-                   // Карта (левая часть)
-                   Expanded(
-                     flex: 2,
-                     child: MonitoringMapWidget(
-                       areas: currentState.showAreas ? data.areas : [],
-                       polygons: currentState.showPolygons ? data.polygons : [],
-                       cameras: currentState.showCameras ? data.cameras : [],
-                       vehicles: currentState.showVehicles ? data.vehicles : [],
-                       selectedAreaId: currentState.selectedAreaId,
-                       selectedPolygonId: currentState.selectedPolygonId,
-                       selectedVehicleId: currentState.selectedVehicleId,
-                       selectedVehicleTrack: currentState.selectedVehicleTrack,
-                       drawingGeometry: currentState.drawingGeometry,
-                       isEditingGeometry: currentState.isEditingGeometry,
-                       onAreaTap: (areaId) => controller.selectArea(areaId),
-                       onPolygonTap: (polygonId) => controller.selectPolygon(polygonId),
-                       onVehicleTap: (vehicleId) => controller.selectVehicle(vehicleId),
-                       onMapTap: currentState.createMode != null && !currentState.isEditingGeometry
-                           ? (lat, lon) {
-                               controller.addDrawingPoint(lon, lat);
-                             }
-                           : null,
-                       onPointTap: currentState.isEditingGeometry
-                           ? (index) {
-                               controller.removeDrawingPoint(index);
-                             }
-                           : null,
+               // Для LANDFILL_ADMIN показываем только карту с полигонами (без sidebar)
+               if (isLandfillAdmin)
+                 MonitoringMapWidget(
+                   areas: [], // Скрываем участки
+                   polygons: data.polygons, // Показываем только полигоны
+                   cameras: [], // Скрываем камеры
+                   vehicles: [], // Скрываем транспорт
+                   selectedAreaId: null,
+                   selectedPolygonId: currentState.selectedPolygonId,
+                   selectedVehicleId: null,
+                   selectedVehicleTrack: null,
+                   drawingGeometry: null,
+                   isEditingGeometry: false,
+                   onAreaTap: null,
+                   onPolygonTap: (polygonId) => controller.selectPolygon(polygonId),
+                   onVehicleTap: null,
+                   onMapTap: null,
+                   onPointTap: null,
+                 )
+               else
+                 Row(
+                   children: [
+                     // Карта (левая часть)
+                     Expanded(
+                       flex: 2,
+                       child: MonitoringMapWidget(
+                         areas: currentState.showAreas ? data.areas : [],
+                         polygons: currentState.showPolygons ? data.polygons : [],
+                         cameras: currentState.showCameras ? data.cameras : [],
+                         vehicles: currentState.showVehicles ? data.vehicles : [],
+                         selectedAreaId: currentState.selectedAreaId,
+                         selectedPolygonId: currentState.selectedPolygonId,
+                         selectedVehicleId: currentState.selectedVehicleId,
+                         selectedVehicleTrack: currentState.selectedVehicleTrack,
+                         drawingGeometry: currentState.drawingGeometry,
+                         isEditingGeometry: currentState.isEditingGeometry,
+                         onAreaTap: (areaId) => controller.selectArea(areaId),
+                         onPolygonTap: (polygonId) => controller.selectPolygon(polygonId),
+                         onVehicleTap: (vehicleId) => controller.selectVehicle(vehicleId),
+                         onMapTap: currentState.createMode != null && !currentState.isEditingGeometry
+                             ? (lat, lon) {
+                                 controller.addDrawingPoint(lon, lat);
+                               }
+                             : null,
+                         onPointTap: currentState.isEditingGeometry
+                             ? (index) {
+                                 controller.removeDrawingPoint(index);
+                               }
+                             : null,
+                       ),
                      ),
-                   ),
-                   // Панель справа
-                   SizedBox(
-                     width: 400,
-                     child: MonitoringSidebar(
-                       state: currentState,
-                       data: data,
-                       controller: controller,
+                     // Панель справа
+                     SizedBox(
+                       width: 400,
+                       child: MonitoringSidebar(
+                         state: currentState,
+                         data: data,
+                         controller: controller,
+                       ),
                      ),
-                   ),
-                 ],
-               ),
-               // Боковая панель действий справа (появляется после 3+ точек)
-               if (currentState.createMode != null && 
+                   ],
+                 ),
+               // Боковая панель действий справа (появляется после 3+ точек) - скрыта для LANDFILL_ADMIN
+               if (!isLandfillAdmin &&
+                   currentState.createMode != null && 
                    currentState.drawingGeometry.isNotEmpty && 
                    currentState.drawingGeometry.length >= 3 &&
                    (currentState.createMode == 'area' || currentState.createMode == 'polygon'))
@@ -400,8 +425,8 @@ class _MonitoringContent extends ConsumerWidget {
                      ),
                    ),
                  ),
-              // Компактная панель создания слева (плавающая)
-              if (currentState.createMode != null)
+              // Компактная панель создания слева (плавающая) - скрыта для LANDFILL_ADMIN
+              if (!isLandfillAdmin && currentState.createMode != null)
                 Positioned(
                   left: 16,
                   top: 16,

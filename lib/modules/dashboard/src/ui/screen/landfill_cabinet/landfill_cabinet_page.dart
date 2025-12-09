@@ -1,4 +1,4 @@
-import 'package:akimat_project/core/locale/locale_provider.dart';
+  import 'package:akimat_project/core/locale/locale_provider.dart';
 import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
@@ -10,12 +10,8 @@ import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/widgets/landfill_menu_item.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_home_page.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_polygons_page.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_cameras_page.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_journal_page.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_acts_page.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/landfill_cabinet/landfill_users_page.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/monitoring_page.dart';
+import 'package:akimat_project/modules/analytics/src/ui/screen/analytics_dashboard_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -188,70 +184,38 @@ class _LandfillCabinetPageState extends ConsumerState<LandfillCabinetPage> {
   List<_MenuItems> _buildMenuItems(bool isAdmin) {
     return [
       _MenuItems(
-        icon: Icons.dashboard,
-        label: 'Главная',
-        onTap: () {},
-      ),
-      _MenuItems(
         icon: Icons.map,
-        label: 'Мои полигоны',
-        onTap: () {},
+        label: 'Мониторинг',
+        onTap: () {
+          setState(() {
+            _selectedMenuIndex = 0;
+          });
+        },
       ),
       _MenuItems(
-        icon: Icons.videocam,
-        label: 'Камеры',
-        onTap: () {},
+        icon: Icons.analytics,
+        label: 'Аналитика',
+        onTap: () {
+          setState(() {
+            _selectedMenuIndex = 1;
+          });
+        },
       ),
-      _MenuItems(
-        icon: Icons.book,
-        label: 'Журнал приёма снега',
-        onTap: () {},
-      ),
-      _MenuItems(
-        icon: Icons.description,
-        label: 'Акты с КГУ',
-        onTap: () {},
-      ),
-      if (isAdmin)
-        _MenuItems(
-          icon: Icons.people,
-          label: 'Пользователи',
-          onTap: () {},
-        ),
     ];
   }
 
   Widget _buildContent(int index, bool isAdmin) {
     switch (index) {
-      case 0: // Главная
-        return LandfillHomePage(
+      case 0: // Мониторинг
+        return MonitoringPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
-      case 1: // Мои полигоны
-        return LandfillPolygonsPage(
+      case 1: // Аналитика
+        return AnalyticsDashboardPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
-      case 2: // Камеры
-        return LandfillCamerasPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 3: // Журнал приёма снега
-        return LandfillJournalPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 4: // Акты с КГУ
-        return LandfillActsPage(
-          scaffoldKey: GlobalKey<ScaffoldState>(),
-        );
-      case 5: // Пользователи (только для ADMIN)
-        if (isAdmin) {
-          return LandfillUsersPage(
-            scaffoldKey: GlobalKey<ScaffoldState>(),
-          );
-        }
-        return const SizedBox.shrink();
       default:
-        return LandfillHomePage(
+        return  MonitoringPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         );
     }
@@ -354,17 +318,9 @@ class _LandfillCabinetPageState extends ConsumerState<LandfillCabinetPage> {
   String _getMenuLabel(int index) {
     switch (index) {
       case 0:
-        return 'Главная';
+        return 'Мониторинг';
       case 1:
-        return 'Мои полигоны';
-      case 2:
-        return 'Камеры';
-      case 3:
-        return 'Журнал приёма снега';
-      case 4:
-        return 'Акты с КГУ';
-      case 5:
-        return 'Пользователи';
+        return 'Аналитика';
       default:
         return 'Личный кабинет';
     }

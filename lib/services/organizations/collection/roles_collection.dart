@@ -463,15 +463,49 @@ class RolesCollection {
     }
   }
 
-  /// GET /roles/contractor/users - Список сотрудников подрядчика
+  /// GET /roles/users - Список сотрудников подрядчика
   /// Доступ: CONTRACTOR_ADMIN
   /// Возвращает: всех CONTRACTOR_USER текущего подрядчика
+  /// Примечание: API автоматически фильтрует по organization_id из JWT токена
+  /// Подрядчик видит только своих пользователей, в отличие от KGU и AKIMAT, которые видят всех
   Future<List<UserDto>> getContractorUsers() async {
     try {
+      // Используем /roles/users без параметров - API автоматически фильтрует по organization_id из JWT
+      // Для CONTRACTOR_ADMIN это вернет только пользователей его организации
       final response = await dio.get('/roles/users');
-      final List<dynamic> users = response.data['users'] ?? [];
+      
+      // Обработка разных форматов ответа
+      final usersData = response.data;
+      List<dynamic> users;
+      if (usersData is List) {
+        users = usersData;
+      } else if (usersData is Map) {
+        // Проверяем различные возможные ключи
+        if (usersData['users'] != null) {
+          users = usersData['users'] as List<dynamic>? ?? [];
+        } else if (usersData['data'] != null) {
+          users = usersData['data'] as List<dynamic>? ?? [];
+        } else {
+          users = [];
+        }
+      } else {
+        users = [];
+      }
+      
       return users
-          .map((json) => UserDto.fromJson(json as Map<String, dynamic>))
+          .where((json) => json != null)
+          .map((json) {
+            try {
+              if (json is! Map<String, dynamic>) {
+                return null;
+              }
+              return UserDto.fromJson(json);
+            } catch (e) {
+              debugPrint('Error parsing contractor user: $e, data: $json');
+              return null;
+            }
+          })
+          .whereType<UserDto>()
           .toList();
     } on DioException catch (e) {
       _handleError(e);

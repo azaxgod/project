@@ -16,9 +16,12 @@ import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_kpi_car
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_section.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/shimmer_loading.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/contracts_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
+import 'package:akimat_project/modules/dashboard/src/repository/operations_repository_impl.dart';
 import 'package:akimat_project/services/acts/module.dart';
 import 'package:akimat_project/services/analytics/model/analytics_response.dart';
 import 'package:flutter/foundation.dart';
@@ -48,6 +51,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   DateTime? _dateFrom;
   DateTime? _dateTo;
   String? _selectedContractId;
+  AsyncValue<Map<String, dynamic>>? _landfillJournalData;
 
   @override
   void initState() {
@@ -68,8 +72,38 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       // Также загружаем отфильтрованные контракты при инициализации
       if (_dateFrom != null && _dateTo != null) {
         controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+        // Загружаем данные журнала приёма снега для LANDFILL_ADMIN
+        _loadLandfillJournal();
       }
     });
+  }
+
+  Future<void> _loadLandfillJournal() async {
+    final authState = ref.read(authNotifierProvider);
+    final userRole = userRoleFromString(authState.user?.role);
+    
+    if (userRole != UserRole.landfillAdmin) {
+      return;
+    }
+
+    setState(() {
+      _landfillJournalData = const AsyncLoading();
+    });
+
+    try {
+      final operationsRepo = ref.read(operationsRepositoryProvider);
+      final result = await operationsRepo.getLandfillReceptionJournal(
+        dateFrom: _dateFrom,
+        dateTo: _dateTo,
+      );
+      setState(() {
+        _landfillJournalData = AsyncValue.data(result);
+      });
+    } catch (e, stack) {
+      setState(() {
+        _landfillJournalData = AsyncValue.error(e, stack);
+      });
+    }
   }
 
   /// Проверяет, может ли пользователь генерировать акты
@@ -218,6 +252,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final cameras = dashboardData.data.cameras;
     final config = PlatformConfig.instance;
     
+    // Проверяем роль пользователя
+    final authState = ref.watch(authNotifierProvider);
+    final userRole = userRoleFromString(authState.user?.role);
+    final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+    
     // Получаем отфильтрованные контракты из contractsAnalytics (если доступны)
     final state = ref.watch(analyticsControllerProvider);
     final contractsAnalyticsData = state.contractsAnalytics?.valueOrNull;
@@ -275,107 +314,108 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Выбор контракта из созданных контрактов
-                Builder(
-                  builder: (context) {
-                    final contractsState = ref.watch(contractsControllerProvider);
-                    final contractsData = contractsState.data.valueOrNull;
-                    final allContracts = contractsData?.contracts ?? <Contract>[];
-                    
-                    // Фильтруем контракты по выбранной дате (если дата выбрана)
-                    List<Contract> contractsToShow = allContracts;
-                    if (_dateFrom != null && _dateTo != null) {
-                      contractsToShow = allContracts.where((contract) {
-                        final contractStart = DateTime(contract.startAt.year, contract.startAt.month, contract.startAt.day);
-                        final contractEnd = DateTime(contract.endAt.year, contract.endAt.month, contract.endAt.day);
-                        final selectedFrom = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
-                        final selectedTo = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
-                        
-                        // Показываем контракты, которые активны в выбранный период
-                        return contractStart.isBefore(selectedTo.add(const Duration(days: 1))) &&
-                               contractEnd.isAfter(selectedFrom.subtract(const Duration(days: 1)));
-                      }).toList();
-                    }
-                    
-                    if (contractsToShow.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Выберите контракт',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: AppPadding.small),
-                        SizedBox(
-                          width: double.infinity,
-                          child: DropdownButtonFormField<String>(
-                            value: _selectedContractId,
-                            decoration: InputDecoration(
-                              labelText: 'Контракт',
-                              hintText: 'Все контракты',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                              ),
-                              prefixIcon: const Icon(Icons.description),
-                              isDense: true,
+                // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN)
+                if (!isLandfillAdmin)
+                  Builder(
+                    builder: (context) {
+                      final contractsState = ref.watch(contractsControllerProvider);
+                      final contractsData = contractsState.data.valueOrNull;
+                      final allContracts = contractsData?.contracts ?? <Contract>[];
+                      
+                      // Фильтруем контракты по выбранной дате (если дата выбрана)
+                      List<Contract> contractsToShow = allContracts;
+                      if (_dateFrom != null && _dateTo != null) {
+                        contractsToShow = allContracts.where((contract) {
+                          final contractStart = DateTime(contract.startAt.year, contract.startAt.month, contract.startAt.day);
+                          final contractEnd = DateTime(contract.endAt.year, contract.endAt.month, contract.endAt.day);
+                          final selectedFrom = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
+                          final selectedTo = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
+                          
+                          // Показываем контракты, которые активны в выбранный период
+                          return contractStart.isBefore(selectedTo.add(const Duration(days: 1))) &&
+                                 contractEnd.isAfter(selectedFrom.subtract(const Duration(days: 1)));
+                        }).toList();
+                      }
+                      
+                      if (contractsToShow.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Выберите контракт',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
                             ),
-                            items: [
-                              const DropdownMenuItem<String>(
-                                value: null,
-                                child: Text('Все контракты'),
-                              ),
-                              ...contractsToShow.map((contract) {
-                                return DropdownMenuItem<String>(
-                                  value: contract.id,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        contract.name,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
-                                      Text(
-                                        '${DateFormat('dd.MM.yyyy').format(contract.startAt)} - ${DateFormat('dd.MM.yyyy').format(contract.endAt)}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedContractId = value;
-                                
-                                // Если выбран контракт, устанавливаем его период как выбранную дату
-                                if (value != null) {
-                                  final selectedContract = contractsToShow.firstWhere((c) => c.id == value);
-                                  _dateFrom = selectedContract.startAt;
-                                  _dateTo = selectedContract.endAt;
-                                  
-                                  // Обновляем данные аналитики
-                                  final analyticsController = ref.read(analyticsControllerProvider.notifier);
-                                  analyticsController.loadDashboard(from: _dateFrom, to: _dateTo);
-                                  analyticsController.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
-                                }
-                              });
-                            },
                           ),
-                        ),
-                        const SizedBox(height: AppPadding.normal),
-                      ],
-                    );
-                  },
-                ),
+                          const SizedBox(height: AppPadding.small),
+                          SizedBox(
+                            width: double.infinity,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedContractId,
+                              decoration: InputDecoration(
+                                labelText: 'Контракт',
+                                hintText: 'Все контракты',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                ),
+                                prefixIcon: const Icon(Icons.description),
+                                isDense: true,
+                              ),
+                              items: [
+                                const DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text('Все контракты'),
+                                ),
+                                ...contractsToShow.map((contract) {
+                                  return DropdownMenuItem<String>(
+                                    value: contract.id,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          contract.name,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          '${DateFormat('dd.MM.yyyy').format(contract.startAt)} - ${DateFormat('dd.MM.yyyy').format(contract.endAt)}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedContractId = value;
+                                  
+                                  // Если выбран контракт, устанавливаем его период как выбранную дату
+                                  if (value != null) {
+                                    final selectedContract = contractsToShow.firstWhere((c) => c.id == value);
+                                    _dateFrom = selectedContract.startAt;
+                                    _dateTo = selectedContract.endAt;
+                                    
+                                    // Обновляем данные аналитики
+                                    final analyticsController = ref.read(analyticsControllerProvider.notifier);
+                                    analyticsController.loadDashboard(from: _dateFrom, to: _dateTo);
+                                    analyticsController.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: AppPadding.normal),
+                        ],
+                      );
+                    },
+                  ),
                 // Выбор даты
                 Row(
                   children: [
@@ -394,10 +434,16 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                             }
                           });
                           if (start != null && end != null) {
+                            setState(() {
+                              _dateFrom = start;
+                              _dateTo = end;
+                            });
                             controller.updateDateRange(start, end);
                             controller.loadDashboard(from: start, to: end);
                             // Перезагружаем контракты с фильтром по дате
                             controller.loadContractsAnalytics(from: start, to: end);
+                            // Перезагружаем данные журнала приёма снега
+                            _loadLandfillJournal();
                           }
                         },
                       ),
@@ -416,14 +462,16 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                           // Всегда загружаем отфильтрованные контракты при обновлении
                           if (_dateFrom != null && _dateTo != null) {
                             controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                            // Перезагружаем данные журнала приёма снега
+                            _loadLandfillJournal();
                           }
                         },
                       ),
                     ),
                   ],
                 ),
-                // Информация о выбранном контракте
-                if (_selectedContractId != null) ...[
+                // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN)
+                if (!isLandfillAdmin && _selectedContractId != null) ...[
                   const SizedBox(height: AppPadding.normal),
                   Container(
                     padding: const EdgeInsets.all(AppPadding.small),
@@ -512,158 +560,327 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 ],
               ),
             ),
-          // KPI Cards
-          Row(
-            children: [
-              Expanded(
-                child: AnimatedKPICard(
-                  title: 'Активные рейсы',
-                  value: stats.activeTrips.toString(),
-                  icon: Icons.directions_car,
-                  color: Colors.blue,
+          // KPI Cards (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Активные рейсы',
+                    value: stats.activeTrips.toString(),
+                    icon: Icons.directions_car,
+                    color: Colors.blue,
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppPadding.normal),
-              Expanded(
-                child: AnimatedKPICard(
-                  title: 'Завершено рейсов',
-                  value: stats.completedTrips.toString(),
-                  icon: Icons.check_circle,
-                  color: Colors.green,
+                const SizedBox(width: AppPadding.normal),
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Завершено рейсов',
+                    value: stats.completedTrips.toString(),
+                    icon: Icons.check_circle,
+                    color: Colors.green,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppPadding.normal),
-          Row(
-            children: [
-              Expanded(
-                child: AnimatedKPICard(
-                  title: 'Нарушения',
-                  value: stats.violations.toString(),
-                  icon: Icons.warning,
-                  color: Colors.orange,
+              ],
+            ),
+            const SizedBox(height: AppPadding.normal),
+            Row(
+              children: [
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Нарушения',
+                    value: stats.violations.toString(),
+                    icon: Icons.warning,
+                    color: Colors.orange,
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppPadding.normal),
-              Expanded(
-                child: AnimatedKPICard(
-                  title: 'Тикеты в работе',
-                  value: stats.ticketsInProgress.toString(),
-                  icon: Icons.assignment,
-                  color: Colors.purple,
+                const SizedBox(width: AppPadding.normal),
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Тикеты в работе',
+                    value: stats.ticketsInProgress.toString(),
+                    icon: Icons.assignment,
+                    color: Colors.purple,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppPadding.large),
+              ],
+            ),
+            const SizedBox(height: AppPadding.large),
+          ],
           
-          // Карта
-          if (dashboardData.data.map.areas.isNotEmpty || 
-              dashboardData.data.map.polygons.isNotEmpty)
+          // Карта (скрыта для LANDFILL_ADMIN)
+          if (!isLandfillAdmin && 
+              (dashboardData.data.map.areas.isNotEmpty || 
+               dashboardData.data.map.polygons.isNotEmpty))
             AnimatedSection(
               title: 'Карта города',
               icon: Icons.map,
               child: _buildMapSection(dashboardData.data.map),
             ),
           
-          if (dashboardData.data.map.areas.isNotEmpty || 
-              dashboardData.data.map.polygons.isNotEmpty)
+          if (!isLandfillAdmin && 
+              (dashboardData.data.map.areas.isNotEmpty || 
+               dashboardData.data.map.polygons.isNotEmpty))
           const SizedBox(height: AppPadding.large),
           
-          // Подрядчики
-          AnimatedSection(
-            title: 'Подрядчики',
-            icon: Icons.business,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (contractors.active.isNotEmpty) ...[
-                  Text(
-                    'В работе:',
-                    style: AppTextStyles.headline.copyWith(
-                      color: AppColors.textSecondary,
+          // Подрядчики (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin)
+            AnimatedSection(
+              title: 'Подрядчики',
+              icon: Icons.business,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (contractors.active.isNotEmpty) ...[
+                    Text(
+                      'В работе:',
+                      style: AppTextStyles.headline.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...contractors.active.asMap().entries.map((entry) {
-                    return _buildAnimatedContractorCard(
-                      entry.value,
-                      true,
-                      entry.key,
-                    );
-                  }),
-                ],
-                if (contractors.idle.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Text(
-                    'Без работы:',
-                    style: AppTextStyles.headline.copyWith(
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 12),
+                    ...contractors.active.asMap().entries.map((entry) {
+                      return _buildAnimatedContractorCard(
+                        entry.value,
+                        true,
+                        entry.key,
+                      );
+                    }),
+                  ],
+                  if (contractors.idle.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      'Без работы:',
+                      style: AppTextStyles.headline.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...contractors.idle.asMap().entries.map((entry) {
-                    return _buildAnimatedContractorCard(
-                      entry.value,
-                      false,
-                      contractors.active.length + entry.key,
-                    );
-                  }),
+                    const SizedBox(height: 12),
+                    ...contractors.idle.asMap().entries.map((entry) {
+                      return _buildAnimatedContractorCard(
+                        entry.value,
+                        false,
+                        contractors.active.length + entry.key,
+                      );
+                    }),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
           
+          if (!isLandfillAdmin)
           const SizedBox(height: AppPadding.large),
           
-          // Контракты (фильтруются по выбранной дате и контракту)
-          AnimatedSection(
-            title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
-            icon: Icons.description,
-            child: filteredContracts.isEmpty
-                ? Center(
-                    child: Text(
-                      _selectedContractId != null
-                          ? 'Контракт не найден в выбранном периоде'
-                          : 'Нет данных',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textSecondary,
+          // Контракты (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin)
+            AnimatedSection(
+              title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
+              icon: Icons.description,
+              child: filteredContracts.isEmpty
+                  ? Center(
+                      child: Text(
+                        _selectedContractId != null
+                            ? 'Контракт не найден в выбранном периоде'
+                            : 'Нет данных',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
+                    )
+                  : Column(
+                      children: filteredContracts.asMap().entries.map((entry) {
+                        return _buildAnimatedContractCard(entry.value, entry.key);
+                      }).toList(),
                     ),
-                  )
-                : Column(
-                    children: filteredContracts.asMap().entries.map((entry) {
-                      return _buildAnimatedContractCard(entry.value, entry.key);
-                    }).toList(),
-                  ),
-          ),
+            ),
           
+          if (!isLandfillAdmin)
           const SizedBox(height: AppPadding.large),
           
-          // Камеры
-          AnimatedSection(
-            title: 'Камеры',
-            icon: Icons.videocam,
-            child: cameras.isEmpty
-                ? Center(
-                  
-                    // padding: const EdgeInsets.all(AppPadding.large),
-                    child: Text(
-                      'Нет данных',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textSecondary,
+          // Камеры (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin)
+            AnimatedSection(
+              title: 'Камеры',
+              icon: Icons.videocam,
+              child: cameras.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Нет данных',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
+                    )
+                  : Column(
+                      children: cameras.asMap().entries.map((entry) {
+                        return _buildAnimatedCameraCard(entry.value, entry.key);
+                      }).toList(),
                     ),
-                  )
-                : Column(
-                    children: cameras.asMap().entries.map((entry) {
-                      return _buildAnimatedCameraCard(entry.value, entry.key);
-                    }).toList(),
-                  ),
+            ),
+          
+          // Акт работ (только для LANDFILL_ADMIN)
+          Builder(
+            builder: (context) {
+              final authState = ref.watch(authNotifierProvider);
+              final userRole = userRoleFromString(authState.user?.role);
+              
+              if (userRole != UserRole.landfillAdmin) {
+                return const SizedBox.shrink();
+              }
+              
+              return _buildLandfillActSection();
+            },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLandfillActSection() {
+    return AnimatedSection(
+      title: 'Акт работ',
+      icon: Icons.description,
+      child: _landfillJournalData?.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(
+          child: Text(
+            'Ошибка загрузки данных: $error',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.error,
+            ),
+          ),
+        ),
+        data: (data) {
+          final tripsData = data['data'] as Map<String, dynamic>?;
+          final totalVolumeM3 = (tripsData?['total_volume_m3'] as num?)?.toDouble() ?? 0.0;
+          final totalTrips = (tripsData?['total_trips'] as int?) ?? 0;
+          
+          return Container(
+            padding: const EdgeInsets.all(AppPadding.normal),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue.withOpacity(0.15),
+                  Colors.blue.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.blue.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.snowing,
+                      size: 24,
+                      color: Colors.blue,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Количество снега на полигоне',
+                      style: AppTextStyles.title2.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text(
+                          '${totalVolumeM3.toStringAsFixed(2)}',
+                          style: AppTextStyles.headline.copyWith(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'м³',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Объём снега',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                    Container(
+                      width: 1,
+                      height: 60,
+                      color: AppColors.divider,
+                    ),
+                    Column(
+                      children: [
+                        Text(
+                          '$totalTrips',
+                          style: AppTextStyles.headline.copyWith(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'рейсов',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Всего рейсов',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (_dateFrom != null && _dateTo != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(AppPadding.small),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Период: ${DateFormat('dd.MM.yyyy').format(_dateFrom!)} - ${DateFormat('dd.MM.yyyy').format(_dateTo!)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ) ?? const Center(child: CircularProgressIndicator()),
     );
   }
 

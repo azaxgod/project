@@ -120,6 +120,7 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
          initialLocation.startsWith('/home') ||
          initialLocation.startsWith('/organization') ||
          initialLocation.startsWith('/monitoring') ||
+         initialLocation.startsWith('/analytics') ||
          initialLocation.startsWith('/driver')
          ? initialLocation 
          : '/dashboard');
@@ -227,6 +228,7 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
       ),
       GoRoute(
         path: '/analytics',
+        name: 'analytics',
         builder: (context, state) => AnalyticsDashboardPage(
           scaffoldKey: GlobalKey<ScaffoldState>(),
         ),
