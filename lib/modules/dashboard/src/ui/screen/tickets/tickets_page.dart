@@ -71,7 +71,9 @@ class TicketsPage extends ConsumerWidget {
             ),
       body: Column(
         children: [
-          if (kIsWeb)
+          // Показываем навбар только если передан непустой список виджетов
+          // Это позволяет избежать дублирования навбара, когда TicketsPage используется внутри другой страницы
+          if (kIsWeb && webNavbarWidgets != null && webNavbarWidgets!.isNotEmpty)
             HeaderNavbar(
               webWidgets: webNavbarWidgets,
             ),

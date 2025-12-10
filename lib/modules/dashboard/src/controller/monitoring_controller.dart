@@ -3,7 +3,9 @@ import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
+import 'package:akimat_project/modules/dashboard/src/model/monitoring/driver_location.dart';
 import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_monitoring.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
@@ -124,20 +126,28 @@ class MonitoringController extends StateNotifier<MonitoringState> {
         debugPrint('MonitoringController._loadData: Loading areas');
         List<CleaningArea> areas = [];
         try {
+          // Для CONTRACTOR_ADMIN передаем contractorId в запрос
+          final contractorId = state.role == UserRole.contractorAdmin ? state.organizationId : null;
           // Пробуем сначала с onlyActive=true
           areas = await _operationsRepository.loadCleaningAreas(
             status: state.statusFilter,
             onlyActive: true,
+            contractorId: contractorId,
           );
-          debugPrint('MonitoringController._loadData: Loaded ${areas.length} areas with onlyActive=true');
+          debugPrint('MonitoringController._loadData: Loaded ${areas.length} areas with onlyActive=true, contractorId=$contractorId');
+          
+          // Если сервер вернул пустой список для CONTRACTOR_ADMIN, это может быть {data: null}
+          // В этом случае areas будет пустым списком, и мы создадим заглушки из тикетов ниже
         } catch (e) {
           debugPrint('MonitoringController._loadData: Failed to load areas with onlyActive=true: $e');
           // Fallback: пробуем без onlyActive, если запрос с onlyActive падает
           try {
             debugPrint('MonitoringController._loadData: Retrying without onlyActive parameter');
+            final contractorId = state.role == UserRole.contractorAdmin ? state.organizationId : null;
             areas = await _operationsRepository.loadCleaningAreas(
               status: state.statusFilter,
               onlyActive: null,
+              contractorId: contractorId,
             );
             // Фильтруем на клиенте, если бэкенд не поддерживает onlyActive
             if (state.statusFilter == null) {
@@ -148,6 +158,45 @@ class MonitoringController extends StateNotifier<MonitoringState> {
             debugPrint('MonitoringController._loadData: Failed to load areas without onlyActive: $e2');
             // Продолжаем с пустым списком, чтобы не ломать всю страницу
             areas = [];
+          }
+        }
+        
+        // Для CONTRACTOR_ADMIN создаем заглушки для участков из тикетов, которых нет в списке
+        // НЕ пытаемся загружать участки по отдельности через getCleaningArea() - это возвращает 403
+        // Создаем минимальные объекты CleaningArea с ID в качестве имени
+        Set<String> areaIdsFromTickets = {};
+        if (state.role == UserRole.contractorAdmin && state.organizationId != null) {
+          try {
+            final tickets = await _operationsRepository.loadTickets();
+            areaIdsFromTickets = tickets.map((t) => t.cleaningAreaId).toSet();
+            debugPrint('MonitoringController._loadData: CONTRACTOR_ADMIN found ${areaIdsFromTickets.length} unique area IDs in tickets');
+            debugPrint('MonitoringController._loadData: CONTRACTOR_ADMIN has ${areas.length} areas from loadCleaningAreas()');
+            
+            // Создаем заглушки для участков из тикетов, которых нет в списке
+            final existingAreaIds = areas.map((a) => a.id).toSet();
+            final missingAreaIds = areaIdsFromTickets.difference(existingAreaIds);
+            
+            if (missingAreaIds.isNotEmpty) {
+              debugPrint('MonitoringController._loadData: Creating ${missingAreaIds.length} placeholder CleaningArea objects for missing areas');
+              
+              for (final areaId in missingAreaIds) {
+                // Создаем заглушку с коротким ID в качестве имени
+                final shortId = areaId.length >= 8 ? areaId.substring(0, 8) : areaId;
+                final placeholderArea = CleaningArea(
+                  id: areaId,
+                  name: 'Участок $shortId',
+                  geometry: [],
+                  status: CleaningAreaStatus.active,
+                  isActive: true,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                );
+                areas.add(placeholderArea);
+                debugPrint('MonitoringController._loadData: Created placeholder for area $areaId');
+              }
+            }
+          } catch (e) {
+            debugPrint('MonitoringController._loadData: Failed to load tickets for CONTRACTOR_ADMIN: $e');
           }
         }
 
@@ -200,12 +249,97 @@ class MonitoringController extends StateNotifier<MonitoringState> {
           vehicles = [];
         }
 
+        // Загружаем локации водителей (для ролей, которые должны их видеть)
+        debugPrint('MonitoringController._loadData: Loading driver locations for role: ${state.role}');
+        List<VehicleMonitoring> driverVehicles = [];
+        if (state.role == UserRole.akimatAdmin || 
+            state.role == UserRole.kguZkhAdmin || 
+            state.role == UserRole.contractorAdmin) {
+          try {
+            debugPrint('MonitoringController._loadData: Role ${state.role} has access to driver locations, loading...');
+            // Загружаем локации водителей
+            final driversLocationsData = await _operationsRepository.getDriversLocations();
+            debugPrint('MonitoringController._loadData: Received driver locations data: ${driversLocationsData.keys}');
+            
+            // API может возвращать данные в формате:
+            // {data: {drivers: [...]}} или {drivers: [...]} или {data: {locations: [...]}} или {locations: [...]}
+            List<dynamic> driversLocationsList = [];
+            if (driversLocationsData.containsKey('data')) {
+              final data = driversLocationsData['data'] as Map<String, dynamic>?;
+              // Проверяем оба варианта: drivers и locations
+              driversLocationsList = data?['drivers'] as List<dynamic>? ?? 
+                                     data?['locations'] as List<dynamic>? ?? [];
+              debugPrint('MonitoringController._loadData: Found drivers in data: ${driversLocationsList.length}');
+            } else if (driversLocationsData.containsKey('drivers')) {
+              driversLocationsList = driversLocationsData['drivers'] as List<dynamic>? ?? [];
+              debugPrint('MonitoringController._loadData: Found drivers in drivers: ${driversLocationsList.length}');
+            } else if (driversLocationsData.containsKey('locations')) {
+              driversLocationsList = driversLocationsData['locations'] as List<dynamic>? ?? [];
+              debugPrint('MonitoringController._loadData: Found drivers in locations: ${driversLocationsList.length}');
+            } else {
+              debugPrint('MonitoringController._loadData: No drivers found in response, keys: ${driversLocationsData.keys}');
+            }
+            debugPrint('MonitoringController._loadData: Loaded ${driversLocationsList.length} driver locations');
+            
+            // Загружаем список водителей для получения contractorId
+            List<Driver> allDrivers = [];
+            try {
+              allDrivers = await _organizationsRepository.loadDrivers();
+              debugPrint('MonitoringController._loadData: Loaded ${allDrivers.length} drivers');
+            } catch (e) {
+              debugPrint('MonitoringController._loadData: Failed to load drivers: $e');
+            }
+            
+            // Создаем Map для быстрого поиска водителя по ID
+            final driversMap = {for (var d in allDrivers) d.id: d};
+            
+            // Преобразуем локации водителей в VehicleMonitoring объекты
+            for (final locationJson in driversLocationsList) {
+              try {
+                final driverLocation = DriverLocation.fromJson(locationJson as Map<String, dynamic>);
+                final driver = driversMap[driverLocation.driverId];
+                
+                // Применяем фильтрацию по ролям
+                if (state.role == UserRole.contractorAdmin) {
+                  // Подрядчик видит только своих водителей
+                  if (driver == null || driver.contractorId != state.organizationId) {
+                    continue;
+                  }
+                } else if (state.role == UserRole.akimatAdmin || state.role == UserRole.kguZkhAdmin) {
+                  // KGU и Akimat видят всех водителей - не фильтруем
+                  debugPrint('MonitoringController._loadData: KGU/Akimat admin - showing all drivers, driverId: ${driverLocation.driverId}');
+                }
+                
+                // Преобразуем локацию водителя в VehicleMonitoring
+                final driverVehicle = _driverLocationToVehicleMonitoring(
+                  driverLocation: driverLocation,
+                  driver: driver,
+                );
+                driverVehicles.add(driverVehicle);
+              } catch (e) {
+                debugPrint('MonitoringController._loadData: Error parsing driver location: $e');
+              }
+            }
+            debugPrint('MonitoringController._loadData: Created ${driverVehicles.length} vehicle objects from driver locations for role ${state.role}');
+          } catch (e, stackTrace) {
+            debugPrint('MonitoringController._loadData: Failed to load driver locations for role ${state.role}: $e');
+            debugPrint('MonitoringController._loadData: Stack trace: $stackTrace');
+            // Продолжаем без локаций водителей, чтобы не блокировать загрузку других данных
+          }
+        } else {
+          debugPrint('MonitoringController._loadData: Role ${state.role} does not have access to driver locations');
+        }
+
+        // Объединяем технику и водителей
+        final allVehicles = [...vehicles, ...driverVehicles];
+        debugPrint('MonitoringController._loadData: Total vehicles (including drivers): ${allVehicles.length}');
+
         // Фильтруем данные по ролям
         debugPrint('MonitoringController._loadData: Filtering data by role');
-        final filteredAreas = _filterAreasByRole(areas);
+        final filteredAreas = _filterAreasByRole(areas, areaIdsFromTickets);
         final filteredPolygons = _filterPolygonsByRole(polygons);
         final filteredCameras = _filterCamerasByRole(cameras, polygons);
-        final filteredVehicles = _filterVehiclesByRole(vehicles);
+        final filteredVehicles = _filterVehiclesByRole(allVehicles);
 
         // Объединяем все камеры в один список
         final allCameras = <Camera>[];
@@ -229,18 +363,25 @@ class MonitoringController extends StateNotifier<MonitoringState> {
   }
 
   /// Фильтрация участков по ролям
-  List<CleaningArea> _filterAreasByRole(List<CleaningArea> areas) {
+  List<CleaningArea> _filterAreasByRole(List<CleaningArea> areas, Set<String> areaIdsFromTickets) {
     switch (state.role) {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
-        return areas; // Видят все участки
       case UserRole.landfillAdmin:
-        return []; // LANDFILL не видит участки (только полигоны)
+        return areas; // Видят все участки (LANDFILL_ADMIN может просматривать, но не создавать)
       case UserRole.contractorAdmin:
-        // Видят только участки с тикетами на этого подрядчика
-        // TODO: Реализовать фильтрацию по тикетам через Operations Service
-        // Пока возвращаем все участки, так как фильтрация должна быть на бэкенде
-        return areas;
+        // Видят участки, где они назначены как подрядчик по умолчанию ИЛИ участки из их тикетов
+        if (state.organizationId != null) {
+          final filtered = areas
+              .where((area) => 
+                  area.defaultContractorId == state.organizationId || 
+                  areaIdsFromTickets.contains(area.id))
+              .toList();
+          debugPrint('MonitoringController._filterAreasByRole: CONTRACTOR_ADMIN organizationId=${state.organizationId}, totalAreas=${areas.length}, areaIdsFromTickets=${areaIdsFromTickets.length}, filteredAreas=${filtered.length}');
+          return filtered;
+        }
+        debugPrint('MonitoringController._filterAreasByRole: CONTRACTOR_ADMIN organizationId is null, returning empty list');
+        return [];
       case UserRole.driver:
         // Видят только участки, где есть активные тикеты
         // TODO: Реализовать фильтрацию по тикетам водителя через Operations Service
@@ -285,11 +426,12 @@ class MonitoringController extends StateNotifier<MonitoringState> {
     switch (state.role) {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
-        return vehicles; // Видят всю технику
+        return vehicles; // Видят всю технику и всех водителей
       case UserRole.landfillAdmin:
         return vehicles; // Видят всю технику (но не участки)
       case UserRole.contractorAdmin:
-        // Видят только свою технику
+        // Видят только свою технику и своих водителей
+        // Фильтрация уже применена при создании driverVehicles, но применяем еще раз для безопасности
         return vehicles
             .where((v) => v.contractorId == state.organizationId)
             .toList();
@@ -300,6 +442,51 @@ class MonitoringController extends StateNotifier<MonitoringState> {
       default:
         return [];
     }
+  }
+
+  /// Преобразование локации водителя в VehicleMonitoring объект
+  VehicleMonitoring _driverLocationToVehicleMonitoring({
+    required DriverLocation driverLocation,
+    Driver? driver,
+  }) {
+    // Определяем статус на основе времени обновления
+    final now = DateTime.now();
+    final timeDiff = now.difference(driverLocation.updatedAt);
+    VehicleStatus status;
+    if (timeDiff.inMinutes < 2) {
+      status = VehicleStatus.inTrip;
+    } else if (timeDiff.inMinutes < 5) {
+      status = VehicleStatus.idle;
+    } else {
+      status = VehicleStatus.offline;
+    }
+
+    // Создаем GPS точку из локации водителя
+    final gpsPoint = GpsPoint(
+      lat: driverLocation.lat,
+      lon: driverLocation.lon,
+      capturedAt: driverLocation.updatedAt,
+      speedKmh: 0.0, // У водителей нет данных о скорости из GPS телефона
+      headingDeg: 0.0, // У водителей нет данных о направлении из GPS телефона
+      isSimulated: false,
+    );
+
+    // Создаем VehicleMonitoring объект
+    // Используем driver_id как vehicle_id с префиксом "driver_" для отличия от реальных транспортных средств
+    final driverIdShort = driverLocation.driverId.length >= 8 
+        ? driverLocation.driverId.substring(0, 8) 
+        : driverLocation.driverId;
+    return VehicleMonitoring(
+      vehicleId: 'driver_${driverLocation.driverId}',
+      plateNumber: driver != null ? 'Водитель: ${driver.fullName}' : 'Водитель: $driverIdShort',
+      contractorId: driver?.contractorId,
+      contractorName: null, // Можно добавить позже, если нужно
+      lastGps: gpsPoint,
+      lastTicketId: null,
+      lastCleaningAreaId: null,
+      lastPolygonId: null,
+      status: status,
+    );
   }
 
   /// Запуск периодического обновления техники
@@ -322,7 +509,90 @@ class MonitoringController extends StateNotifier<MonitoringState> {
       );
       debugPrint('MonitoringController._updateVehicles: Loaded ${vehicles.length} vehicles');
 
-      final filteredVehicles = _filterVehiclesByRole(vehicles);
+      // Загружаем локации водителей (для ролей, которые должны их видеть)
+      List<VehicleMonitoring> driverVehicles = [];
+      if (state.role == UserRole.akimatAdmin || 
+          state.role == UserRole.kguZkhAdmin || 
+          state.role == UserRole.contractorAdmin) {
+        try {
+          debugPrint('MonitoringController._updateVehicles: Role ${state.role} has access to driver locations, loading...');
+          // Загружаем локации водителей
+          final driversLocationsData = await _operationsRepository.getDriversLocations();
+          debugPrint('MonitoringController._updateVehicles: Received driver locations data: ${driversLocationsData.keys}');
+          
+          // API может возвращать данные в формате:
+          // {data: {drivers: [...]}} или {drivers: [...]} или {data: {locations: [...]}} или {locations: [...]}
+          List<dynamic> driversLocationsList = [];
+          if (driversLocationsData.containsKey('data')) {
+            final data = driversLocationsData['data'] as Map<String, dynamic>?;
+            // Проверяем оба варианта: drivers и locations
+            driversLocationsList = data?['drivers'] as List<dynamic>? ?? 
+                                   data?['locations'] as List<dynamic>? ?? [];
+            debugPrint('MonitoringController._updateVehicles: Found drivers in data: ${driversLocationsList.length}');
+          } else if (driversLocationsData.containsKey('drivers')) {
+            driversLocationsList = driversLocationsData['drivers'] as List<dynamic>? ?? [];
+            debugPrint('MonitoringController._updateVehicles: Found drivers in drivers: ${driversLocationsList.length}');
+          } else if (driversLocationsData.containsKey('locations')) {
+            driversLocationsList = driversLocationsData['locations'] as List<dynamic>? ?? [];
+            debugPrint('MonitoringController._updateVehicles: Found drivers in locations: ${driversLocationsList.length}');
+          } else {
+            debugPrint('MonitoringController._updateVehicles: No drivers found in response, keys: ${driversLocationsData.keys}');
+          }
+          debugPrint('MonitoringController._updateVehicles: Loaded ${driversLocationsList.length} driver locations');
+          
+          // Загружаем список водителей для получения contractorId
+          List<Driver> allDrivers = [];
+          try {
+            allDrivers = await _organizationsRepository.loadDrivers();
+          } catch (e) {
+            debugPrint('MonitoringController._updateVehicles: Failed to load drivers: $e');
+          }
+          
+          // Создаем Map для быстрого поиска водителя по ID
+          final driversMap = {for (var d in allDrivers) d.id: d};
+          
+          // Преобразуем локации водителей в VehicleMonitoring объекты
+          for (final locationJson in driversLocationsList) {
+            try {
+              final driverLocation = DriverLocation.fromJson(locationJson as Map<String, dynamic>);
+              final driver = driversMap[driverLocation.driverId];
+              
+              // Применяем фильтрацию по ролям
+              if (state.role == UserRole.contractorAdmin) {
+                // Подрядчик видит только своих водителей
+                if (driver == null || driver.contractorId != state.organizationId) {
+                  continue;
+                }
+              } else if (state.role == UserRole.akimatAdmin || state.role == UserRole.kguZkhAdmin) {
+                // KGU и Akimat видят всех водителей - не фильтруем
+                debugPrint('MonitoringController._updateVehicles: KGU/Akimat admin - showing all drivers, driverId: ${driverLocation.driverId}');
+              }
+              
+              // Преобразуем локацию водителя в VehicleMonitoring
+              final driverVehicle = _driverLocationToVehicleMonitoring(
+                driverLocation: driverLocation,
+                driver: driver,
+              );
+              driverVehicles.add(driverVehicle);
+            } catch (e) {
+              debugPrint('MonitoringController._updateVehicles: Error parsing driver location: $e');
+            }
+          }
+          debugPrint('MonitoringController._updateVehicles: Created ${driverVehicles.length} vehicle objects from driver locations for role ${state.role}');
+        } catch (e, stackTrace) {
+          debugPrint('MonitoringController._updateVehicles: Failed to load driver locations for role ${state.role}: $e');
+          debugPrint('MonitoringController._updateVehicles: Stack trace: $stackTrace');
+          // Продолжаем без локаций водителей, чтобы не блокировать обновление других данных
+        }
+      } else {
+        debugPrint('MonitoringController._updateVehicles: Role ${state.role} does not have access to driver locations');
+      }
+
+      // Объединяем технику и водителей
+      final allVehicles = [...vehicles, ...driverVehicles];
+      debugPrint('MonitoringController._updateVehicles: Total vehicles (including drivers): ${allVehicles.length}');
+
+      final filteredVehicles = _filterVehiclesByRole(allVehicles);
       debugPrint('MonitoringController._updateVehicles: Filtered to ${filteredVehicles.length} vehicles');
 
       state = state.copyWith(

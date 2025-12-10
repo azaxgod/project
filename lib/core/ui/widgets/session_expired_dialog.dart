@@ -52,6 +52,20 @@ class SessionExpiredService {
       return;
     }
     
+    // Проверяем, не находимся ли мы уже на странице логина
+    try {
+      final currentRoute = GoRouter.of(dialogContext).routerDelegate.currentConfiguration.uri.toString();
+      if (currentRoute == '/login' || currentRoute.startsWith('/login')) {
+        debugPrint('SessionExpiredService: Already on login page, not showing dialog');
+        _isShowing = false;
+        return;
+      }
+      
+    } catch (e) {
+      debugPrint('SessionExpiredService: Error checking current route: $e');
+      // Продолжаем показ диалога, если не удалось проверить роут
+    }
+    
     SessionExpiredDialog.show(dialogContext).then((_) {
       _isShowing = false;
     }).catchError((error) {

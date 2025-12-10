@@ -148,7 +148,11 @@ class _PolygonsContentState extends ConsumerState<_PolygonsContent> {
     final config = PlatformConfig.instance;
     // AKIMAT_ADMIN только просматривает, не может создавать/редактировать
     // LANDFILL_ADMIN может редактировать полигоны и камеры
-    final canEdit = widget.state.role == UserRole.landfillAdmin;
+    final role = widget.state.role;
+    final canEdit = role == UserRole.landfillAdmin;
+    
+    // Отладочная информация
+    debugPrint('PolygonsPage: role=$role (${role.label}), canEdit=$canEdit');
 
     return Row(
       children: [

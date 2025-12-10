@@ -32,33 +32,36 @@ class NavbarWidgetsProvider {
   /// Навбар для водителя (упрощенный, мобильный-ориентированный)
   static List<Widget> getDriverWebWidgets(BuildContext context) {
     String currentRoute = '/';
-    String? currentQuery = '';
+    String currentQuery = '';
     try {
       final router = GoRouter.of(context);
       final uri = router.routerDelegate.currentConfiguration.uri;
       currentRoute = uri.path;
-      currentQuery = uri.queryParameters['tab'];
+      currentQuery = uri.queryParameters['tab'] ?? '';
     } catch (e) {
       // Fallback if route cannot be determined
     }
+    
+    // Нормализуем currentQuery: '' или 'current' означают первую вкладку
+    final normalizedQuery = (currentQuery.isEmpty || currentQuery == 'current') ? 'current' : currentQuery;
     
     return [
       _NavbarButton(
         label: 'Текущий рейс',
         icon: Icons.assignment,
-        isActive: (currentRoute == '/driver' && (currentQuery == null || currentQuery == 'current' || currentQuery == '')),
+        isActive: currentRoute == '/driver' && normalizedQuery == 'current',
         route: '/driver?tab=current',
       ),
       _NavbarButton(
         label: 'Мои задания',
         icon: Icons.list,
-        isActive: currentRoute == '/tickets' || (currentRoute == '/driver' && currentQuery == 'tickets'),
+        isActive: currentRoute == '/driver' && normalizedQuery == 'tickets',
         route: '/driver?tab=tickets',
       ),
       _NavbarButton(
         label: 'Карта',
         icon: Icons.map,
-        isActive: currentRoute == '/driver' && currentQuery == 'map',
+        isActive: currentRoute == '/driver' && normalizedQuery == 'map',
         route: '/driver?tab=map',
       ),
       const SizedBox(width: AppPadding.small),
@@ -78,6 +81,35 @@ class NavbarWidgetsProvider {
       currentRoute = router.routerDelegate.currentConfiguration.uri.path;
     } catch (e) {
       // Fallback if route cannot be determined
+    }
+    
+    // Получаем роль пользователя
+    final authNotifier = ProviderScope.containerOf(context).read(authNotifierProvider);
+    final user = authNotifier.user;
+    final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
+    
+    // Для LANDFILL_ADMIN показываем только Мониторинг и Аналитику
+    if (role == UserRole.landfillAdmin) {
+      return [
+        _NavbarButton(
+          label: 'Мониторинг',
+          icon: Icons.map,
+          isActive: currentRoute == '/monitoring' || currentRoute == '/areas' || currentRoute == '/polygons',
+          route: '/monitoring',
+        ),
+        _NavbarButton(
+          label: S.of(context)!.analytics,
+          icon: Icons.analytics,
+          isActive: currentRoute == '/analytics' || currentRoute.startsWith('/analytics/'),
+          route: '/analytics',
+        ),
+        const SizedBox(width: AppPadding.small),
+        const UserRoleBadge(),
+        const SizedBox(width: AppPadding.small),
+        const LanguageSwitcher(),
+        const SizedBox(width: AppPadding.small),
+        const LogoutButtonWeb(),
+      ];
     }
     
     return [

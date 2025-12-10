@@ -249,13 +249,20 @@ class RolesCollection {
       if (phone != null) {
         data['phone'] = phone;
       }
+      // Всегда отправляем isActive, если он передан (даже если false)
+      // Это важно для блокировки/разблокировки организаций
       if (isActive != null) {
         data['isActive'] = isActive;
+        data['is_active'] = isActive; // Также отправляем в snake_case для совместимости
+        data['IsActive'] = isActive; // Также отправляем в PascalCase для совместимости
       }
 
+      debugPrint('RolesCollection.updateOrganization: Updating organization $id with data: $data');
       final response = await dio.put('/roles/organizations/$id', data: data);
-      return OrganizationDto.fromJson(
+      final updatedOrg = OrganizationDto.fromJson(
           response.data['organization'] as Map<String, dynamic>);
+      debugPrint('RolesCollection.updateOrganization: Updated organization isActive: ${updatedOrg.isActive}');
+      return updatedOrg;
     } on DioException catch (e) {
       _handleError(e);
       rethrow;

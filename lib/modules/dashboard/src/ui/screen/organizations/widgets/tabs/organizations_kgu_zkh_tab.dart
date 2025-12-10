@@ -10,6 +10,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/wid
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_details_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_dialogs.dart';
 import 'package:akimat_project/core/utils/notification_helper.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsKguZkhTab extends StatelessWidget {
@@ -84,21 +85,40 @@ class OrganizationsKguZkhTab extends StatelessWidget {
                           isDestructive: organization.isActive,
                           onPressed: () async {
                             try {
+                              // Сохраняем новое значение isActive
+                              final newIsActive = !organization.isActive;
+                              debugPrint('OrganizationsKguZkhTab: Blocking/unblocking organization ${organization.id}, current isActive: ${organization.isActive}, new isActive: $newIsActive');
+                              
                               await controller.updateOrganization(
-                                organization.copyWith(isActive: !organization.isActive),
+                                organization.copyWith(isActive: newIsActive),
                                 skipReload: true,
                               );
+                              
+                              debugPrint('OrganizationsKguZkhTab: Organization updated, refreshing data...');
+                              
                               if (context.mounted) {
-                                await context.showSuccessWithReload(
-                                  organization.isActive 
-                                      ? 'КГУ ЖКХ успешно заблокировано'
-                                      : 'КГУ ЖКХ успешно разблокировано',
-                                  () async {
-                                    await controller.refresh();
-                                  },
-                                );
+                                // Сразу обновляем данные без задержки
+                                await controller.refresh();
+                                
+                                debugPrint('OrganizationsKguZkhTab: Data refreshed');
+                                
+                                // Показываем уведомление после обновления
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        newIsActive 
+                                            ? 'КГУ ЖКХ успешно разблокировано'
+                                            : 'КГУ ЖКХ успешно заблокировано',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
                               }
                             } catch (e) {
+                              debugPrint('OrganizationsKguZkhTab: Error blocking/unblocking organization: $e');
                               if (context.mounted) {
                                 context.showErrorNotificationFromException(e);
                               }

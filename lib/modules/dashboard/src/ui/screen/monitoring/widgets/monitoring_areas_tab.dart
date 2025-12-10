@@ -6,6 +6,7 @@ import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -183,7 +184,10 @@ class _MonitoringAreasTabState extends ConsumerState<MonitoringAreasTab> {
           ),
         ),
         // Кнопка создания участка снизу (только если не в режиме создания)
-        if (widget.canEdit && !isCreating)
+        // KGU_ZKH_ADMIN и AKIMAT_ADMIN могут создавать участки, LANDFILL_ADMIN - нет
+        if (widget.canEdit && 
+            !isCreating &&
+            widget.state.role != UserRole.landfillAdmin)
           Container(
             padding: const EdgeInsets.all(AppPadding.normal),
             decoration: BoxDecoration(

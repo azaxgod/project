@@ -738,8 +738,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
 
   Widget _buildLandfillActSection() {
     return AnimatedSection(
-      title: 'Акт работ',
-      icon: Icons.description,
+      title: 'Объём привезённого снега',
+      icon: Icons.snowing,
       child: _landfillJournalData?.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -756,7 +756,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           final totalTrips = (tripsData?['total_trips'] as int?) ?? 0;
           
           return Container(
-            padding: const EdgeInsets.all(AppPadding.normal),
+            padding: const EdgeInsets.all(AppPadding.large),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -777,16 +777,37 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.snowing,
-                      size: 24,
-                      color: Colors.blue,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.snowing,
+                        size: 28,
+                        color: Colors.blue,
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Количество снега на полигоне',
-                      style: AppTextStyles.title2.copyWith(
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Общий объём привезённого снега',
+                            style: AppTextStyles.title2.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Всеми подрядчиками на полигоны организации',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

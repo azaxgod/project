@@ -21,21 +21,28 @@ class HeaderNavbar extends StatelessWidget {
     // Используем GoRouter.of(context) для отслеживания изменений роута
     // Это заставит виджет перестраиваться при изменении роута
     final router = GoRouter.of(context);
-    final uri = router.routerDelegate.currentConfiguration.uri;
-    // Используем uri для принудительного обновления при изменении роута
+    // Используем currentConfiguration как зависимость для принудительного обновления
+    final config = router.routerDelegate.currentConfiguration;
+    final uri = config.uri;
+    // Используем uri.toString() для создания уникального ключа, который заставит виджет перестраиваться
+    final routeKey = uri.toString();
     
     // Если webWidgets или mobileWidgets уже переданы, используем их напрямую
     // БЕЗ дополнительного комбинирования через combineWebWidgets,
     // чтобы избежать дублирования навбара
+    // Важно: getDefaultWebWidgets/getDefaultMobileWidgets вызываются каждый раз при перестройке,
+    // что обеспечивает актуальное состояние активной вкладки
     final widgetsToUse = kIsWeb 
         ? (webWidgets ?? NavbarWidgetsProvider.getDefaultWebWidgets(context))
         : (mobileWidgets ?? NavbarWidgetsProvider.getDefaultMobileWidgets(context));
     
     return kIsWeb
         ? AppNavbar(
+            key: ValueKey(routeKey), // Ключ заставляет перестраиваться при изменении роута
             webWidgets: widgetsToUse,
           )
         : AppNavbar(
+            key: ValueKey(routeKey), // Ключ заставляет перестраиваться при изменении роута
             scaffoldKey: scaffoldKey,
             mobileWidgets: widgetsToUse,
           );

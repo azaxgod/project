@@ -88,7 +88,13 @@ class TicketsController extends StateNotifier<TicketsState> {
         // Обрабатываем ошибки загрузки участков отдельно, чтобы не ломать всю страницу
         List<CleaningArea> areas = [];
         try {
-          areas = await _operationsRepository.loadCleaningAreas(onlyActive: true);
+          // Для CONTRACTOR_ADMIN передаем contractorId в запрос
+          final contractorId = state.role == UserRole.contractorAdmin ? state.organizationId : null;
+          areas = await _operationsRepository.loadCleaningAreas(
+            onlyActive: true,
+            contractorId: contractorId,
+          );
+          debugPrint('TicketsController: Loaded ${areas.length} areas with contractorId=$contractorId');
         } catch (e) {
           // Если не удалось загрузить участки, продолжаем с пустым списком
           // Пользователь все равно сможет работать с тикетами
@@ -169,6 +175,36 @@ class TicketsController extends StateNotifier<TicketsState> {
           // Если не удалось загрузить тикеты, продолжаем с пустым списком
           debugPrint('TicketsController: Failed to load tickets: $e');
           debugPrint('TicketsController: Stack trace: $stackTrace');
+        }
+        
+        // Для CONTRACTOR_ADMIN создаем заглушки для участков из тикетов, которых нет в списке
+        // НЕ пытаемся загружать участки по отдельности через getCleaningArea() - это возвращает 403
+        // Создаем минимальные объекты CleaningArea с ID в качестве имени
+        if (state.role == UserRole.contractorAdmin && tickets.isNotEmpty) {
+          final areaIdsInTickets = tickets.map((t) => t.cleaningAreaId).toSet();
+          final existingAreaIds = areas.map((a) => a.id).toSet();
+          final missingAreaIds = areaIdsInTickets.difference(existingAreaIds);
+          
+          if (missingAreaIds.isNotEmpty) {
+            debugPrint('TicketsController: CONTRACTOR_ADMIN has ${missingAreaIds.length} area IDs in tickets that are not in loadCleaningAreas()');
+            debugPrint('TicketsController: Creating placeholder CleaningArea objects for missing areas');
+            
+            for (final areaId in missingAreaIds) {
+              // Создаем заглушку с коротким ID в качестве имени
+              final shortId = areaId.length >= 8 ? areaId.substring(0, 8) : areaId;
+              final placeholderArea = CleaningArea(
+                id: areaId,
+                name: 'Участок $shortId',
+                geometry: [],
+                status: CleaningAreaStatus.active,
+                isActive: true,
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              );
+              areas.add(placeholderArea);
+              debugPrint('TicketsController: Created placeholder for area $areaId');
+            }
+          }
         }
 
         // Загружаем назначения для всех тикетов (для Подрядчика, Акимата, KGU ZKH и Водителя)

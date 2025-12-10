@@ -49,19 +49,12 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
   String? _lastTabParam; // Отслеживаем последний tab параметр для предотвращения циклов
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Для мобильного drawer
   VoidCallback? _routeListener; // Слушатель изменений роута
+  bool _isSyncing = false; // Флаг для предотвращения одновременной синхронизации
 
   void _onTabControllerChanged() {
-    // Обновляем URL только когда анимация завершена
-    if (!_tabController.indexIsChanging && mounted) {
-      final index = _tabController.index;
-      debugPrint('DriverHome: TabController changed to index: $index');
-      // Обновляем URL при изменении TabController (асинхронно, чтобы не блокировать)
-      Future.microtask(() {
-        if (mounted && _tabController.index == index) {
-          _updateRouteFromTab(index);
-        }
-      });
-    }
+    // Этот слушатель больше не обновляет URL, так как URL обновляется кнопками навбара
+    // Это предотвращает циклы и двойные переключения
+    // URL -> TabController синхронизация происходит через routeListener и didChangeDependencies
   }
 
   @override
@@ -69,13 +62,25 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     
-    // Слушаем изменения TabController для синхронизации с URL
-    _tabController.addListener(_onTabControllerChanged);
+    // Инициализируем _lastTabParam пустой строкой, чтобы избежать проблем с null
+    _lastTabParam = '';
+    
+    // НЕ добавляем слушатель TabController, который обновляет URL
+    // URL обновляется кнопками навбара, а TabController синхронизируется из URL
+    // Это предотвращает циклы и двойные переключения
     
     // Начинаем отслеживание GPS-локации при входе
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startLocationTracking();
       _getCurrentPosition();
+      // Инициализируем _lastTabParam из текущего роута
+      try {
+        final router = GoRouter.of(context);
+        final uri = router.routerDelegate.currentConfiguration.uri;
+        _lastTabParam = uri.queryParameters['tab'] ?? '';
+      } catch (e) {
+        _lastTabParam = '';
+      }
       _syncTabFromRoute();
       // Добавляем слушатель изменений роута после первой отрисовки
       _setupRouteListener();
@@ -90,17 +95,22 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       final router = GoRouter.of(context);
       // Создаем слушатель, который будет вызываться при изменении роута
       _routeListener = () {
-        if (mounted) {
+        if (mounted && !_tabController.indexIsChanging) {
           final uri = router.routerDelegate.currentConfiguration.uri;
           final newTabParam = uri.queryParameters['tab'] ?? '';
-          if (newTabParam != _lastTabParam) {
+          
+          // Нормализуем для сравнения
+          final normalizedNew = newTabParam.isEmpty ? 'current' : newTabParam;
+          final normalizedLast = (_lastTabParam?.isEmpty ?? true) ? 'current' : _lastTabParam!;
+          
+          if (normalizedNew != normalizedLast) {
             debugPrint('DriverHome: Route listener detected tab change: "$_lastTabParam" -> "$newTabParam"');
+            // Обновляем _lastTabParam ПЕРЕД синхронизацией, чтобы избежать повторных вызовов
             _lastTabParam = newTabParam;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _syncTabFromRoute();
-              }
-            });
+            // Синхронизируем сразу, без задержек, для мгновенного переключения
+            if (mounted && !_tabController.indexIsChanging) {
+              _syncTabFromRoute();
+            }
           }
         }
       };
@@ -123,14 +133,19 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       final uri = router.routerDelegate.currentConfiguration.uri;
       final currentTabParam = uri.queryParameters['tab'] ?? '';
       
-      if (currentTabParam != _lastTabParam) {
+      // Нормализуем: пустая строка означает 'current'
+      final normalizedCurrent = currentTabParam.isEmpty ? 'current' : currentTabParam;
+      final normalizedLast = (_lastTabParam?.isEmpty ?? true) ? 'current' : _lastTabParam!;
+      
+      if (normalizedCurrent != normalizedLast) {
+        debugPrint('DriverHome: didChangeDependencies detected tab change: "$_lastTabParam" -> "$currentTabParam"');
+        // Обновляем _lastTabParam ПЕРЕД синхронизацией
         _lastTabParam = currentTabParam;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            debugPrint('DriverHome: Syncing tab from didChangeDependencies (tab=$currentTabParam)');
-            _syncTabFromRoute();
-          }
-        });
+        // Синхронизируем сразу, без задержек, для мгновенного переключения
+        // routeListener тоже может быть вызван, но проверка _lastTabParam предотвратит двойную синхронизацию
+        if (mounted && !_tabController.indexIsChanging) {
+          _syncTabFromRoute();
+        }
       }
     } catch (e) {
       // Игнорируем ошибки
@@ -138,63 +153,34 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
   }
 
   /// Обновляет URL при переключении вкладки
+  /// ВАЖНО: Этот метод больше не используется, так как URL обновляется кнопками навбара
+  /// Оставлен для совместимости, но не вызывается
   void _updateRouteFromTab(int index) {
-    if (!mounted) return;
-    
-    String tabParam = 'current';
-    switch (index) {
-      case 0:
-        tabParam = 'current';
-        break;
-      case 1:
-        tabParam = 'tickets';
-        break;
-      case 2:
-        tabParam = 'map';
-        break;
-    }
-    
-    // Если URL уже правильный, не обновляем
-    try {
-      final currentUri = GoRouter.of(context).routerDelegate.currentConfiguration.uri;
-      final currentTab = currentUri.queryParameters['tab'] ?? '';
-      if (currentTab == tabParam) {
-        debugPrint('DriverHome: URL already correct, skipping update');
-        return;
-      }
-    } catch (e) {
-      // Игнорируем ошибки проверки
-    }
-    
-    try {
-      // Обновляем _lastTabParam чтобы избежать лишней синхронизации
-      _lastTabParam = tabParam;
-      
-      // Обновляем URL
-      final newRoute = '/driver?tab=$tabParam';
-      debugPrint('DriverHome: Updating route to $newRoute (from tab index $index)');
-      
-      // Используем go для обновления URL
-      final router = GoRouter.of(context);
-      router.go(newRoute);
-    } catch (e) {
-      debugPrint('Error updating route from tab: $e');
-    }
+    // Метод больше не используется
+    // URL обновляется кнопками навбара напрямую через context.go()
   }
 
   /// Синхронизирует вкладку с query параметром из роута
   void _syncTabFromRoute() {
-    if (!mounted) return;
+    if (!mounted || _isSyncing) return;
+    
+    // Устанавливаем флаг, чтобы предотвратить одновременную синхронизацию
+    _isSyncing = true;
+    
+    // Не блокируем синхронизацию, даже если идет анимация
+    // Это важно для корректного переключения при быстрых кликах
     
     try {
-      final uri = GoRouter.of(context).routerDelegate.currentConfiguration.uri;
-      final tab = uri.queryParameters['tab'];
+      final router = GoRouter.of(context);
+      final uri = router.routerDelegate.currentConfiguration.uri;
+      final tab = uri.queryParameters['tab'] ?? '';
+      
+      // Нормализуем: пустая строка означает 'current'
+      final normalizedTab = tab.isEmpty ? 'current' : tab;
       
       int tabIndex = 0; // По умолчанию первая вкладка (Текущий рейс)
-      switch (tab) {
+      switch (normalizedTab) {
         case 'current':
-        case null:
-        case '':
           tabIndex = 0;
           break;
         case 'tickets':
@@ -203,47 +189,52 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
         case 'map':
           tabIndex = 2;
           break;
+        default:
+          tabIndex = 0; // Fallback на первую вкладку
+          break;
       }
       
       // Обновляем вкладку только если она отличается от текущей
       if (_tabController.index != tabIndex) {
-        debugPrint('DriverHome: Syncing tab to index $tabIndex (from route tab=$tab, current index=${_tabController.index}, isChanging=${_tabController.indexIsChanging})');
-        // Используем animateTo только если не идет анимация
-        if (!_tabController.indexIsChanging) {
-          // Временно отключаем слушатель, чтобы избежать цикла
-          _tabController.removeListener(_onTabControllerChanged);
-          // Используем animateTo для плавного переключения
-          _tabController.animateTo(tabIndex);
-          // Включаем слушатель обратно после завершения анимации
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              _tabController.addListener(_onTabControllerChanged);
-              // Проверяем, что синхронизация прошла успешно
-              if (_tabController.index != tabIndex) {
-                debugPrint('DriverHome: Tab sync failed, retrying...');
-                _syncTabFromRoute();
-              }
-            }
-          });
+        debugPrint('DriverHome: Syncing tab to index $tabIndex (from route tab=$tab, normalized=$normalizedTab, current index=${_tabController.index}, lastTabParam=$_lastTabParam, indexIsChanging=${_tabController.indexIsChanging})');
+        // Используем прямое присваивание index для мгновенного переключения
+        // Это предотвращает циклы и проблемы с синхронизацией
+        final oldIndex = _tabController.index;
+        
+        // Если идет анимация, останавливаем её и переключаемся сразу
+        if (_tabController.indexIsChanging) {
+          debugPrint('DriverHome: Tab is changing, forcing immediate switch to index $tabIndex');
+        }
+        
+        _tabController.index = tabIndex;
+        
+        // Проверяем, что переключение произошло
+        if (_tabController.index == tabIndex) {
+          debugPrint('DriverHome: Tab synced successfully from index $oldIndex to $tabIndex');
         } else {
-          // Если идет анимация, ждем её завершения и синхронизируем снова
-          Future.delayed(const Duration(milliseconds: 400), () {
-            if (mounted) {
-              _syncTabFromRoute();
+          debugPrint('DriverHome: WARNING - Tab sync failed! Expected index $tabIndex but got ${_tabController.index}');
+          // Повторяем попытку через небольшую задержку
+          Future.delayed(const Duration(milliseconds: 50), () {
+            if (mounted && _tabController.index != tabIndex) {
+              debugPrint('DriverHome: Retrying tab sync to index $tabIndex');
+              _tabController.index = tabIndex;
             }
           });
         }
       } else {
-        debugPrint('DriverHome: Tab already synced (index=$tabIndex, tab=$tab)');
+        debugPrint('DriverHome: Tab already at correct index $tabIndex, skipping sync');
       }
     } catch (e) {
       debugPrint('Error syncing tab from route: $e');
+    } finally {
+      // Сбрасываем флаг после завершения синхронизации
+      _isSyncing = false;
     }
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabControllerChanged);
+    // НЕ удаляем слушатель TabController, так как мы его не добавляли
     _tabController.dispose();
     // Удаляем слушатель роутера
     if (_routeListener != null) {
@@ -311,34 +302,15 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
     final driverState = ref.watch(driverControllerProvider);
     final driverController = ref.read(driverControllerProvider.notifier);
     
-    // Слушаем изменения роута через GoRouter и синхронизируем вкладку
+    // Используем GoRouter для отслеживания изменений роута
+    // Это заставит виджет перестраиваться при изменении роута
     final router = GoRouter.of(context);
     final uri = router.routerDelegate.currentConfiguration.uri;
-    final currentTabParam = uri.queryParameters['tab'] ?? '';
+    // Используем uri как зависимость для принудительного обновления навбара
+    final routeKey = uri.toString();
     
-    // Всегда синхронизируем вкладку с URL при изменении tab параметра
-    // Это обеспечивает синхронизацию при клике на кнопки навбара
-    if (currentTabParam != _lastTabParam) {
-      final previousTabParam = _lastTabParam;
-      _lastTabParam = currentTabParam;
-      debugPrint('DriverHome: Tab param changed from "$previousTabParam" to "$currentTabParam"');
-      // Синхронизируем сразу после build
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && currentTabParam == _lastTabParam) {
-          debugPrint('DriverHome: Syncing tab from route in build (tab=$currentTabParam)');
-          _syncTabFromRoute();
-        }
-      });
-    } else if (_lastTabParam == null) {
-      // Первая загрузка - синхронизируем
-      _lastTabParam = currentTabParam;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          debugPrint('DriverHome: Initial sync tab from route (tab=$currentTabParam)');
-          _syncTabFromRoute();
-        }
-      });
-    }
+    // Синхронизация вкладок происходит через didChangeDependencies и routeListener
+    // Не нужно дублировать логику здесь, чтобы избежать конфликтов
 
     return Scaffold(
       key: _scaffoldKey, // Для мобильного drawer
@@ -351,7 +323,9 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
           // Единая навигация в HeaderNavbar (для веб и мобильной версии)
           // Используем getDefaultWebWidgets/getDefaultMobileWidgets напрямую,
           // они уже содержат правильную навигацию для водителя
+          // Key с routeKey заставляет перестраиваться при изменении роута
           HeaderNavbar(
+            key: ValueKey('driver-navbar-$routeKey'),
             webWidgets: kIsWeb ? NavbarWidgetsProvider.getDefaultWebWidgets(context) : null,
             mobileWidgets: !kIsWeb ? NavbarWidgetsProvider.getDefaultMobileWidgets(context) : null,
             scaffoldKey: !kIsWeb ? _scaffoldKey : null,
@@ -533,9 +507,13 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
             // Информация о водителе, организации и технике (всегда видна)
             _buildDriverInfoCard(data, user),
             // Список тикетов водителя (использует GET /driver/tickets через TicketsController)
+            // Передаем null для webNavbarWidgets, чтобы избежать дублирования навбара
+            // (навбар уже есть в родительском DriverHome)
             Expanded(
               child: TicketsPage(
                 scaffoldKey: GlobalKey<ScaffoldState>(),
+                webNavbarWidgets: const [], // Пустой список, чтобы не показывать навбар
+                mobileNavbarWidgets: const [], // Пустой список для мобильной версии
               ),
             ),
           ],

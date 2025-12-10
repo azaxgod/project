@@ -24,6 +24,7 @@ abstract class OperationsRepository {
     CleaningAreaStatus? status,
     bool? onlyActive,
     String? city,
+    String? contractorId,
   });
 
   /// Получить участок по ID

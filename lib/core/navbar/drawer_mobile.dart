@@ -49,6 +49,22 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
     ];
   }
   
+  // Для LANDFILL_ADMIN показываем только Мониторинг и Аналитику
+  if (role == UserRole.landfillAdmin) {
+    return [
+      DrawerItem(
+        title: 'Мониторинг',
+        icon: Icons.map,
+        route: '/monitoring',
+      ),
+      DrawerItem(
+        title: s.analytics,
+        icon: Icons.analytics,
+        route: '/analytics',
+      ),
+    ];
+  }
+  
   // Для остальных ролей - стандартный drawer
   return [
     DrawerItem(

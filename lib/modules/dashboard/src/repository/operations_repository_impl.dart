@@ -43,11 +43,13 @@ class OperationsRepositoryImpl implements OperationsRepository {
     CleaningAreaStatus? status,
     bool? onlyActive,
     String? city,
+    String? contractorId,
   }) async {
     final dtos = await _services.collection.getCleaningAreas(
       status: _statusToString(status),
       onlyActive: onlyActive,
       city: city,
+      contractorId: contractorId,
     );
     return dtos.map((dto) => dto.toDomain()).toList();
   }

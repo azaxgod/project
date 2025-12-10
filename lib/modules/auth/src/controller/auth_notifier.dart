@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:akimat_project/modules/auth/src/repository/i_auth_repository.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/auth/collection/auth_collection.dart';
+import 'package:akimat_project/services/auth/collection/auth_collection.dart' show AuthException;
 import 'package:akimat_project/services/auth/model/user.dart';
 
 class AuthState {
@@ -92,14 +93,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
             try {
               state = state.copyWith(user: null, isCheckingToken: false);
             } catch (_) {
-              // StateNotifier уже удален, игнорируем
+
             }
           }
         } else {
           try {
             state = state.copyWith(user: null, isCheckingToken: false);
           } catch (_) {
-            // StateNotifier уже удален, игнорируем
+
           }
         }
       },
@@ -107,8 +108,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         debugPrint('Firebase Auth state changes error: $error');
         try {
           state = state.copyWith(user: null, isCheckingToken: false);
-        } catch (_) {
-          // StateNotifier уже удален, игнорируем
+        } catch (_) { 
+
         }
       },
     );
@@ -117,12 +118,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _loadUserFromToken() async {
     state = state.copyWith(isCheckingToken: true);
     try {
-      // Сначала проверяем токен бэкенда (он сохраняется в localStorage на вебе)
+
       final accessToken = await TokenStorage.getAccessToken();
       if (accessToken != null && accessToken.isNotEmpty) {
         debugPrint('AuthNotifier: Found access token, restoring user from backend');
         try {
-          // Восстанавливаем пользователя через токен бэкенда
+
           final authResponse = await repo.meFromToken(accessToken);
           state = state.copyWith(
             isCheckingToken: false,

@@ -64,6 +64,7 @@ class OperationsCollection {
     String? status,
     bool? onlyActive,
     String? city,
+    String? contractorId,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
@@ -76,6 +77,9 @@ class OperationsCollection {
       }
       if (city != null) {
         queryParams['city'] = city;
+      }
+      if (contractorId != null) {
+        queryParams['contractor_id'] = contractorId;
       }
 
       debugPrint('OperationsCollection.getCleaningAreas: Request URL: /cleaning-areas');
@@ -334,9 +338,28 @@ class OperationsCollection {
       );
 
       debugPrint('OperationsCollection.getPolygons: Response status: ${response.statusCode}');
+      debugPrint('OperationsCollection.getPolygons: Response data: ${response.data}');
 
-      final List<dynamic> data = response.data['data'] ?? [];
-      return data
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic>) {
+        throw OperationsException('Invalid response format: expected Map, got ${responseData.runtimeType}');
+      }
+
+      // Обрабатываем случай, когда сервер возвращает {data: null}
+      final data = responseData['data'];
+      if (data == null) {
+        debugPrint('OperationsCollection.getPolygons: Server returned data: null, returning empty list');
+        return [];
+      }
+
+      if (data is! List) {
+        throw OperationsException('Invalid response format: expected List, got ${data.runtimeType}');
+      }
+
+      final List<dynamic> dataList = data;
+      debugPrint('OperationsCollection.getPolygons: Parsed ${dataList.length} polygons');
+      
+      return dataList
           .map((json) => PolygonDto.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {

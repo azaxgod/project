@@ -15,6 +15,7 @@ import 'package:akimat_project/services/organizations/collection/roles_collectio
 import 'package:akimat_project/services/organizations/module.dart';
 import 'package:akimat_project/services/violations/module.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final dioProvider = Provider<Dio>((ref) {
@@ -42,6 +43,30 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
+        // Игнорируем ошибки "missing token" если токены уже очищены (пользователь вышел)
+        final refreshToken = await TokenStorage.getRefreshToken();
+        final accessToken = await TokenStorage.getAccessToken();
+        if ((refreshToken == null || refreshToken.isEmpty) && 
+            (accessToken == null || accessToken.isEmpty)) {
+          // Проверяем, не является ли это ошибкой "missing token"
+          if (error.response?.data != null) {
+            final errorData = error.response!.data;
+            String errorMessage = '';
+            if (errorData is Map) {
+              errorMessage = (errorData['error'] ?? errorData['message'] ?? '').toString().toLowerCase();
+            } else if (errorData is String) {
+              errorMessage = errorData.toLowerCase();
+            }
+            if (errorMessage.contains('missing token') || 
+                errorMessage.contains('token missing') ||
+                errorMessage.contains('no token') ||
+                errorMessage.contains('token not found')) {
+              // Игнорируем ошибку, не передаем дальше
+              return;
+            }
+          }
+        }
+        
         // Автоматический refresh токена при ошибках токена
         final tokenRefreshed = await handleTokenError(error, dio);
         if (tokenRefreshed) {

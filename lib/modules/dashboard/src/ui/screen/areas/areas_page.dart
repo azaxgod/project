@@ -125,8 +125,8 @@ class _AreasContentState extends ConsumerState<_AreasContent> {
   Widget build(BuildContext context) {
     final s = S.of(context)!;
     // AKIMAT_ADMIN только просматривает, не может создавать/редактировать
-    final canEdit = widget.state.role == UserRole.kguZkhAdmin ||
-                    widget.state.role == UserRole.landfillAdmin;
+    // LANDFILL_ADMIN может только просматривать участки, не может создавать/редактировать
+    final canEdit = widget.state.role == UserRole.kguZkhAdmin;
 
     // Filter areas
     var filteredAreas = widget.data.areas;

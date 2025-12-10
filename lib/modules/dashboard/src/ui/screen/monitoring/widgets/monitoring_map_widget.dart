@@ -2,6 +2,8 @@ import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.d
 import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_monitoring.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart' as model;
+import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/driver_marker.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/map_controls_widget.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/vehicle_3d_marker.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,12 +20,22 @@ class MonitoringMapWidget extends StatefulWidget {
   final String? selectedVehicleId;
   final VehicleTrack? selectedVehicleTrack;
   final List<List<double>>? drawingGeometry;
+  final String? createMode; // Режим создания: 'area', 'polygon', 'camera'
   final Function(String)? onAreaTap;
   final Function(String)? onPolygonTap;
   final Function(String)? onVehicleTap;
   final Function(double lat, double lon)? onMapTap;
   final bool isEditingGeometry; // Режим редактирования
   final Function(int index)? onPointTap; // Обработчик клика на точку (для удаления)
+  final bool showAreas;
+  final bool showPolygons;
+  final bool showCameras;
+  final bool showVehicles;
+  final VoidCallback? onToggleAreas;
+  final VoidCallback? onTogglePolygons;
+  final VoidCallback? onToggleCameras;
+  final VoidCallback? onToggleVehicles;
+  final VoidCallback? onRefresh;
 
   const MonitoringMapWidget({
     super.key,
@@ -36,12 +48,22 @@ class MonitoringMapWidget extends StatefulWidget {
     this.selectedVehicleId,
     this.selectedVehicleTrack,
     this.drawingGeometry,
+    this.createMode,
     this.onAreaTap,
     this.onPolygonTap,
     this.onVehicleTap,
     this.onMapTap,
     this.isEditingGeometry = false,
     this.onPointTap,
+    this.showAreas = true,
+    this.showPolygons = true,
+    this.showCameras = true,
+    this.showVehicles = true,
+    this.onToggleAreas,
+    this.onTogglePolygons,
+    this.onToggleCameras,
+    this.onToggleVehicles,
+    this.onRefresh,
   });
 
   @override
@@ -70,63 +92,76 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
     final cursor = isDrawing ? SystemMouseCursors.precise : SystemMouseCursors.basic;
     final center = const LatLng(54.8667, 69.1500); // Петропавловск
 
-    return MouseRegion(
-      cursor: cursor,
-      child: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-        initialCenter: center,
-        initialZoom: 12.0,
-        onTap: widget.onMapTap != null
-            ? (tapPosition, point) {
-                widget.onMapTap!(point.latitude, point.longitude);
-              }
-            : null,
-        interactionOptions: InteractionOptions(
-          flags: widget.onMapTap != null
-              ? InteractiveFlag.all & ~InteractiveFlag.doubleTapZoom
-              : InteractiveFlag.all,
-        ),
-      ),
+    // Подсчитываем количество объектов
+    final vehicleCount = widget.vehicles.where((v) => !v.vehicleId.startsWith('driver_')).length;
+    final driverCount = widget.vehicles.where((v) => v.vehicleId.startsWith('driver_')).length;
+
+    return Stack(
       children: [
+        MouseRegion(
+          cursor: cursor,
+          child: FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+            initialCenter: center,
+            initialZoom: 12.0,
+            onTap: widget.onMapTap != null
+                ? (tapPosition, point) {
+                    widget.onMapTap!(point.latitude, point.longitude);
+                  }
+                : null,
+            interactionOptions: InteractionOptions(
+              flags: widget.onMapTap != null
+                  ? InteractiveFlag.all & ~InteractiveFlag.doubleTapZoom
+                  : InteractiveFlag.all,
+            ),
+          ),
+          children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.akimat.project',
         ),
-               // Участки уборки
+               // Участки уборки (отображаем линиями, фильтруем участки с пустой геометрией)
                if (widget.areas.isNotEmpty)
-                 PolygonLayer(
-                   polygons: widget.areas.map((area) {
-                     final isSelected = area.id == widget.selectedAreaId;
-              return Polygon(
-                points: area.geometry
-                    .map((coord) => LatLng(coord[1], coord[0]))
-                    .toList(),
-                color: isSelected
-                    ? Colors.blue.withValues(alpha: 0.4)
-                    : Colors.blue.withValues(alpha: 0.2),
-                borderColor: isSelected ? Colors.blue : Colors.blue.shade700,
-                borderStrokeWidth: isSelected ? 3 : 2,
-              );
-            }).toList(),
-          ),
-               // Полигоны вывоза
+                 PolylineLayer(
+                   polylines: widget.areas
+                       .where((area) => area.geometry.isNotEmpty && area.geometry.length >= 2)
+                       .map((area) {
+                         final isSelected = area.id == widget.selectedAreaId;
+                         // Преобразуем геометрию в точки LatLng
+                         final points = area.geometry
+                             .map((coord) => LatLng(coord[1], coord[0]))
+                             .toList();
+                         // Замыкаем полилинию (добавляем первую точку в конец для замкнутого контура)
+                         if (points.isNotEmpty && points.first != points.last) {
+                           points.add(points.first);
+                         }
+                         return Polyline(
+                           points: points,
+                           strokeWidth: isSelected ? 3.0 : 2.0,
+                           color: isSelected ? Colors.blue : Colors.blue.shade700,
+                         );
+                       }).toList(),
+                 ),
+               // Полигоны вывоза (фильтруем полигоны с пустой геометрией)
                if (widget.polygons.isNotEmpty)
                  PolygonLayer(
-                   polygons: widget.polygons.map((polygon) {
-                     final isSelected = polygon.id == widget.selectedPolygonId;
-              return Polygon(
-                points: polygon.geometry
-                    .map((coord) => LatLng(coord[1], coord[0]))
-                    .toList(),
-                color: isSelected
-                    ? Colors.orange.withValues(alpha: 0.4)
-                    : Colors.orange.withValues(alpha: 0.2),
-                borderColor: isSelected ? Colors.orange : Colors.orange.shade700,
-                borderStrokeWidth: isSelected ? 3 : 2,
-              );
-            }).toList(),
-          ),
+                   polygons: widget.polygons
+                       .where((polygon) => polygon.geometry.isNotEmpty && polygon.geometry.length >= 3)
+                       .map((polygon) {
+                         final isSelected = polygon.id == widget.selectedPolygonId;
+                         return Polygon(
+                           points: polygon.geometry
+                               .map((coord) => LatLng(coord[1], coord[0]))
+                               .toList(),
+                           color: isSelected
+                               ? Colors.orange.withValues(alpha: 0.4)
+                               : Colors.orange.withValues(alpha: 0.2),
+                           borderColor: isSelected ? Colors.orange : Colors.orange.shade700,
+                           borderStrokeWidth: isSelected ? 3 : 2,
+                         );
+                       }).toList(),
+                 ),
                // Камеры
                if (widget.cameras.isNotEmpty)
                  MarkerLayer(
@@ -144,10 +179,12 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
               );
             }).whereType<Marker>().toList(),
           ),
-               // Техника с красивыми 3D маркерами в стиле 2GIS/Яндекс Такси
-               if (widget.vehicles.isNotEmpty)
+               // Разделяем транспортные средства и водителей
+               if (widget.vehicles.isNotEmpty) ...[
+                 // Транспортные средства (не водители)
                  MarkerLayer(
                    markers: widget.vehicles
+                       .where((vehicle) => !vehicle.vehicleId.startsWith('driver_'))
                        .map((vehicle) {
                          final isSelected = vehicle.vehicleId == widget.selectedVehicleId;
                          return Marker(
@@ -163,6 +200,26 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                          );
                        }).toList(),
                  ),
+                 // Водители с отдельной иконкой
+                 MarkerLayer(
+                   markers: widget.vehicles
+                       .where((vehicle) => vehicle.vehicleId.startsWith('driver_'))
+                       .map((vehicle) {
+                         final isSelected = vehicle.vehicleId == widget.selectedVehicleId;
+                         return Marker(
+                           point: LatLng(vehicle.lastGps.lat, vehicle.lastGps.lon),
+                           width: isSelected ? 70 : 60,
+                           height: isSelected ? 70 : 60,
+                           alignment: Alignment.center,
+                           child: DriverMarker(
+                             driver: vehicle,
+                             isSelected: isSelected,
+                             onTap: () => widget.onVehicleTap?.call(vehicle.vehicleId),
+                           ),
+                         );
+                       }).toList(),
+                 ),
+               ],
                // Трек выбранной техники
                if (widget.selectedVehicleTrack != null && widget.selectedVehicleTrack!.points.isNotEmpty)
                  PolylineLayer(
@@ -176,8 +233,12 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
               ),
             ],
           ),
-               // Рисуемая геометрия
-               if (widget.drawingGeometry != null && widget.drawingGeometry!.isNotEmpty)
+               // Рисуемая геометрия (только для участков и полигонов, не для камер)
+               // Для камеры отображаем только маркер точки (см. ниже)
+               if (widget.drawingGeometry != null && 
+                   widget.drawingGeometry!.isNotEmpty &&
+                   widget.createMode != 'camera' &&
+                   widget.drawingGeometry!.length >= 3)
                  PolygonLayer(
                    polygons: [
                      Polygon(
@@ -196,26 +257,29 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                    markers: widget.drawingGeometry!.asMap().entries.map((entry) {
                      final index = entry.key;
                      final coord = entry.value;
+                     final isCamera = widget.createMode == 'camera';
                      return Marker(
                        point: LatLng(coord[1], coord[0]),
-                       width: widget.isEditingGeometry ? 30 : 20,
-                       height: widget.isEditingGeometry ? 30 : 20,
+                       width: isCamera ? 40 : (widget.isEditingGeometry ? 30 : 20),
+                       height: isCamera ? 40 : (widget.isEditingGeometry ? 30 : 20),
                        child: GestureDetector(
                          onTap: widget.isEditingGeometry && widget.onPointTap != null
                              ? () => widget.onPointTap!(index)
                              : null,
                          child: Container(
                            decoration: BoxDecoration(
-                             color: widget.isEditingGeometry ? Colors.red : Colors.green,
+                             color: isCamera 
+                                 ? Colors.blue 
+                                 : (widget.isEditingGeometry ? Colors.red : Colors.green),
                              shape: BoxShape.circle,
                              border: Border.all(
                                color: Colors.white,
                                width: widget.isEditingGeometry ? 3 : 2,
                              ),
-                             boxShadow: widget.isEditingGeometry
+                             boxShadow: widget.isEditingGeometry || isCamera
                                  ? [
                                      BoxShadow(
-                                       color: Colors.red.withValues(alpha: 0.5),
+                                       color: (isCamera ? Colors.blue : Colors.red).withValues(alpha: 0.5),
                                        blurRadius: 8,
                                        spreadRadius: 2,
                                      ),
@@ -223,20 +287,26 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                                  : null,
                            ),
                            child: Center(
-                             child: widget.isEditingGeometry
+                             child: isCamera
                                  ? const Icon(
-                                     Icons.close,
+                                     Icons.videocam,
                                      color: Colors.white,
-                                     size: 16,
+                                     size: 24,
                                    )
-                                 : Text(
-                                     '${index + 1}',
-                                     style: const TextStyle(
-                                       color: Colors.white,
-                                       fontSize: 10,
-                                       fontWeight: FontWeight.bold,
-                                     ),
-                                   ),
+                                 : widget.isEditingGeometry
+                                     ? const Icon(
+                                         Icons.close,
+                                         color: Colors.white,
+                                         size: 16,
+                                       )
+                                     : Text(
+                                         '${index + 1}',
+                                         style: const TextStyle(
+                                           color: Colors.white,
+                                           fontSize: 10,
+                                           fontWeight: FontWeight.bold,
+                                         ),
+                                       ),
                            ),
                          ),
                        ),
@@ -244,7 +314,26 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                    }).toList(),
                  ),
       ],
-      ),
+          ),
+        ),
+        // Плавающие виджеты управления картой
+        MapControlsWidget(
+          mapController: _mapController,
+          showAreas: widget.showAreas,
+          showPolygons: widget.showPolygons,
+          showCameras: widget.showCameras,
+          showVehicles: widget.showVehicles,
+          onToggleAreas: widget.onToggleAreas,
+          onTogglePolygons: widget.onTogglePolygons,
+          onToggleCameras: widget.onToggleCameras,
+          onToggleVehicles: widget.onToggleVehicles,
+          onRefresh: widget.onRefresh,
+          vehicleCount: vehicleCount,
+          driverCount: driverCount,
+          areaCount: widget.areas.length,
+          polygonCount: widget.polygons.length,
+        ),
+      ],
     );
   }
 

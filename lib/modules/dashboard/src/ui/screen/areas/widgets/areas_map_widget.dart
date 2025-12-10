@@ -31,6 +31,19 @@ class _AreasMapWidgetState extends State<AreasMapWidget> {
   List<LatLng> _drawingPoints = [];
 
   @override
+  void didUpdateWidget(AreasMapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset drawing points when drawing mode is turned off
+    if (oldWidget.isDrawingMode && !widget.isDrawingMode) {
+      _drawingPoints.clear();
+    }
+    // Reset drawing points when drawing mode is turned on (start fresh)
+    if (!oldWidget.isDrawingMode && widget.isDrawingMode) {
+      _drawingPoints.clear();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final center = widget.center ?? const LatLng(54.8667, 69.1500); // Петропавловск
     final zoom = widget.zoom ?? 12.0;
@@ -44,8 +57,7 @@ class _AreasMapWidgetState extends State<AreasMapWidget> {
             ? (tapPosition, point) {
                 if (widget.isDrawingMode) {
                   setState(() {
-                    _drawingPoints.add(point);
-                    // Check if polygon is closed (clicked on first point)
+                    // Check if polygon should be closed (clicked on first point)
                     if (_drawingPoints.length >= 3) {
                       final firstPoint = _drawingPoints.first;
                       final distance = Distance();
@@ -54,11 +66,15 @@ class _AreasMapWidgetState extends State<AreasMapWidget> {
                         firstPoint,
                         point,
                       );
-                      if (dist < 50) {
-                        // Close polygon if clicked near first point
+                      // Increased threshold to 100 meters for easier closing
+                      if (dist < 100) {
+                        // Close polygon if clicked near first point (don't add duplicate point)
                         _closePolygon();
+                        return;
                       }
                     }
+                    // Add new point
+                    _drawingPoints.add(point);
                   });
                 }
                 widget.onMapTap?.call(point);
@@ -71,7 +87,7 @@ class _AreasMapWidgetState extends State<AreasMapWidget> {
           userAgentPackageName: 'com.akimat.project',
         ),
         // Existing polygons
-        if (widget.existingPolygons != null)
+        if (widget.existingPolygons != null && widget.existingPolygons!.isNotEmpty)
           PolygonLayer(
             polygons: widget.existingPolygons!.map((polygon) {
               return Polygon(
@@ -82,8 +98,8 @@ class _AreasMapWidgetState extends State<AreasMapWidget> {
               );
             }).toList(),
           ),
-        // Drawing polygon
-        if (widget.isDrawingMode && _drawingPoints.isNotEmpty)
+        // Drawing polygon (only show if we have at least 3 points)
+        if (widget.isDrawingMode && _drawingPoints.length >= 3)
           PolygonLayer(
             polygons: [
               Polygon(
@@ -94,26 +110,55 @@ class _AreasMapWidgetState extends State<AreasMapWidget> {
               ),
             ],
           ),
+        // Drawing line between points (show progress even with less than 3 points)
+        if (widget.isDrawingMode && _drawingPoints.length >= 2)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: _drawingPoints,
+                strokeWidth: 2,
+                color: Colors.green.withValues(alpha: 0.6),
+                borderStrokeWidth: 1,
+                borderColor: Colors.green.shade700,
+              ),
+            ],
+          ),
         // Drawing points
         if (widget.isDrawingMode && _drawingPoints.isNotEmpty)
           MarkerLayer(
-            markers: _drawingPoints.map((point) {
+            markers: _drawingPoints.asMap().entries.map((entry) {
+              final index = entry.key;
+              final point = entry.value;
+              final isFirst = index == 0;
               return Marker(
                 point: point,
-                width: 12,
-                height: 12,
+                width: isFirst && _drawingPoints.length >= 3 ? 16 : 12,
+                height: isFirst && _drawingPoints.length >= 3 ? 16 : 12,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.green,
+                    color: isFirst && _drawingPoints.length >= 3 
+                        ? Colors.orange 
+                        : Colors.green,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
+                  child: isFirst && _drawingPoints.length >= 3
+                      ? const Center(
+                          child: Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 10,
+                          ),
+                        )
+                      : null,
                 ),
               );
             }).toList(),
           ),
         // Selected polygon
-        if (widget.polygonGeometry != null && !widget.isDrawingMode)
+        if (widget.polygonGeometry != null && 
+            widget.polygonGeometry!.isNotEmpty && 
+            !widget.isDrawingMode)
           PolygonLayer(
             polygons: [
               Polygon(

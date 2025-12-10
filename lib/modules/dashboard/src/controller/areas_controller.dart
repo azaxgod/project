@@ -10,6 +10,7 @@ import 'package:akimat_project/modules/dashboard/src/repository/organizations_re
 import 'package:akimat_project/services/operations/module.dart';
 import 'package:akimat_project/services/organizations/module.dart';
 import 'package:akimat_project/services/tickets/module.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final operationsRepositoryProvider = Provider<OperationsRepository>((ref) {
@@ -67,10 +68,65 @@ class AreasController extends StateNotifier<AreasState> {
             .toList();
         
         // Load areas from operations service
-        final areas = await _operationsRepository.loadCleaningAreas(
-          status: state.statusFilter,
-          onlyActive: true,
-        );
+        // Для CONTRACTOR_ADMIN передаем contractorId в запрос
+        final contractorId = state.role == UserRole.contractorAdmin ? state.organizationId : null;
+        List<CleaningArea> allAreas = [];
+        try {
+          allAreas = await _operationsRepository.loadCleaningAreas(
+            status: state.statusFilter,
+            onlyActive: true,
+            contractorId: contractorId,
+          );
+          debugPrint('AreasController: Loaded ${allAreas.length} areas with contractorId=$contractorId');
+        } catch (e) {
+          debugPrint('AreasController: Failed to load areas: $e');
+          allAreas = [];
+        }
+        
+        // Для CONTRACTOR_ADMIN фильтруем участки по defaultContractorId ИЛИ участки из тикетов
+        // Если сервер вернул пустой список (data: null), создаем заглушки из тикетов
+        List<CleaningArea> areas = allAreas;
+        if (state.role == UserRole.contractorAdmin && state.organizationId != null) {
+          // Загружаем тикеты подрядчика, чтобы получить список участков из тикетов
+          Set<String> areaIdsFromTickets = {};
+          try {
+            final tickets = await _operationsRepository.loadTickets();
+            areaIdsFromTickets = tickets.map((t) => t.cleaningAreaId).toSet();
+            debugPrint('AreasController._loadData: CONTRACTOR_ADMIN found ${areaIdsFromTickets.length} unique area IDs in tickets');
+            
+            final existingAreaIds = allAreas.map((a) => a.id).toSet();
+            final missingAreaIds = areaIdsFromTickets.difference(existingAreaIds);
+            
+            // Создаем заглушки для участков из тикетов, которых нет в списке
+            if (missingAreaIds.isNotEmpty) {
+              debugPrint('AreasController._loadData: Creating ${missingAreaIds.length} placeholder CleaningArea objects for missing areas');
+              for (final areaId in missingAreaIds) {
+                final shortId = areaId.length >= 8 ? areaId.substring(0, 8) : areaId;
+                final placeholderArea = CleaningArea(
+                  id: areaId,
+                  name: 'Участок $shortId',
+                  geometry: [],
+                  status: CleaningAreaStatus.active,
+                  isActive: true,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                );
+                allAreas.add(placeholderArea);
+                debugPrint('AreasController._loadData: Created placeholder for area $areaId');
+              }
+            }
+          } catch (e) {
+            debugPrint('AreasController._loadData: Failed to load tickets: $e');
+          }
+          
+          // Фильтруем участки: defaultContractorId ИЛИ участки из тикетов
+          areas = allAreas
+              .where((area) => 
+                  area.defaultContractorId == state.organizationId || 
+                  areaIdsFromTickets.contains(area.id))
+              .toList();
+          debugPrint('AreasController._loadData: CONTRACTOR_ADMIN filtered ${areas.length} areas from ${allAreas.length} total');
+        }
         
         return AreasData(
           areas: areas,
