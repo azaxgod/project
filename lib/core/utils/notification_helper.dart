@@ -59,11 +59,9 @@ extension NotificationExtension on BuildContext {
   }) async {
     showSuccessNotification(message);
     await Future.delayed(delay ?? const Duration(seconds: 4));
-    if (mounted) {
-      // Вызываем колбэк для перезагрузки данных и ждем его завершения
-      if (onComplete != null) {
-        await onComplete();
-      }
+    // Вызываем колбэк для перезагрузки данных и ждем его завершения
+    if (onComplete != null) {
+      await onComplete();
     }
   }
 }

@@ -173,14 +173,55 @@ class TicketsCollection {
   /// PUT /kgu/tickets/:id/cancel - Отменить тикет
   Future<TicketDto> cancelTicketKgu(String id) async {
     try {
+      debugPrint('TicketsCollection.cancelTicketKgu: Request URL: /kgu/tickets/$id/cancel');
+      
       final response = await dio.put('/kgu/tickets/$id/cancel');
+      
+      debugPrint('TicketsCollection.cancelTicketKgu: Response status: ${response.statusCode}');
+      debugPrint('TicketsCollection.cancelTicketKgu: Response data type: ${response.data.runtimeType}');
+      debugPrint('TicketsCollection.cancelTicketKgu: Response data: ${response.data}');
+      
       final responseData = response.data;
-      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
-        throw TicketsException('Invalid response format');
+      
+      // Проверяем формат ответа
+      if (responseData is! Map<String, dynamic>) {
+        debugPrint('TicketsCollection.cancelTicketKgu: Response is not a Map, it is: ${responseData.runtimeType}');
+        throw TicketsException('Invalid response format: expected Map, got ${responseData.runtimeType}');
       }
-      return TicketDto.fromJson(responseData['data'] as Map<String, dynamic>);
+      
+      if (!responseData.containsKey('data')) {
+        debugPrint('TicketsCollection.cancelTicketKgu: Response missing "data" key. Full response: $responseData');
+        throw TicketsException('Invalid response format: missing "data" key');
+      }
+      
+      final data = responseData['data'] as Map<String, dynamic>;
+      
+      // Проверяем, содержит ли ответ только message (успешная отмена без полного объекта тикета)
+      if (data.containsKey('message') && data.length == 1) {
+        debugPrint('TicketsCollection.cancelTicketKgu: Response contains only message, fetching updated ticket');
+        // Если ответ содержит только message, получаем актуальный тикет через GET
+        try {
+          return await getTicketKgu(id);
+        } catch (e) {
+          // Если не удалось получить тикет, но отмена успешна (200 OK),
+          // выбрасываем специальное исключение с кодом 200, которое будет обработано в контроллере
+          debugPrint('TicketsCollection.cancelTicketKgu: Failed to fetch updated ticket, but cancellation was successful (200). Error: $e');
+          // Выбрасываем исключение с кодом 200, чтобы контроллер понял, что отмена успешна
+          throw TicketsException('Ticket cancelled successfully', 200);
+        }
+      }
+      
+      // Если ответ содержит полный объект тикета, парсим его
+      return TicketDto.fromJson(data);
     } on DioException catch (e) {
+      debugPrint('TicketsCollection.cancelTicketKgu: DioException: ${e.type}');
+      debugPrint('TicketsCollection.cancelTicketKgu: Status code: ${e.response?.statusCode}');
+      debugPrint('TicketsCollection.cancelTicketKgu: Response data: ${e.response?.data}');
       _handleError(e);
+      rethrow;
+    } catch (e, stackTrace) {
+      debugPrint('TicketsCollection.cancelTicketKgu: Unexpected error: $e');
+      debugPrint('TicketsCollection.cancelTicketKgu: Stack trace: $stackTrace');
       rethrow;
     }
   }

@@ -51,7 +51,7 @@ class TextWithShadow extends StatelessWidget {
     required this.text,
     required this.style,
     this.shadowColor = const Color(0x0F0A0E27), // Default shadow color with opacity (0x0F = ~6% opacity)
-    this.shadowOffset = const Offset(0, 2),
+    this.shadowOffset = const Offset    (0, 2),
     this.shadowBlur = 4,
     this.textAlign,
   });

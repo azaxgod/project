@@ -17,6 +17,8 @@ import 'package:akimat_project/services/contracts/module.dart';
 import 'package:akimat_project/services/operations/module.dart';
 import 'package:akimat_project/services/organizations/module.dart';
 import 'package:akimat_project/services/tickets/module.dart';
+import 'package:akimat_project/services/tickets/collection/tickets_collection.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,6 +27,14 @@ final contractsRepositoryProvider = Provider<ContractsRepository>((ref) {
     services: ref.watch(contractsServicesProvider),
   );
 });
+
+/// Результат отмены тикета
+enum CancelTicketResult {
+  success,
+  networkError,
+  failure,
+  validationError,
+}
 
 final ticketsControllerProvider = StateNotifierProvider<TicketsController, TicketsState>((ref) {
   final authState = ref.watch(authNotifierProvider);
@@ -304,7 +314,7 @@ class TicketsController extends StateNotifier<TicketsState> {
     _loadData();
   }
 
-  Future<void> cancelTicket(Ticket ticket) async {
+  Future<CancelTicketResult> cancelTicket(Ticket ticket) async {
     // Отмена тикета возможна только если нет фактов:
     // - нет trip с этим ticket_id
     // - fact_start_at IS NULL
@@ -312,23 +322,82 @@ class TicketsController extends StateNotifier<TicketsState> {
       state = state.copyWith(
         message: 'Невозможно отменить тикет с фактами работ. Убедитесь, что нет рейсов и фактического начала работ.',
       );
-      return;
+      return CancelTicketResult.validationError;
     }
 
-    final result = await AsyncValue.guard(() async {
-      return await _operationsRepository.updateTicketStatus(
+    try {
+      debugPrint('TicketsController.cancelTicket: Starting cancellation for ticket ${ticket.id}');
+      
+      await _operationsRepository.updateTicketStatus(
         ticket.id,
         status: TicketStatus.cancelled,
       );
-    });
-
-    state = state.copyWith(
-      lastAction: result.whenData((_) => const AsyncValue.data(null)),
-      message: result.hasError ? 'Ошибка при отмене тикета' : 'Тикет отменен',
-    );
-
-    if (!result.hasError) {
-      await _loadData();
+      
+      debugPrint('TicketsController.cancelTicket: Successfully cancelled ticket ${ticket.id}');
+      
+      // Если дошли сюда, значит операция успешна
+      state = state.copyWith(
+        lastAction: const AsyncValue.data(null),
+        message: 'Тикет отменен',
+      );
+      
+      // Не перезагружаем данные сразу, чтобы не показывать индикатор загрузки
+      // Пользователь может обновить страницу вручную или данные обновятся при следующем действии
+      
+      return CancelTicketResult.success;
+    } on TicketsException catch (e) {
+      // Обрабатываем ошибки Ticket Service
+      debugPrint('TicketsController.cancelTicket: TicketsException: ${e.message}, statusCode: ${e.statusCode}');
+      
+      // Если статус код 200, значит отмена успешна, даже если не удалось получить обновленный тикет
+      if (e.statusCode == 200) {
+        debugPrint('TicketsController.cancelTicket: Cancellation successful (200), but failed to fetch updated ticket');
+        state = state.copyWith(
+          lastAction: const AsyncValue.data(null),
+          message: 'Тикет отменен',
+        );
+        
+        // Не перезагружаем данные сразу, чтобы не показывать индикатор загрузки
+        // Пользователь может обновить страницу вручную или данные обновятся при следующем действии
+        
+        return CancelTicketResult.success;
+      }
+      
+      state = state.copyWith(
+        lastAction: const AsyncValue.data(null),
+        message: e.message,
+      );
+      return CancelTicketResult.failure;
+    } on DioException catch (e) {
+      debugPrint('TicketsController.cancelTicket: DioException: ${e.type}, statusCode: ${e.response?.statusCode}');
+      // Обрабатываем сетевые ошибки
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown) {
+        state = state.copyWith(
+          lastAction: const AsyncValue.data(null),
+          message: 'Ошибка сети при отмене тикета',
+        );
+        return CancelTicketResult.networkError;
+      }
+      
+      // Другие ошибки Dio
+      state = state.copyWith(
+        lastAction: const AsyncValue.data(null),
+        message: 'Ошибка при отмене тикета',
+      );
+      return CancelTicketResult.failure;
+    } catch (e, stackTrace) {
+      // Обрабатываем все остальные ошибки
+      debugPrint('TicketsController.cancelTicket: Unexpected error: $e');
+      debugPrint('TicketsController.cancelTicket: Stack trace: $stackTrace');
+      state = state.copyWith(
+        lastAction: const AsyncValue.data(null),
+        message: 'Ошибка при отмене тикета: ${e.toString()}',
+      );
+      return CancelTicketResult.failure;
     }
   }
 

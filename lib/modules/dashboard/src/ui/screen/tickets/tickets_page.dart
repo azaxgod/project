@@ -19,13 +19,13 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/organiz
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/vehicle.dart';
-import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
 import 'package:akimat_project/core/di.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_error_state.dart';
 import 'package:akimat_project/core/ui/widgets/date_range_picker.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/widgets/ticket_create_dialog.dart';
+import 'package:akimat_project/core/utils/notification_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -723,7 +723,72 @@ class _TicketsContent extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await controller.cancelTicket(ticket);
+      // Показываем индикатор загрузки
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        final result = await controller.cancelTicket(ticket);
+        
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Закрываем индикатор загрузки
+        }
+
+        if (context.mounted) {
+          switch (result) {
+            case CancelTicketResult.success:
+              // Показываем уведомление об успехе справа
+              context.showSuccessNotification(
+                'Тикет успешно отменен',
+                duration: const Duration(seconds: 2),
+              );
+              // Обновляем страницу после небольшой задержки, чтобы уведомление успело показаться
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (context.mounted) {
+                  controller.refresh();
+                }
+              });
+              break;
+
+            case CancelTicketResult.networkError:
+              // Показываем уведомление об ошибке сети справа
+              context.showWarningNotification(
+                'Ошибка сети. Проверьте подключение к интернету и попробуйте снова.',
+                duration: const Duration(seconds: 5),
+              );
+              break;
+
+            case CancelTicketResult.failure:
+              // Показываем уведомление о провале справа
+              context.showErrorNotification(
+                'Не удалось отменить тикет. Попробуйте позже.',
+                duration: const Duration(seconds: 5),
+              );
+              break;
+
+            case CancelTicketResult.validationError:
+              // Показываем уведомление об ошибке валидации справа
+              context.showErrorNotification(
+                'Невозможно отменить тикет с фактами работ. Убедитесь, что нет рейсов и фактического начала работ.',
+                duration: const Duration(seconds: 5),
+              );
+              break;
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Закрываем индикатор загрузки
+          context.showErrorNotification(
+            'Произошла ошибка: ${e.toString()}',
+            duration: const Duration(seconds: 5),
+          );
+        }
+      }
     }
   }
 
