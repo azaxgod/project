@@ -102,8 +102,8 @@ class DashboardContractor {
 
   factory DashboardContractor.fromJson(Map<String, dynamic> json) {
     return DashboardContractor(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       count: json['count'] as int?,
       share: (json['share'] as num?)?.toDouble(),
     );
@@ -140,7 +140,7 @@ class DashboardContract {
       return null;
     }
 
-    final contractId = json['contract_id'] as String;
+    final contractId = json['contract_id'] as String? ?? '';
     final startAt = parseDateTime(json['start_at'] ?? json['startAt']);
     final endAt = parseDateTime(json['end_at'] ?? json['endAt']);
     
@@ -202,7 +202,7 @@ class DashboardArea {
 
   factory DashboardArea.fromJson(Map<String, dynamic> json) {
     return DashboardArea(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       hasTrips: json['has_trips'] as bool? ?? false,
       intensity: (json['intensity'] as num?)?.toDouble(),
     );
@@ -222,7 +222,7 @@ class DashboardPolygon {
 
   factory DashboardPolygon.fromJson(Map<String, dynamic> json) {
     return DashboardPolygon(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       tripCount: json['trip_count'] as int?,
       volumeM3: (json['volume_m3'] as num?)?.toDouble(),
     );
@@ -240,7 +240,7 @@ class DashboardMapCamera {
 
   factory DashboardMapCamera.fromJson(Map<String, dynamic> json) {
     return DashboardMapCamera(
-      cameraId: json['camera_id'] as String,
+      cameraId: json['camera_id'] as String? ?? '',
       errorEvents: json['error_events'] as int?,
     );
   }
@@ -261,7 +261,7 @@ class DashboardCamera {
 
   factory DashboardCamera.fromJson(Map<String, dynamic> json) {
     return DashboardCamera(
-      cameraId: json['camera_id'] as String,
+      cameraId: json['camera_id'] as String? ?? '',
       lprEvents: json['lpr_events'] as int?,
       volumeEvents: json['volume_events'] as int?,
       errorRate: (json['error_rate'] as num?)?.toDouble(),
@@ -333,8 +333,12 @@ class TimeSeriesPoint {
   });
 
   factory TimeSeriesPoint.fromJson(Map<String, dynamic> json) {
+    final bucketStr = json['bucket'] as String?;
+    if (bucketStr == null) {
+      throw FormatException('TimeSeriesPoint: bucket is null or missing');
+    }
     return TimeSeriesPoint(
-      bucket: DateTime.parse(json['bucket'] as String),
+      bucket: DateTime.parse(bucketStr),
       count: json['count'] as int? ?? 0,
     );
   }
@@ -352,8 +356,12 @@ class VolumeTimeSeriesPoint {
   });
 
   factory VolumeTimeSeriesPoint.fromJson(Map<String, dynamic> json) {
+    final bucketStr = json['bucket'] as String?;
+    if (bucketStr == null) {
+      throw FormatException('VolumeTimeSeriesPoint: bucket is null or missing');
+    }
     return VolumeTimeSeriesPoint(
-      bucket: DateTime.parse(json['bucket'] as String),
+      bucket: DateTime.parse(bucketStr),
       count: json['count'] as int? ?? 0,
       value: (json['value'] as num?)?.toDouble() ?? 0.0,
     );
@@ -373,8 +381,8 @@ class TopDriver {
 
   factory TopDriver.fromJson(Map<String, dynamic> json) {
     return TopDriver(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       count: json['count'] as int? ?? 0,
     );
   }
@@ -393,8 +401,8 @@ class TopContractor {
 
   factory TopContractor.fromJson(Map<String, dynamic> json) {
     return TopContractor(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       count: json['count'] as int? ?? 0,
     );
   }
@@ -497,8 +505,20 @@ class TripDetailData {
   });
 
   factory TripDetailData.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+    
     return TripDetailData(
-      tripId: json['trip_id'] as String,
+      tripId: json['trip_id'] as String? ?? '',
       driverId: json['driver_id'] as String?,
       driverName: json['driver_name'] as String?,
       contractorId: json['contractor_id'] as String?,
@@ -509,15 +529,9 @@ class TripDetailData {
       contractId: json['contract_id'] as String?,
       areaId: json['area_id'] as String?,
       polygonId: json['polygon_id'] as String?,
-      startTime: json['start_time'] != null
-          ? DateTime.parse(json['start_time'] as String)
-          : null,
-      polygonArrivalTime: json['polygon_arrival_time'] != null
-          ? DateTime.parse(json['polygon_arrival_time'] as String)
-          : null,
-      polygonExitTime: json['polygon_exit_time'] != null
-          ? DateTime.parse(json['polygon_exit_time'] as String)
-          : null,
+      startTime: parseDateTime(json['start_time']),
+      polygonArrivalTime: parseDateTime(json['polygon_arrival_time']),
+      polygonExitTime: parseDateTime(json['polygon_exit_time']),
       lprInUrl: json['lpr_in_url'] as String?,
       volumeInUrl: json['volume_in_url'] as String?,
       lprOutUrl: json['lpr_out_url'] as String?,
@@ -598,7 +612,7 @@ class ViolationBreakdown {
 
   factory ViolationBreakdown.fromJson(Map<String, dynamic> json) {
     return ViolationBreakdown(
-      name: json['name'] as String,
+      name: json['name'] as String? ?? '',
       count: json['count'] as int? ?? 0,
     );
   }
@@ -617,7 +631,7 @@ class TopCamera {
 
   factory TopCamera.fromJson(Map<String, dynamic> json) {
     return TopCamera(
-      cameraId: json['camera_id'] as String,
+      cameraId: json['camera_id'] as String? ?? '',
       cameraName: json['camera_name'] as String?,
       errorEvents: json['error_events'] as int? ?? 0,
     );
@@ -688,8 +702,8 @@ class ContractorPerformance {
 
   factory ContractorPerformance.fromJson(Map<String, dynamic> json) {
     return ContractorPerformance(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       tripCount: json['trip_count'] as int? ?? 0,
       violationRate: (json['violation_rate'] as num?)?.toDouble() ?? 0.0,
       avgDurationMinutes: (json['avg_duration_minutes'] as num?)?.toDouble(),
@@ -723,17 +737,27 @@ class DriverPerformance {
   });
 
   factory DriverPerformance.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+    
     return DriverPerformance(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       tripCount: json['trip_count'] as int? ?? 0,
       avgVolumeM3: (json['avg_volume_m3'] as num?)?.toDouble(),
       violationCount: json['violation_count'] as int? ?? 0,
       violationRate: (json['violation_rate'] as num?)?.toDouble(),
       avgSpeedKmh: (json['avg_speed_kmh'] as num?)?.toDouble(),
-      lastTripAt: json['last_trip_at'] != null
-          ? DateTime.parse(json['last_trip_at'] as String)
-          : null,
+      lastTripAt: parseDateTime(json['last_trip_at']),
     );
   }
 }
@@ -760,17 +784,27 @@ class VehiclePerformance {
   });
 
   factory VehiclePerformance.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+    
     return VehiclePerformance(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       name: json['name'] as String?,
       avgFillRate: (json['avg_fill_rate'] as num?)?.toDouble(),
       tripsPerDay: (json['trips_per_day'] as num?)?.toDouble(),
       lprErrorCount: json['lpr_error_count'] as int?,
       totalDistanceKm: (json['total_distance_km'] as num?)?.toDouble(),
       idleHours: (json['idle_hours'] as num?)?.toDouble(),
-      lastTripAt: json['last_trip_at'] != null
-          ? DateTime.parse(json['last_trip_at'] as String)
-          : null,
+      lastTripAt: parseDateTime(json['last_trip_at']),
     );
   }
 }
@@ -840,7 +874,7 @@ class ContractSummary {
 
   factory ContractSummary.fromJson(Map<String, dynamic> json) {
     return ContractSummary(
-      contractId: json['contract_id'] as String,
+      contractId: json['contract_id'] as String? ?? '',
       contractorName: json['contractor_name'] as String?,
       budgetProgress: (json['budget_progress'] as num?)?.toDouble(),
       volumeProgress: (json['volume_progress'] as num?)?.toDouble(),
@@ -907,7 +941,7 @@ class AreaAnalytics {
 
   factory AreaAnalytics.fromJson(Map<String, dynamic> json) {
     return AreaAnalytics(
-      areaId: json['area_id'] as String,
+      areaId: json['area_id'] as String? ?? '',
       areaName: json['area_name'] as String?,
       tripCount: json['trip_count'] as int? ?? 0,
       volumeM3: (json['volume_m3'] as num?)?.toDouble(),
@@ -1012,6 +1046,18 @@ class TechnicalAnalyticsData {
   });
 
   factory TechnicalAnalyticsData.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+    
     return TechnicalAnalyticsData(
       cameras: (json['cameras'] as List<dynamic>?)
           ?.map((e) => TechnicalCamera.fromJson(e as Map<String, dynamic>))
@@ -1021,9 +1067,7 @@ class TechnicalAnalyticsData {
           .toList() ?? [],
       errorRate: (json['error_rate'] as num?)?.toDouble(),
       eventFrequency: (json['event_frequency'] as num?)?.toDouble(),
-      lastEventAt: json['last_event_at'] != null
-          ? DateTime.parse(json['last_event_at'] as String)
-          : null,
+      lastEventAt: parseDateTime(json['last_event_at']),
     );
   }
 }
@@ -1045,7 +1089,7 @@ class TechnicalCamera {
 
   factory TechnicalCamera.fromJson(Map<String, dynamic> json) {
     return TechnicalCamera(
-      cameraId: json['camera_id'] as String,
+      cameraId: json['camera_id'] as String? ?? '',
       cameraName: json['camera_name'] as String?,
       lprEvents: json['lpr_events'] as int? ?? 0,
       volumeEvents: json['volume_events'] as int? ?? 0,
@@ -1071,7 +1115,7 @@ class TechnicalPolygon {
 
   factory TechnicalPolygon.fromJson(Map<String, dynamic> json) {
     return TechnicalPolygon(
-      polygonId: json['polygon_id'] as String,
+      polygonId: json['polygon_id'] as String? ?? '',
       polygonName: json['polygon_name'] as String?,
       tripCount: json['trip_count'] as int? ?? 0,
       volume: (json['volume'] as num?)?.toDouble(),

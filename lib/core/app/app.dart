@@ -2,6 +2,7 @@ import 'package:akimat_project/core/locale/custom_localization_delegate.dart';
 import 'package:akimat_project/core/locale/locale_provider.dart';
 import 'package:akimat_project/core/routes/app_routes.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
+import 'package:akimat_project/core/ui/app_theme.dart';
 import 'package:akimat_project/core/ui/widgets/notification_overlay.dart';
 import 'package:akimat_project/core/ui/widgets/session_expired_dialog.dart';
 import 'package:akimat_project/core/utils/notification_helper.dart';
@@ -58,10 +59,7 @@ class _AkimatAppState extends ConsumerState<AkimatApp> {
                 title: 'Akimat Project',
                 debugShowCheckedModeBanner: false,
                 routerConfig: router,
-                theme: ThemeData(
-                  primarySwatch: Colors.blue,
-                  scaffoldBackgroundColor: AppColors.background,
-                ),
+                theme: AppTheme.lightTheme,
                 localizationsDelegates: const [
                   CustomLocalizationDelegate(),
                   GlobalMaterialLocalizations.delegate,
