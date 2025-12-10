@@ -22,6 +22,7 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/contracts/contrac
 import 'package:akimat_project/modules/violations/src/ui/screen/violation_detail_page.dart';
 import 'package:akimat_project/modules/violations/src/ui/screen/violations_page.dart';
 import 'package:akimat_project/modules/trips/src/ui/driver_home.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -409,6 +410,17 @@ final appRouterProvider = FutureProvider<GoRouter>((ref) async {
     final routePath = currentLocation.contains('?') 
         ? currentLocation.split('?')[0] 
         : currentLocation;
+    
+    // ВАЖНО: Для водителя редиректим /tickets на /driver?tab=tickets
+    // чтобы тикеты открывались как вкладка, а не отдельный экран
+    final user = authState.user;
+    if (user != null) {
+      final role = userRoleFromString(user.role);
+      if (role == UserRole.driver && routePath == '/tickets') {
+        debugPrint('GoRouter redirect: Driver trying to access /tickets, redirecting to /driver?tab=tickets');
+        return '/driver?tab=tickets';
+      }
+    }
     
     final validRoutes = [
       '/login', '/home', '/dashboard', '/organization', '/monitoring', '/areas', 

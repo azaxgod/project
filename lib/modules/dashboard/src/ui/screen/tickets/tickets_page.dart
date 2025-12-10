@@ -71,11 +71,13 @@ class TicketsPage extends ConsumerWidget {
             ),
       body: Column(
         children: [
-          // Показываем навбар только если передан непустой список виджетов
-          // Это позволяет избежать дублирования навбара, когда TicketsPage используется внутри другой страницы
-          if (kIsWeb && webNavbarWidgets != null && webNavbarWidgets!.isNotEmpty)
+          // Показываем навбар для веб-версии
+          // Если webNavbarWidgets == null - используем дефолтный навбар (HeaderNavbar сам вызовет getDefaultWebWidgets)
+          // Если webNavbarWidgets == [] (пустой список) - не показываем навбар (используется внутри другой страницы)
+          // Если webNavbarWidgets != null && !isEmpty - используем переданный навбар
+          if (kIsWeb && (webNavbarWidgets == null || webNavbarWidgets!.isNotEmpty))
             HeaderNavbar(
-              webWidgets: webNavbarWidgets,
+              webWidgets: webNavbarWidgets, // null -> дефолтный, непустой -> переданный
             ),
           Expanded(
             child: state.data.when(
