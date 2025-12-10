@@ -12,6 +12,7 @@ import 'package:akimat_project/core/utils/file_downloader.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/analytics/src/controller/analytics_controller.dart';
 import 'package:akimat_project/modules/analytics/src/controller/analytics_providers.dart';
+import 'package:akimat_project/modules/analytics/src/controller/analytics_state.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_kpi_card.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_section.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/shimmer_loading.dart';
@@ -65,15 +66,30 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = ref.read(analyticsControllerProvider.notifier);
-      controller.loadDashboard(
-        from: _dateFrom,
-        to: _dateTo,
-      );
-      // Также загружаем отфильтрованные контракты при инициализации
-      if (_dateFrom != null && _dateTo != null) {
-        controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
-        // Загружаем данные журнала приёма снега для LANDFILL_ADMIN
-        _loadLandfillJournal();
+      
+      // Проверяем роль пользователя
+      final authState = ref.read(authNotifierProvider);
+      final userRole = userRoleFromString(authState.user?.role);
+      final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+      
+      if (isLandfillAdmin) {
+        // Для LANDFILL_ADMIN загружаем техническую аналитику
+        controller.loadTechnicalAnalytics(
+          from: _dateFrom,
+          to: _dateTo,
+        );
+      } else {
+        // Для других ролей загружаем обычный дашборд
+        controller.loadDashboard(
+          from: _dateFrom,
+          to: _dateTo,
+        );
+        // Также загружаем отфильтрованные контракты при инициализации
+        if (_dateFrom != null && _dateTo != null) {
+          controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+          // Загружаем данные журнала приёма снега для LANDFILL_ADMIN
+          _loadLandfillJournal();
+        }
       }
     });
   }
@@ -120,6 +136,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final s = S.of(context)!;
     final state = ref.watch(analyticsControllerProvider);
     final controller = ref.read(analyticsControllerProvider.notifier);
+    
+    // Проверяем роль пользователя
+    final authState = ref.watch(authNotifierProvider);
+    final userRole = userRoleFromString(authState.user?.role);
+    final isLandfillAdmin = userRole == UserRole.landfillAdmin;
 
     return Scaffold(
       key: widget.scaffoldKey,
@@ -127,7 +148,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       appBar: kIsWeb
           ? null
           : AppBar(
-              title: Text(s.analytics),
+              title: Text(isLandfillAdmin ? 'Техническая аналитика' : s.analytics),
               leading: Builder(
                 builder: (context) => IconButton(
                   icon: const Icon(Icons.menu),
@@ -146,10 +167,12 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               webWidgets: widget.webNavbarWidgets,
             ),
           Expanded(
-            child: state.dashboard?.when(
-              data: (data) => _buildDashboardContent(data, controller),
-              loading: () => _buildLoadingState(),
-              error: (error, stack) => Center(
+            child: isLandfillAdmin
+                ? _buildTechnicalAnalytics(state, controller)
+                : state.dashboard?.when(
+                    data: (data) => _buildDashboardContent(data, controller),
+                    loading: () => _buildLoadingState(),
+                    error: (error, stack) => Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(AppPadding.large),
                 child: Column(
@@ -185,10 +208,18 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ElevatedButton.icon(
-                      onPressed: () => controller.loadDashboard(
-                        from: _dateFrom,
-                        to: _dateTo,
-                      ),
+                            onPressed: () {
+                              // Для LANDFILL_ADMIN загружаем техническую аналитику
+                              final authState = ref.read(authNotifierProvider);
+                              final userRole = userRoleFromString(authState.user?.role);
+                              final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+                              
+                              if (isLandfillAdmin) {
+                                controller.loadTechnicalAnalytics(from: _dateFrom, to: _dateTo);
+                              } else {
+                                controller.loadDashboard(from: _dateFrom, to: _dateTo);
+                              }
+                            },
                             icon: const Icon(Icons.refresh),
                             label: const Text('Повторить'),
                           ),
@@ -238,9 +269,301 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                   ),
                 ),
               ),
-            ) ?? const Center(child: CircularProgressIndicator()),
+                    ) ?? const Center(child: CircularProgressIndicator()),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Построить техническую аналитику для LANDFILL роли
+  Widget _buildTechnicalAnalytics(
+    AnalyticsState state,
+    AnalyticsController controller,
+  ) {
+    return state.technicalAnalytics?.when(
+      data: (data) => _buildTechnicalContent(data, controller),
+      loading: () => _buildLoadingState(),
+      error: (error, stack) => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppPadding.large),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Ошибка загрузки технической аналитики',
+                style: AppTextStyles.title.copyWith(
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(AppPadding.normal),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryBackground,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  error.toString(),
+                  style: AppTextStyles.body,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => controller.loadTechnicalAnalytics(
+                  from: _dateFrom,
+                  to: _dateTo,
+                ),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Повторить'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ) ?? const Center(child: CircularProgressIndicator());
+  }
+
+  /// Построить контент технической аналитики
+  Widget _buildTechnicalContent(
+    TechnicalAnalyticsResponse data,
+    AnalyticsController controller,
+  ) {
+    final config = PlatformConfig.instance;
+    
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(config.padding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Фильтры
+          Container(
+            margin: const EdgeInsets.only(bottom: AppPadding.large),
+            padding: const EdgeInsets.all(AppPadding.normal),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppSize.cardRadius),
+              border: Border.all(color: AppColors.divider, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.divider.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Фильтры', style: AppTextStyles.title2),
+                const SizedBox(height: AppPadding.normal),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CustomDateRangePicker(
+                        label: 'Период аналитики',
+                        initialStartDate: _dateFrom,
+                        initialEndDate: _dateTo,
+                        onDateRangeSelected: (start, end) {
+                          setState(() {
+                            _dateFrom = start;
+                            _dateTo = end;
+                          });
+                          if (start != null && end != null) {
+                            controller.loadTechnicalAnalytics(from: start, to: end);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: AppPadding.normal),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.refresh, color: AppColors.primary),
+                        tooltip: 'Обновить данные',
+                        onPressed: () {
+                          controller.loadTechnicalAnalytics(from: _dateFrom, to: _dateTo);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Общая статистика
+          if (data.data.errorRate != null || data.data.eventFrequency != null || data.data.lastEventAt != null)
+            _buildTechnicalOverallStats(data.data),
+          
+          const SizedBox(height: AppPadding.large),
+          
+          // Камеры
+          if (data.data.cameras.isNotEmpty)
+            _buildTechnicalCamerasTable(data.data.cameras),
+          
+          const SizedBox(height: AppPadding.large),
+          
+          // Полигоны
+          if (data.data.polygons.isNotEmpty)
+            _buildTechnicalPolygonsTable(data.data.polygons),
+        ],
+      ),
+    );
+  }
+
+  /// Построить общую статистику технической аналитики
+  Widget _buildTechnicalOverallStats(TechnicalAnalyticsData data) {
+    return Container(
+      padding: const EdgeInsets.all(AppPadding.large),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppSize.cardRadius),
+        border: Border.all(color: AppColors.divider, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Общая статистика', style: AppTextStyles.title2),
+          const SizedBox(height: AppPadding.normal),
+          Row(
+            children: [
+              if (data.errorRate != null)
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Доля ошибок',
+                    value: '${(data.errorRate! * 100).toStringAsFixed(2)}%',
+                    icon: Icons.error_outline,
+                    color: (data.errorRate ?? 0) > 0.05 ? Colors.red : Colors.green,
+                  ),
+                ),
+              if (data.eventFrequency != null) ...[
+                if (data.errorRate != null) const SizedBox(width: AppPadding.normal),
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Частота событий',
+                    value: '${data.eventFrequency!.toStringAsFixed(1)}/час',
+                    icon: Icons.event,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+              if (data.lastEventAt != null) ...[
+                if (data.errorRate != null || data.eventFrequency != null)
+                  const SizedBox(width: AppPadding.normal),
+                Expanded(
+                  child: AnimatedKPICard(
+                    title: 'Последнее событие',
+                    value: DateFormat('dd.MM.yyyy\nHH:mm').format(data.lastEventAt!),
+                    icon: Icons.access_time,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Построить таблицу камер для технической аналитики
+  Widget _buildTechnicalCamerasTable(List<TechnicalCamera> cameras) {
+    return AnimatedSection(
+      title: 'Камеры',
+      icon: Icons.videocam,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('Камера')),
+            DataColumn(label: Text('LPR событий')),
+            DataColumn(label: Text('Volume событий')),
+            DataColumn(label: Text('Ошибок')),
+            DataColumn(label: Text('Доля ошибок')),
+          ],
+          rows: cameras.map((camera) {
+            final totalEvents = camera.lprEvents + camera.volumeEvents;
+            final errorRate = totalEvents > 0
+                ? (camera.errorEvents / totalEvents)
+                : 0.0;
+            
+            return DataRow(
+              cells: [
+                DataCell(Text(camera.cameraName ?? camera.cameraId.substring(0, 8))),
+                DataCell(Text(camera.lprEvents.toString())),
+                DataCell(Text(camera.volumeEvents.toString())),
+                DataCell(
+                  Text(
+                    camera.errorEvents.toString(),
+                    style: TextStyle(
+                      color: camera.errorEvents > 0 ? Colors.red : null,
+                      fontWeight: camera.errorEvents > 0 ? FontWeight.bold : null,
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    '${(errorRate * 100).toStringAsFixed(2)}%',
+                    style: TextStyle(
+                      color: errorRate > 0.05 ? Colors.red : Colors.green,
+                      fontWeight: errorRate > 0.05 ? FontWeight.bold : null,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  /// Построить таблицу полигонов для технической аналитики
+  Widget _buildTechnicalPolygonsTable(List<TechnicalPolygon> polygons) {
+    return AnimatedSection(
+      title: 'Полигоны',
+      icon: Icons.map,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('Полигон')),
+            DataColumn(label: Text('Рейсов')),
+            DataColumn(label: Text('Объём (м³)')),
+            DataColumn(label: Text('Ошибок')),
+          ],
+          rows: polygons.map((polygon) {
+            final volume = polygon.volume ?? 0.0;
+            final errors = polygon.errors ?? 0;
+            return DataRow(
+              cells: [
+                DataCell(Text(polygon.polygonName ?? polygon.polygonId.substring(0, 8))),
+                DataCell(Text(polygon.tripCount.toString())),
+                DataCell(Text(volume.toStringAsFixed(2))),
+                DataCell(
+                  Text(
+                    errors.toString(),
+                    style: TextStyle(
+                      color: errors > 0 ? Colors.red : null,
+                      fontWeight: errors > 0 ? FontWeight.bold : null,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -439,11 +762,17 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                               _dateTo = end;
                             });
                             controller.updateDateRange(start, end);
-                            controller.loadDashboard(from: start, to: end);
-                            // Перезагружаем контракты с фильтром по дате
-                            controller.loadContractsAnalytics(from: start, to: end);
-                            // Перезагружаем данные журнала приёма снега
-                            _loadLandfillJournal();
+                            
+                            // Для LANDFILL_ADMIN загружаем техническую аналитику
+                            if (isLandfillAdmin) {
+                              controller.loadTechnicalAnalytics(from: start, to: end);
+                            } else {
+                              controller.loadDashboard(from: start, to: end);
+                              // Перезагружаем контракты с фильтром по дате
+                              controller.loadContractsAnalytics(from: start, to: end);
+                              // Перезагружаем данные журнала приёма снега
+                              _loadLandfillJournal();
+                            }
                           }
                         },
                       ),
@@ -458,12 +787,17 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         icon: const Icon(Icons.refresh, color: AppColors.primary),
                         tooltip: 'Обновить данные',
                         onPressed: () {
-                          controller.loadDashboard(from: _dateFrom, to: _dateTo);
-                          // Всегда загружаем отфильтрованные контракты при обновлении
-                          if (_dateFrom != null && _dateTo != null) {
-                            controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
-                            // Перезагружаем данные журнала приёма снега
-                            _loadLandfillJournal();
+                          // Для LANDFILL_ADMIN загружаем техническую аналитику
+                          if (isLandfillAdmin) {
+                            controller.loadTechnicalAnalytics(from: _dateFrom, to: _dateTo);
+                          } else {
+                            controller.loadDashboard(from: _dateFrom, to: _dateTo);
+                            // Всегда загружаем отфильтрованные контракты при обновлении
+                            if (_dateFrom != null && _dateTo != null) {
+                              controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                              // Перезагружаем данные журнала приёма снега
+                              _loadLandfillJournal();
+                            }
                           }
                         },
                       ),
