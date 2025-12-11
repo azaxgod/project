@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.d
 import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_monitoring.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon_access.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 
@@ -88,6 +89,19 @@ abstract class OperationsRepository {
     String id, {
     required List<List<double>> geometry,
   });
+
+  /// Получить историю доступа подрядчиков к полигону
+  Future<List<PolygonAccess>> getPolygonAccess(String id);
+
+  /// Выдать доступ подрядчику к полигону
+  Future<PolygonAccess> grantPolygonAccess(
+    String id, {
+    required String contractorId,
+    required String source, // "TICKETS" or "MANUAL"
+  });
+
+  /// Отозвать доступ подрядчика к полигону
+  Future<void> revokePolygonAccess(String id, String contractorId);
 
   // ==================== Cameras ====================
 

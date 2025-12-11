@@ -3,6 +3,7 @@ import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_mo
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon_access.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
@@ -14,6 +15,7 @@ class MonitoringData {
   final List<Camera> cameras;
   final List<VehicleMonitoring> vehicles;
   final List<Organization> contractors; // Подрядчики для маппинга
+  final Map<String, List<PolygonAccess>> polygonAccesses; // Доступы к полигонам: polygonId -> список доступов
   final DateTime lastUpdate;
 
   const MonitoringData({
@@ -22,6 +24,7 @@ class MonitoringData {
     required this.cameras,
     required this.vehicles,
     required this.contractors,
+    required this.polygonAccesses,
     required this.lastUpdate,
   });
 
@@ -31,6 +34,7 @@ class MonitoringData {
     List<Camera>? cameras,
     List<VehicleMonitoring>? vehicles,
     List<Organization>? contractors,
+    Map<String, List<PolygonAccess>>? polygonAccesses,
     DateTime? lastUpdate,
   }) {
     return MonitoringData(
@@ -39,6 +43,7 @@ class MonitoringData {
       cameras: cameras ?? this.cameras,
       vehicles: vehicles ?? this.vehicles,
       contractors: contractors ?? this.contractors,
+      polygonAccesses: polygonAccesses ?? this.polygonAccesses,
       lastUpdate: lastUpdate ?? this.lastUpdate,
     );
   }

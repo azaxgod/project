@@ -3,6 +3,7 @@ import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_mo
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon_access.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket.dart';
 import 'package:akimat_project/modules/dashboard/src/model/tickets/ticket_assignment.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
@@ -178,6 +179,45 @@ class OperationsRepositoryImpl implements OperationsRepository {
       geometry: geometryJson,
     );
     return dto.toDomain();
+  }
+
+  @override
+  Future<List<PolygonAccess>> getPolygonAccess(String id) async {
+    final dtos = await _services.collection.getPolygonAccess(id);
+    return dtos.map((dto) => PolygonAccess(
+      id: dto.id,
+      polygonId: dto.polygonId,
+      contractorId: dto.contractorId,
+      source: dto.source,
+      isActive: dto.isActive,
+      createdAt: dto.createdAt,
+    )).toList();
+  }
+
+  @override
+  Future<PolygonAccess> grantPolygonAccess(
+    String id, {
+    required String contractorId,
+    required String source,
+  }) async {
+    final dto = await _services.collection.grantPolygonAccess(
+      id,
+      contractorId: contractorId,
+      source: source,
+    );
+    return PolygonAccess(
+      id: dto.id,
+      polygonId: dto.polygonId,
+      contractorId: dto.contractorId,
+      source: dto.source,
+      isActive: dto.isActive,
+      createdAt: dto.createdAt,
+    );
+  }
+
+  @override
+  Future<void> revokePolygonAccess(String id, String contractorId) async {
+    await _services.collection.revokePolygonAccess(id, contractorId);
   }
 
   // ==================== Cameras ====================

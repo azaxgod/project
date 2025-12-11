@@ -10,6 +10,7 @@ class DriverMapWidget extends StatelessWidget {
     required this.currentLocation,
     this.cleaningArea,
     this.polygon,
+    this.polygons, // Список всех полигонов подрядчика
     this.isInArea = false,
     this.isInPolygon = false,
     this.isVehicleInWork = false, // Машина в работе (зеленый цвет на карте)
@@ -17,7 +18,8 @@ class DriverMapWidget extends StatelessWidget {
 
   final LatLng currentLocation; // Текущая позиция водителя
   final CleaningArea? cleaningArea; // Участок уборки
-  final model.Polygon? polygon; // Полигон вывоза
+  final model.Polygon? polygon; // Полигон вывоза (для обратной совместимости)
+  final List<model.Polygon>? polygons; // Список всех полигонов подрядчика
   final bool isInArea; // Находится ли водитель в зоне участка
   final bool isInPolygon; // Находится ли водитель в зоне полигона
   final bool isVehicleInWork; // Машина в работе (зеленый цвет на карте)
@@ -48,33 +50,61 @@ class DriverMapWidget extends StatelessWidget {
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.akimat.project',
         ),
-        // Участок уборки
-        if (cleaningArea != null && cleaningArea!.geometry.isNotEmpty)
-          PolygonLayer(
-            polygons: [
-              Polygon(
-                points: cleaningArea!.geometry
-                    .map((coord) => LatLng(coord[1], coord[0]))
-                    .toList(),
-                color: Colors.blue.withOpacity(0.3),
-                borderColor: Colors.blue,
-                borderStrokeWidth: 2,
+        // Участок уборки (отображаем линиями, как у подрядчика)
+        if (cleaningArea != null && cleaningArea!.geometry.isNotEmpty && cleaningArea!.geometry.length >= 2)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: () {
+                  // Преобразуем геометрию в точки LatLng
+                  final points = cleaningArea!.geometry
+                      .map((coord) => LatLng(coord[1], coord[0]))
+                      .toList();
+                  // Замыкаем полилинию (добавляем первую точку в конец для замкнутого контура)
+                  if (points.isNotEmpty && points.first != points.last) {
+                    points.add(points.first);
+                  }
+                  return points;
+                }(),
+                strokeWidth: 2.0,
+                color: Colors.blue.shade700,
               ),
             ],
           ),
-        // Полигон вывоза
-        if (polygon != null && polygon!.geometry.isNotEmpty)
+        // Полигоны вывоза (привязанные к подрядчику)
+        // Отображаем все полигоны подрядчика, если передан список, иначе используем один полигон
+        if ((polygons != null && polygons!.isNotEmpty) || (polygon != null && polygon!.geometry.isNotEmpty))
           PolygonLayer(
-            polygons: [
-              Polygon(
-                points: polygon!.geometry
-                    .map((coord) => LatLng(coord[1], coord[0]))
-                    .toList(),
-                color: Colors.orange.withOpacity(0.3),
-                borderColor: Colors.orange,
-                borderStrokeWidth: 2,
-              ),
-            ],
+            polygons: () {
+              // Если передан список полигонов, используем его
+              if (polygons != null && polygons!.isNotEmpty) {
+                return polygons!
+                    .where((p) => p.geometry.isNotEmpty && p.geometry.length >= 3)
+                    .map((p) => Polygon(
+                          points: p.geometry
+                              .map((coord) => LatLng(coord[1], coord[0]))
+                              .toList(),
+                          color: Colors.orange.withOpacity(0.3),
+                          borderColor: Colors.orange,
+                          borderStrokeWidth: 2,
+                        ))
+                    .toList();
+              }
+              // Иначе используем один полигон (для обратной совместимости)
+              if (polygon != null && polygon!.geometry.isNotEmpty) {
+                return [
+                  Polygon(
+                    points: polygon!.geometry
+                        .map((coord) => LatLng(coord[1], coord[0]))
+                        .toList(),
+                    color: Colors.orange.withOpacity(0.3),
+                    borderColor: Colors.orange,
+                    borderStrokeWidth: 2,
+                  ),
+                ];
+              }
+              return <Polygon>[];
+            }(),
           ),
         // Маркер текущей позиции водителя
         // Зелёный цвет = машина в работе (статус IN_PROGRESS после нажатия "Начать рейс")

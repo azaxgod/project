@@ -2,6 +2,7 @@ import 'package:akimat_project/core/di.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
+import 'package:akimat_project/modules/dashboard/src/model/contracts/contract.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/driver.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
@@ -231,88 +232,132 @@ class DriverController extends StateNotifier<DriverState> {
         }
 
         // Загружаем информацию о водителе и технике
-        // ВАЖНО: Для начала рейса информация о водителе не нужна - она используется только для отображения
-        // Убираем загрузку водителя, чтобы не делать лишний запрос к /roles/drivers/:id
+        // ВАЖНО: Для загрузки полигонов нужен подрядчик водителя
         Driver? driver;
         Vehicle? vehicle;
         Organization? contractor;
 
-        // Информация о водителе не загружается - не нужна для начала рейса
-        // Если понадобится для отображения, можно загрузить позже по требованию
-        debugPrint('DriverController._loadData: Skipping driver info loading - not needed for trip start');
+        // Загружаем организацию подрядчика по ID (если есть organizationId в JWT токене)
+        // Это нужно для правильной фильтрации полигонов API
+        if (_organizationId != null) {
+          try {
+            contractor = await _organizationsRepository.getOrganization(_organizationId!);
+            debugPrint('DriverController._loadData: Loaded contractor ${contractor?.name} (${contractor?.id}) from organizationId');
+          } catch (e) {
+            debugPrint('DriverController._loadData: Failed to load contractor from organizationId: $e');
+          }
+        }
 
-        // Загружаем технику из назначения или из водителя
+        // Загружаем технику из назначения
         if (currentAssignment?.vehicleId != null) {
           try {
             // Для DRIVER роли используем getVehicle(id) вместо loadVehicles()
             // GET /roles/vehicles/:id должен быть доступен для водителя
             vehicle = await _organizationsRepository.getVehicle(currentAssignment!.vehicleId!);
+            debugPrint('DriverController._loadData: Loaded vehicle ${vehicle?.plateNumber} (${vehicle?.id}) from assignment');
           } catch (e) {
             // Игнорируем ошибки
-            debugPrint('DriverController: Failed to load vehicle from assignment: $e');
-          }
-        }
-
-        // Если техника не загружена из назначения, пытаемся загрузить из водителя
-        // (если у водителя есть привязанная техника)
-        if (vehicle == null && driver != null) {
-          // TODO: Добавить vehicleId в модель Driver, если это поле есть в API
-          // Пока оставляем как есть
-        }
-
-        // Загружаем организацию подрядчика по ID (если есть organizationId в JWT токене)
-        if (_organizationId != null) {
-          try {
-            // Для DRIVER роли используем getOrganization(id) вместо loadOrganizations()
-            // GET /roles/organizations/:id должен быть доступен для водителя
-            contractor = await _organizationsRepository.getOrganization(_organizationId!);
-          } catch (e) {
-            // Игнорируем ошибки (возможно, организация не найдена)
-            debugPrint('DriverController: Failed to load organization: $e');
-          }
-        }
-
-        // Если организация не загружена, пытаемся получить из водителя
-        if (contractor == null && driver?.contractorId != null) {
-          try {
-            contractor = await _organizationsRepository.getOrganization(driver!.contractorId);
-          } catch (e) {
-            debugPrint('DriverController: Failed to load organization from driver: $e');
+            debugPrint('DriverController._loadData: Failed to load vehicle from assignment: $e');
           }
         }
 
         // Загружаем участки уборки для всех тикетов водителя
+        // ВАЖНО: Участок уборки должен отображаться для текущего тикета на карте
+        // Водитель НЕ должен использовать GET /cleaning-areas (403 Forbidden)
+        // Вместо этого используем GET /cleaning-areas/:id для каждого участка из тикета
         Map<String, CleaningArea> cleaningAreas = {};
+        debugPrint('DriverController._loadData: Loading cleaning areas for ${tickets.length} tickets');
+        
         for (final ticket in tickets) {
           if (!cleaningAreas.containsKey(ticket.cleaningAreaId)) {
             try {
+              debugPrint('DriverController._loadData: Loading cleaning area ${ticket.cleaningAreaId} for ticket ${ticket.id}');
               final area = await _operationsRepository.getCleaningArea(ticket.cleaningAreaId);
               cleaningAreas[ticket.cleaningAreaId] = area;
-              debugPrint('DriverController._loadData: Loaded cleaning area ${area.name} (${area.id})');
+              debugPrint('DriverController._loadData: ✓ Loaded cleaning area "${area.name}" (${area.id}) with ${area.geometry.length} geometry points for ticket ${ticket.id}');
+              if (area.geometry.isEmpty) {
+                debugPrint('DriverController._loadData: ⚠ WARNING - Cleaning area ${area.id} has empty geometry!');
+              }
             } catch (e) {
-              debugPrint('DriverController._loadData: Failed to load cleaning area ${ticket.cleaningAreaId}: $e');
+              debugPrint('DriverController._loadData: ✗ Failed to load cleaning area ${ticket.cleaningAreaId} for ticket ${ticket.id}: $e');
             }
+          }
+        }
+        
+        // Убеждаемся, что участок уборки загружен для текущего тикета (если есть)
+        if (currentTicket != null && !cleaningAreas.containsKey(currentTicket.cleaningAreaId)) {
+          try {
+            debugPrint('DriverController._loadData: Loading cleaning area ${currentTicket.cleaningAreaId} for current ticket ${currentTicket.id}');
+            final area = await _operationsRepository.getCleaningArea(currentTicket.cleaningAreaId);
+            cleaningAreas[currentTicket.cleaningAreaId] = area;
+            debugPrint('DriverController._loadData: ✓ Loaded cleaning area "${area.name}" (${area.id}) with ${area.geometry.length} geometry points for current ticket ${currentTicket.id}');
+            if (area.geometry.isEmpty) {
+              debugPrint('DriverController._loadData: ⚠ WARNING - Cleaning area ${area.id} has empty geometry!');
+            }
+          } catch (e) {
+            debugPrint('DriverController._loadData: ✗ Failed to load cleaning area for current ticket ${currentTicket.cleaningAreaId}: $e');
+          }
+        }
+        
+        debugPrint('DriverController._loadData: Total cleaning areas loaded: ${cleaningAreas.length}');
+        if (currentTicket != null) {
+          final currentArea = cleaningAreas[currentTicket.cleaningAreaId];
+          if (currentArea != null) {
+            debugPrint('DriverController._loadData: Current ticket cleaning area: "${currentArea.name}" (${currentArea.id}), geometry points: ${currentArea.geometry.length}');
+          } else {
+            debugPrint('DriverController._loadData: ⚠ WARNING - Current ticket ${currentTicket.id} has no cleaning area loaded!');
           }
         }
 
         // Загружаем полигоны LANDFILL для отображения на карте
-        // ВАЖНО: Водителю не нужны контракты, но нужны полигоны для карты
-        // Загружаем все активные полигоны через loadPolygons
+        // ВАЖНО: Полигоны загружаются всегда (не только после начала работы)
+        // API /polygons?only_active=true для водителя возвращает полигоны его подрядчика
         Map<String, model.Polygon> polygons = {};
+        
+        // Загружаем полигоны подрядчика водителя (привязанные к подрядчику)
+        debugPrint('DriverController._loadData: Loading polygons for driver (contractor: ${contractor?.name})');
+        
         try {
-          // Загружаем все активные полигоны (включая LANDFILL)
-          final allPolygons = await _operationsRepository.loadPolygons(onlyActive: true);
-          debugPrint('DriverController._loadData: Loaded ${allPolygons.length} active polygons');
+          List<model.Polygon> allPolygons = [];
+          
+          // Пробуем сначала без onlyActive (может быть проблема с бэкендом для водителя)
+          try {
+            debugPrint('DriverController._loadData: Trying to load polygons without onlyActive');
+            allPolygons = await _operationsRepository.loadPolygons(onlyActive: null);
+            // Фильтруем только активные на клиенте
+            allPolygons = allPolygons.where((polygon) => polygon.isActive).toList();
+            debugPrint('DriverController._loadData: Loaded ${allPolygons.length} active polygons without onlyActive filter');
+          } catch (e) {
+            debugPrint('DriverController._loadData: Failed to load polygons without onlyActive: $e');
+            // Fallback: пробуем с onlyActive=true
+            try {
+              debugPrint('DriverController._loadData: Retrying with onlyActive=true');
+              allPolygons = await _operationsRepository.loadPolygons(onlyActive: true);
+              debugPrint('DriverController._loadData: Loaded ${allPolygons.length} polygons with onlyActive=true');
+            } catch (e2) {
+              debugPrint('DriverController._loadData: Failed to load polygons with onlyActive=true: $e2');
+              // Если оба способа не работают, продолжаем с пустым списком
+              allPolygons = [];
+            }
+          }
           
           // Добавляем все полигоны для отображения на карте
+          // API должен уже отфильтровать по подрядчику водителя
           for (final polygon in allPolygons) {
             polygons[polygon.id] = polygon;
-            debugPrint('DriverController._loadData: Added polygon ${polygon.name} (${polygon.id}) for map');
+            debugPrint('DriverController._loadData: ✓ Added polygon "${polygon.name}" (${polygon.id}) for map');
           }
           
           debugPrint('DriverController._loadData: Total polygons loaded for map: ${polygons.length}');
+          
+          if (polygons.isEmpty) {
+            debugPrint('DriverController._loadData: ⚠ WARNING - No polygons loaded for driver (contractor: ${contractor?.name})');
+            debugPrint('DriverController._loadData: This may indicate that contractor has no polygon access or API issue');
+          } else {
+            debugPrint('DriverController._loadData: ✓ Successfully loaded ${polygons.length} polygons for driver');
+          }
         } catch (e) {
-          debugPrint('DriverController._loadData: Failed to load polygons for map: $e');
+          debugPrint('DriverController._loadData: ✗ Failed to load polygons: $e');
           // Не критично - карта будет работать без полигонов, но с участками уборки
         }
 

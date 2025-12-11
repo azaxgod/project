@@ -449,9 +449,100 @@ class OperationsCollection {
   Future<List<PolygonAccessDto>> getPolygonAccess(String id) async {
     try {
       final response = await dio.get('/polygons/$id/access');
-      final List<dynamic> data = response.data['data'] ?? [];
-      return data
-          .map((json) => PolygonAccessDto.fromJson(json as Map<String, dynamic>))
+      
+      if (response.data == null) {
+        return [];
+      }
+      
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic>) {
+        throw OperationsException('Invalid response format: expected Map, got ${responseData.runtimeType}');
+      }
+      
+      final data = responseData['data'];
+      if (data == null) {
+        return [];
+      }
+      
+      // API может вернуть либо список напрямую, либо объект с полем access
+      List<dynamic> dataList;
+      if (data is List) {
+        dataList = data;
+      } else if (data is Map<String, dynamic> && data.containsKey('access')) {
+        final access = data['access'];
+        if (access is! List) {
+          throw OperationsException('Invalid response format: access is not a List, got ${access.runtimeType}');
+        }
+        dataList = access;
+      } else {
+        throw OperationsException('Invalid response format: expected List or {access: List}, got ${data.runtimeType}');
+      }
+      
+      debugPrint('OperationsCollection.getPolygonAccess: Parsing ${dataList.length} access records');
+      
+      return dataList
+          .map((json) {
+            if (json is! Map<String, dynamic>) {
+              throw OperationsException('Invalid item format: expected Map, got ${json.runtimeType}');
+            }
+            
+            debugPrint('OperationsCollection.getPolygonAccess: Raw JSON keys: ${json.keys.toList()}');
+            
+            // Преобразуем PascalCase в snake_case для совместимости с DTO
+            final normalizedJson = <String, dynamic>{};
+            bool hasRevokedAt = false;
+            bool revokedAtValue = false;
+            
+            json.forEach((key, value) {
+              String normalizedKey;
+              switch (key) {
+                case 'ID':
+                  normalizedKey = 'id';
+                  normalizedJson[normalizedKey] = value;
+                  break;
+                case 'PolygonID':
+                  normalizedKey = 'polygon_id';
+                  normalizedJson[normalizedKey] = value;
+                  break;
+                case 'ContractorID':
+                  normalizedKey = 'contractor_id';
+                  normalizedJson[normalizedKey] = value;
+                  break;
+                case 'Source':
+                  normalizedKey = 'source';
+                  normalizedJson[normalizedKey] = value;
+                  break;
+                case 'CreatedAt':
+                  normalizedKey = 'created_at';
+                  normalizedJson[normalizedKey] = value;
+                  break;
+                case 'UpdatedAt':
+                  // Игнорируем UpdatedAt, так как DTO его не использует
+                  return;
+                case 'RevokedAt':
+                  // is_active = true если RevokedAt == null
+                  hasRevokedAt = true;
+                  revokedAtValue = value == null;
+                  break;
+                default:
+                  // Оставляем как есть для других полей
+                  normalizedKey = key;
+                  normalizedJson[normalizedKey] = value;
+              }
+            });
+            
+            // Устанавливаем is_active на основе RevokedAt
+            if (hasRevokedAt) {
+              normalizedJson['is_active'] = revokedAtValue;
+            } else {
+              // Если RevokedAt нет, считаем доступ активным
+              normalizedJson['is_active'] = true;
+            }
+            
+            debugPrint('OperationsCollection.getPolygonAccess: Normalized JSON: ${normalizedJson.keys.toList()}');
+            
+            return PolygonAccessDto.fromJson(normalizedJson);
+          })
           .toList();
     } on DioException catch (e) {
       _handleError(e);
@@ -466,6 +557,14 @@ class OperationsCollection {
     required String source, // "TICKETS" or "MANUAL"
   }) async {
     try {
+      // Проверка на null перед отправкой
+      if (contractorId.isEmpty) {
+        throw Exception('contractorId не может быть пустым');
+      }
+      if (source.isEmpty) {
+        throw Exception('source не может быть пустым');
+      }
+      
       final response = await dio.post(
         '/polygons/$id/access',
         data: {
@@ -473,8 +572,77 @@ class OperationsCollection {
           'source': source,
         },
       );
-      return PolygonAccessDto.fromJson(
-          response.data['data'] as Map<String, dynamic>);
+      
+      // Проверка ответа
+      if (response.data == null) {
+        throw Exception('Ответ сервера пустой');
+      }
+      
+      final responseData = response.data['data'];
+      if (responseData == null) {
+        throw Exception('Данные в ответе отсутствуют');
+      }
+      
+      if (responseData is! Map<String, dynamic>) {
+        throw Exception('Неверный формат данных в ответе');
+      }
+      
+      // Сервер может вернуть либо полный объект PolygonAccess, либо {granted: true}
+      // Если вернулся {granted: true}, нужно получить полный объект через GET
+      if (responseData.containsKey('granted') && responseData['granted'] == true) {
+        // Делаем несколько попыток, так как сервер может еще не успеть сохранить данные
+        for (int attempt = 0; attempt < 3; attempt++) {
+          try {
+            if (attempt > 0) {
+              await Future.delayed(Duration(milliseconds: 500 * attempt));
+            }
+            
+            final accesses = await getPolygonAccess(id);
+            
+            // Ищем активный доступ для этого подрядчика
+            PolygonAccessDto? access;
+            try {
+              access = accesses.firstWhere(
+                (a) => a.contractorId == contractorId && a.isActive,
+              );
+              return access;
+            } catch (e) {
+              // Если активного нет, ищем любой доступ для этого подрядчика
+              try {
+                access = accesses.firstWhere(
+                  (a) => a.contractorId == contractorId,
+                );
+                return access;
+              } catch (e2) {
+                // Если доступа нет, пробуем еще раз
+                if (attempt == 2) {
+                  // Последняя попытка - выбрасываем исключение
+                  throw Exception('Доступ для подрядчика не найден после создания. Обновите страницу.');
+                }
+              }
+            }
+          } catch (e) {
+            if (attempt == 2) {
+              // Последняя попытка - выбрасываем исключение
+              debugPrint('grantPolygonAccess: Не удалось получить полный объект доступа после 3 попыток: $e');
+              throw Exception('Доступ создан, но не удалось получить полную информацию. Обновите страницу.');
+            }
+            // Продолжаем попытки
+            debugPrint('grantPolygonAccess: Попытка ${attempt + 1} не удалась, повторяем...');
+          }
+        }
+        
+        // Не должно сюда дойти, но на всякий случай
+        throw Exception('Не удалось получить информацию о доступе после нескольких попыток');
+      }
+      
+      // Если сервер вернул полный объект, используем его
+      // Проверка обязательных полей
+      if (responseData['id'] == null || responseData['contractor_id'] == null) {
+        throw Exception('Ответ сервера не содержит обязательных полей: ${responseData.keys}');
+      }
+      
+      return PolygonAccessDto.fromJson(responseData);
     } on DioException catch (e) {
       _handleError(e);
       rethrow;

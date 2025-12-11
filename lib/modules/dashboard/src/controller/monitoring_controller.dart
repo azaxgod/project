@@ -10,6 +10,7 @@ import 'package:akimat_project/modules/dashboard/src/model/organizations/organiz
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon_access.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository.dart';
 import 'package:akimat_project/modules/dashboard/src/repository/organizations_repository_impl.dart';
@@ -201,23 +202,48 @@ class MonitoringController extends StateNotifier<MonitoringState> {
         }
 
         // Загружаем полигоны
-        debugPrint('MonitoringController._loadData: Loading polygons');
+        debugPrint('MonitoringController._loadData: Loading polygons for role: ${state.role}');
         List<Polygon> polygons = [];
-        try {
-          polygons = await _operationsRepository.loadPolygons(onlyActive: true);
-          debugPrint('MonitoringController._loadData: Loaded ${polygons.length} polygons with onlyActive=true');
-        } catch (e) {
-          debugPrint('MonitoringController._loadData: Failed to load polygons with onlyActive=true: $e');
-          // Fallback: пробуем без onlyActive
+        
+        // Для водителя API может возвращать 500, поэтому используем специальную обработку
+        if (state.role == UserRole.driver) {
           try {
-            debugPrint('MonitoringController._loadData: Retrying polygons without onlyActive parameter');
+            // Пробуем сначала без onlyActive для водителя (может быть проблема с бэкендом)
+            debugPrint('MonitoringController._loadData: DRIVER role - trying to load polygons without onlyActive');
             polygons = await _operationsRepository.loadPolygons(onlyActive: null);
-            // Фильтруем на клиенте
+            // Фильтруем только активные на клиенте
             polygons = polygons.where((polygon) => polygon.isActive).toList();
-            debugPrint('MonitoringController._loadData: Loaded ${polygons.length} polygons without onlyActive (filtered on client)');
-          } catch (e2) {
-            debugPrint('MonitoringController._loadData: Failed to load polygons without onlyActive: $e2');
-            polygons = [];
+            debugPrint('MonitoringController._loadData: DRIVER - Loaded ${polygons.length} active polygons without onlyActive filter');
+          } catch (e) {
+            debugPrint('MonitoringController._loadData: DRIVER - Failed to load polygons without onlyActive: $e');
+            // Пробуем с onlyActive как fallback
+            try {
+              debugPrint('MonitoringController._loadData: DRIVER - Retrying with onlyActive=true');
+              polygons = await _operationsRepository.loadPolygons(onlyActive: true);
+              debugPrint('MonitoringController._loadData: DRIVER - Loaded ${polygons.length} polygons with onlyActive=true');
+            } catch (e2) {
+              debugPrint('MonitoringController._loadData: DRIVER - Failed to load polygons with onlyActive=true: $e2');
+              polygons = []; // Продолжаем с пустым списком
+            }
+          }
+        } else {
+          // Для остальных ролей используем стандартную логику
+          try {
+            polygons = await _operationsRepository.loadPolygons(onlyActive: true);
+            debugPrint('MonitoringController._loadData: Loaded ${polygons.length} polygons with onlyActive=true');
+          } catch (e) {
+            debugPrint('MonitoringController._loadData: Failed to load polygons with onlyActive=true: $e');
+            // Fallback: пробуем без onlyActive
+            try {
+              debugPrint('MonitoringController._loadData: Retrying polygons without onlyActive parameter');
+              polygons = await _operationsRepository.loadPolygons(onlyActive: null);
+              // Фильтруем на клиенте
+              polygons = polygons.where((polygon) => polygon.isActive).toList();
+              debugPrint('MonitoringController._loadData: Loaded ${polygons.length} polygons without onlyActive (filtered on client)');
+            } catch (e2) {
+              debugPrint('MonitoringController._loadData: Failed to load polygons without onlyActive: $e2');
+              polygons = [];
+            }
           }
         }
 
@@ -334,10 +360,35 @@ class MonitoringController extends StateNotifier<MonitoringState> {
         final allVehicles = [...vehicles, ...driverVehicles];
         debugPrint('MonitoringController._loadData: Total vehicles (including drivers): ${allVehicles.length}');
 
+        // Загружаем доступы к полигонам ПЕРЕД фильтрацией
+        // (нужно для фильтрации полигонов по доступам для подрядчиков)
+        // ВАЖНО: Подрядчик не должен загружать доступы через API (403 Forbidden)
+        // API /polygons уже возвращает только доступные полигоны для подрядчика
+        debugPrint('MonitoringController._loadData: Loading polygon accesses before filtering');
+        final polygonAccessesBeforeFilter = <String, List<PolygonAccess>>{};
+        
+        // Загружаем доступы только для KGU и Akimat (им нужно видеть все доступы)
+        // Для подрядчика API /polygons уже фильтрует по доступам
+        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
+          for (final polygon in polygons) {
+            try {
+              final accesses = await _operationsRepository.getPolygonAccess(polygon.id);
+              debugPrint('MonitoringController._loadData: Loaded ${accesses.length} total accesses for polygon ${polygon.id}');
+              polygonAccessesBeforeFilter[polygon.id] = accesses;
+            } catch (e) {
+              debugPrint('MonitoringController._loadData: Failed to load accesses for polygon ${polygon.id}: $e');
+              polygonAccessesBeforeFilter[polygon.id] = [];
+            }
+          }
+          debugPrint('MonitoringController._loadData: Loaded accesses for ${polygonAccessesBeforeFilter.length} polygons before filtering');
+        } else {
+          debugPrint('MonitoringController._loadData: Skipping polygon access loading for role ${state.role} (API /polygons already filters by access)');
+        }
+
         // Фильтруем данные по ролям
         debugPrint('MonitoringController._loadData: Filtering data by role');
         final filteredAreas = _filterAreasByRole(areas, areaIdsFromTickets);
-        final filteredPolygons = _filterPolygonsByRole(polygons);
+        final filteredPolygons = _filterPolygonsByRole(polygons, polygonAccessesBeforeFilter);
         final filteredCameras = _filterCamerasByRole(cameras, polygons);
         final filteredVehicles = _filterVehiclesByRole(allVehicles);
 
@@ -347,6 +398,37 @@ class MonitoringController extends StateNotifier<MonitoringState> {
           allCameras.addAll(cameraList);
         }
 
+        // Загружаем доступы к полигонам для отображения (после фильтрации)
+        // ВАЖНО: Подрядчик не должен загружать доступы (403 Forbidden)
+        debugPrint('MonitoringController._loadData: Loading polygon accesses for display');
+        final polygonAccesses = <String, List<PolygonAccess>>{};
+        
+        // Для KGU и Akimat используем уже загруженные доступы
+        // Для подрядчика не загружаем доступы (API /polygons уже фильтрует)
+        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
+          for (final polygon in filteredPolygons) {
+            try {
+              // Используем уже загруженные доступы
+              final accesses = polygonAccessesBeforeFilter[polygon.id] ?? [];
+              debugPrint('MonitoringController._loadData: Using ${accesses.length} accesses for polygon ${polygon.id}');
+              // KGU и Akimat видят все доступы
+              polygonAccesses[polygon.id] = accesses;
+              debugPrint('MonitoringController._loadData: Added ${accesses.length} accesses for polygon ${polygon.id} (role: ${state.role})');
+            } catch (e) {
+              debugPrint('MonitoringController._loadData: Failed to get accesses for polygon ${polygon.id}: $e');
+              polygonAccesses[polygon.id] = [];
+            }
+          }
+          debugPrint('MonitoringController._loadData: Loaded accesses for ${polygonAccesses.length} polygons');
+        } else {
+          // Для подрядчика и других ролей не загружаем доступы
+          debugPrint('MonitoringController._loadData: Skipping polygon access loading for role ${state.role}');
+          // Инициализируем пустые списки для всех полигонов
+          for (final polygon in filteredPolygons) {
+            polygonAccesses[polygon.id] = [];
+          }
+        }
+
         debugPrint('MonitoringController._loadData: Creating MonitoringData');
         final data = MonitoringData(
           areas: filteredAreas,
@@ -354,6 +436,7 @@ class MonitoringController extends StateNotifier<MonitoringState> {
           cameras: filteredCameras,
           vehicles: filteredVehicles,
           contractors: contractors, // Добавляем подрядчиков для маппинга
+          polygonAccesses: polygonAccesses, // Добавляем доступы к полигонам
           lastUpdate: DateTime.now(),
         );
         debugPrint('MonitoringController._loadData: Data loaded successfully');
@@ -392,14 +475,25 @@ class MonitoringController extends StateNotifier<MonitoringState> {
   }
 
   /// Фильтрация полигонов по ролям
-  List<Polygon> _filterPolygonsByRole(List<Polygon> polygons) {
+  List<Polygon> _filterPolygonsByRole(
+    List<Polygon> polygons,
+    Map<String, List<PolygonAccess>> polygonAccesses,
+  ) {
     switch (state.role) {
       case UserRole.akimatAdmin:
       case UserRole.kguZkhAdmin:
       case UserRole.landfillAdmin:
+        return polygons; // Видят все полигоны
       case UserRole.contractorAdmin:
+        // Подрядчик: API /polygons уже возвращает только доступные полигоны
+        // Не нужно дополнительно фильтровать по доступам
+        debugPrint('MonitoringController._filterPolygonsByRole: CONTRACTOR_ADMIN - API already filtered polygons, returning ${polygons.length} polygons');
+        return polygons;
       case UserRole.driver:
-        return polygons; // Все видят полигоны
+        // Водитель видит полигоны своего подрядчика
+        // API /polygons уже фильтрует по подрядчику водителя
+        debugPrint('MonitoringController._filterPolygonsByRole: DRIVER - API already filtered polygons, returning ${polygons.length} polygons');
+        return polygons;
       default:
         return [];
     }
@@ -631,6 +725,25 @@ class MonitoringController extends StateNotifier<MonitoringState> {
   /// Выбор полигона
   void selectPolygon(String? polygonId) {
     state = state.copyWith(selectedPolygonId: polygonId);
+  }
+
+  /// Привязать подрядчика к полигону
+  Future<void> grantPolygonAccessToContractor(
+    String polygonId, {
+    required String contractorId,
+  }) async {
+    try {
+      await _operationsRepository.grantPolygonAccess(
+        polygonId,
+        contractorId: contractorId,
+        source: 'MANUAL', // Ручная привязка через UI
+      );
+      // Обновляем данные после привязки
+      await _loadData();
+    } catch (e) {
+      debugPrint('MonitoringController.grantPolygonAccessToContractor: Error: $e');
+      rethrow;
+    }
   }
 
   /// Выбор техники и загрузка трека

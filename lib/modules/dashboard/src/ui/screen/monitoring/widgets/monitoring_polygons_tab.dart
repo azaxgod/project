@@ -5,8 +5,12 @@ import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
+import 'package:akimat_project/core/di.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart';
+import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon_access.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,7 +139,8 @@ class _MonitoringPolygonsTabState extends ConsumerState<MonitoringPolygonsTab> {
                           final polygonCameras = widget.data.cameras
                               .where((c) => c.polygonId == polygon.id)
                               .toList();
-                          return _buildPolygonCard(polygon, polygonCameras, isSelected);
+                          final polygonAccesses = widget.data.polygonAccesses[polygon.id] ?? [];
+                          return _buildPolygonCard(polygon, polygonCameras, isSelected, polygonAccesses);
                         },
                       ),
               ),
@@ -238,7 +243,29 @@ class _MonitoringPolygonsTabState extends ConsumerState<MonitoringPolygonsTab> {
     Polygon polygon,
     List<Camera> cameras,
     bool isSelected,
+    List<PolygonAccess> accesses,
   ) {
+    // Проверяем, может ли пользователь привязывать подрядчиков (KGU роли)
+    final canGrantAccess = widget.state.role == UserRole.kguZkhAdmin || 
+                          widget.state.role == UserRole.akimatAdmin;
+    
+    // Получаем список привязанных подрядчиков
+    final contractorIds = accesses.map((a) => a.contractorId).toSet();
+    final contractors = widget.data.contractors
+        .where((c) => contractorIds.contains(c.id))
+        .toList();
+    
+    // Отладочная информация
+    debugPrint('MonitoringPolygonsTab._buildPolygonCard: Polygon ${polygon.id}');
+    debugPrint('  - Accesses count: ${accesses.length}');
+    debugPrint('  - Contractor IDs: ${contractorIds.toList()}');
+    debugPrint('  - Available contractors: ${widget.data.contractors.length}');
+    debugPrint('  - Matched contractors: ${contractors.length}');
+    if (contractors.isEmpty && accesses.isNotEmpty) {
+      debugPrint('  - WARNING: No contractors matched! Access contractor IDs: ${accesses.map((a) => a.contractorId).toList()}');
+      debugPrint('  - Available contractor IDs: ${widget.data.contractors.map((c) => c.id).toList()}');
+    }
+    
     return Card(
       margin: const EdgeInsets.only(bottom: AppPadding.small),
       color: isSelected
@@ -284,6 +311,95 @@ class _MonitoringPolygonsTabState extends ConsumerState<MonitoringPolygonsTab> {
                   ),
                 ],
               ),
+              // Список привязанных подрядчиков (справа)
+              if (contractors.isNotEmpty) ...[
+                const SizedBox(height: AppPadding.small),
+                Row(
+                  children: [
+                    const Icon(Icons.business, size: 16, color: AppColors.primary),
+                    const SizedBox(width: AppPadding.xs),
+                    Expanded(
+                      child: Wrap(
+                        spacing: AppPadding.xs,
+                        runSpacing: AppPadding.xs,
+                        children: [
+                          ...contractors.map((contractor) {
+                            // Находим доступ для этого подрядчика
+                            final access = accesses.firstWhere(
+                              (a) => a.contractorId == contractor.id,
+                            );
+                            
+                            return Chip(
+                              avatar: Icon(
+                                access.isActive ? Icons.check_circle : Icons.cancel,
+                                size: 14,
+                                color: access.isActive ? Colors.green : Colors.grey,
+                              ),
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      contractor.name,
+                                      style: AppTextStyles.caption,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (access.isActive) ...[
+                                    const SizedBox(width: AppPadding.xs),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Активен',
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              backgroundColor: access.isActive
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.grey.withOpacity(0.1),
+                              labelStyle: AppTextStyles.caption.copyWith(
+                                color: access.isActive ? Colors.green.shade700 : Colors.grey.shade700,
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              // Кнопка привязки подрядчика внизу (только для KGU ролей)
+              if (canGrantAccess) ...[
+                const SizedBox(height: AppPadding.small),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showGrantAccessDialog(polygon),
+                    icon: const Icon(Icons.person_add, size: 18),
+                    label: const Text('Добавить подрядчика'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppPadding.normal,
+                        vertical: AppPadding.small,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               // Список камер полигона
               if (cameras.isNotEmpty) ...[
                 const SizedBox(height: AppPadding.small),
@@ -322,6 +438,202 @@ class _MonitoringPolygonsTabState extends ConsumerState<MonitoringPolygonsTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showGrantAccessDialog(Polygon polygon) async {
+    // Загружаем список подрядчиков
+    final organizations = await ref.read(organizationsRepositoryProvider).loadOrganizations();
+    final contractors = organizations
+        .where((org) => org.type == OrganizationType.contractor && org.isActive)
+        .toList();
+
+    if (contractors.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Нет доступных подрядчиков'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    String? selectedContractorId;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModal) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.person_add, color: AppColors.primary),
+                const SizedBox(width: AppPadding.small),
+                Expanded(
+                  child: Text(
+                    'Добавить подрядчика',
+                    style: AppTextStyles.title2,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppPadding.normal),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryBackground,
+                        borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Полигон: ${polygon.name}',
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (polygon.address != null) ...[
+                            const SizedBox(height: AppPadding.xs),
+                            Text(
+                              polygon.address!,
+                              style: AppTextStyles.caption,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppPadding.large),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: 'Выберите подрядчика*',
+                        hintText: 'Выберите подрядчика для привязки',
+                        prefixIcon: const Icon(Icons.business),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                        ),
+                        filled: true,
+                        fillColor: AppColors.cardBackground,
+                      ),
+                      value: selectedContractorId,
+                      items: contractors.map((contractor) => DropdownMenuItem<String>(
+                        value: contractor.id,
+                        child: Text(
+                          contractor.name,
+                          style: AppTextStyles.body,
+                        ),
+                      )).toList(),
+                      onChanged: (value) {
+                        setModal(() => selectedContractorId = value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Выберите подрядчика';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppPadding.normal),
+                    Container(
+                      padding: const EdgeInsets.all(AppPadding.normal),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 20, color: Colors.blue),
+                          const SizedBox(width: AppPadding.small),
+                          Expanded(
+                            child: Text(
+                              'Подрядчик получит доступ к полигону для вывоза снега',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Отмена'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  // Валидация формы
+                  if (!formKey.currentState!.validate()) {
+                    return;
+                  }
+                  
+                  // Проверка на null и пустую строку
+                  final contractorId = selectedContractorId;
+                  if (contractorId == null || contractorId.trim().isEmpty) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Пожалуйста, выберите подрядчика'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  try {
+                    await widget.controller.grantPolygonAccessToContractor(
+                      polygon.id,
+                      contractorId: contractorId,
+                    );
+                    if (!mounted) return;
+                    Navigator.of(context).pop();
+                    // Обновляем данные после успешной привязки
+                    await widget.controller.refresh();
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Подрядчик успешно привязан к полигону "${polygon.name}"'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка привязки подрядчика: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.link),
+                label: const Text('Привязать'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

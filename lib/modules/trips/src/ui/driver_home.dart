@@ -88,8 +88,8 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       _syncTabFromRoute();
       // Добавляем слушатель изменений роута после первой отрисовки
       _setupRouteListener();
-      // Запускаем периодическое обновление данных для автоматического обнаружения завершения рейса
-      _startPeriodicRefresh();
+      // Автообновление отключено по запросу пользователя
+      // _startPeriodicRefresh();
     });
   }
   
@@ -591,17 +591,67 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
             : const LatLng(54.8667, 69.1500); // Петропавловск по умолчанию
 
         // Загружаем участок уборки из данных
+        // ВАЖНО: Участок должен отображаться на карте для текущего тикета или первого доступного тикета
         CleaningArea? cleaningArea;
+        
+        // Сначала пытаемся взять участок из текущего тикета
         if (currentTicket != null) {
           cleaningArea = data.cleaningAreas[currentTicket.cleaningAreaId];
+          if (cleaningArea != null) {
+            debugPrint('DriverHome._buildMapTab: Found cleaning area "${cleaningArea.name}" (${cleaningArea.id}) for current ticket ${currentTicket.id}, geometry points: ${cleaningArea.geometry.length}');
+            if (cleaningArea.geometry.isEmpty) {
+              debugPrint('DriverHome._buildMapTab: ⚠ WARNING - Cleaning area has empty geometry, will not be displayed on map');
+            }
+          } else {
+            debugPrint('DriverHome._buildMapTab: ⚠ WARNING - No cleaning area found for current ticket ${currentTicket.id}, cleaningAreaId: ${currentTicket.cleaningAreaId}');
+            debugPrint('DriverHome._buildMapTab: Available cleaning areas: ${data.cleaningAreas.keys.toList()}');
+          }
+        }
+        
+        // Если нет участка из текущего тикета, берем участок из первого доступного тикета
+        if (cleaningArea == null && data.tickets.isNotEmpty) {
+          for (final ticket in data.tickets) {
+            final area = data.cleaningAreas[ticket.cleaningAreaId];
+            if (area != null && area.geometry.isNotEmpty) {
+              cleaningArea = area;
+              debugPrint('DriverHome._buildMapTab: Using cleaning area "${cleaningArea.name}" (${cleaningArea.id}) from ticket ${ticket.id} (no current ticket)');
+              break;
+            }
+          }
+        }
+        
+        // Если все еще нет участка, но есть загруженные участки, берем первый
+        if (cleaningArea == null && data.cleaningAreas.isNotEmpty) {
+          final firstArea = data.cleaningAreas.values.firstWhere(
+            (area) => area.geometry.isNotEmpty,
+            orElse: () => data.cleaningAreas.values.first,
+          );
+          cleaningArea = firstArea;
+          debugPrint('DriverHome._buildMapTab: Using first available cleaning area "${cleaningArea.name}" (${cleaningArea.id})');
+        }
+        
+        if (cleaningArea == null) {
+          debugPrint('DriverHome._buildMapTab: ⚠ WARNING - No cleaning area available to display on map');
+          debugPrint('DriverHome._buildMapTab: Tickets count: ${data.tickets.length}');
+          debugPrint('DriverHome._buildMapTab: Cleaning areas count: ${data.cleaningAreas.length}');
         }
 
-        // Полигон для отображения на карте (опционально)
-        // ВАЖНО: Водителю не нужны контракты, полигоны загружаются по требованию или не загружаются
+        // Полигоны для отображения на карте (привязанные к подрядчику)
+        // ВАЖНО: Полигоны загружаются всегда, не только после начала работы
+        // API /polygons?only_active=true возвращает только полигоны подрядчика водителя
+        final polygonsList = data.polygons.values.toList();
+        debugPrint('DriverHome._buildMapTab: Loaded ${polygonsList.length} polygons for driver');
+        
+        // Для обратной совместимости оставляем первый полигон
         model.Polygon? polygon;
-        if (data.polygons.isNotEmpty) {
-          // Используем первый доступный полигон, если он есть
-          polygon = data.polygons.values.first;
+        if (polygonsList.isNotEmpty) {
+          polygon = polygonsList.first;
+          debugPrint('DriverHome._buildMapTab: Using polygon "${polygon.name}" (${polygon.id}) for map display');
+          if (polygonsList.length > 1) {
+            debugPrint('DriverHome._buildMapTab: Note: ${polygonsList.length} polygons available, all will be displayed on map');
+          }
+        } else {
+          debugPrint('DriverHome._buildMapTab: ⚠ WARNING - No polygons available for driver');
         }
 
         // Проверяем, находится ли водитель в зоне участка
@@ -614,9 +664,26 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
           );
         }
 
-        // Проверяем, находится ли водитель в зоне полигона
+        // Проверяем, находится ли водитель в зоне любого полигона
         bool isInPolygon = false;
-        if (polygon != null && polygon.geometry.isNotEmpty && _currentPosition != null) {
+        if (_currentPosition != null && polygonsList.isNotEmpty) {
+          // Проверяем все полигоны подрядчика
+          for (final p in polygonsList) {
+            if (p.geometry.isNotEmpty) {
+              final inThisPolygon = _isPointInPolygon(
+                _currentPosition!.latitude,
+                _currentPosition!.longitude,
+                p.geometry,
+              );
+              if (inThisPolygon) {
+                isInPolygon = true;
+                debugPrint('DriverHome._buildMapTab: Driver is inside polygon "${p.name}" (${p.id})');
+                break;
+              }
+            }
+          }
+        } else if (polygon != null && polygon.geometry.isNotEmpty && _currentPosition != null) {
+          // Fallback для обратной совместимости
           isInPolygon = _isPointInPolygon(
             _currentPosition!.latitude,
             _currentPosition!.longitude,
@@ -639,7 +706,8 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
               child: DriverMapWidget(
                 currentLocation: currentLocation,
                 cleaningArea: cleaningArea,
-                polygon: polygon,
+                polygon: polygon, // Для обратной совместимости
+                polygons: polygonsList, // Передаем все полигоны подрядчика
                 isInArea: isInArea,
                 isInPolygon: isInPolygon,
                 isVehicleInWork: isVehicleInWork,
