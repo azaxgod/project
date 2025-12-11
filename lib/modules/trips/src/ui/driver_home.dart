@@ -1,4 +1,4 @@
-import 'package:akimat_project/core/navbar/drawer_mobile.dart';
+  import 'package:akimat_project/core/navbar/drawer_mobile.dart';
 import 'package:akimat_project/core/navbar/header_navbar.dart';
 import 'package:akimat_project/core/navbar/navbar_widgets_provider.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
@@ -16,8 +16,11 @@ import 'package:akimat_project/modules/dashboard/src/services/driver_location_se
 import 'package:akimat_project/modules/dashboard/src/ui/screen/tickets/tickets_page.dart';
 import 'package:akimat_project/modules/trips/src/ui/widgets/driver_current_trip_card.dart';
 import 'package:akimat_project/modules/trips/src/ui/widgets/driver_map_widget.dart';
+import 'package:akimat_project/modules/trips/src/ui/widgets/driver_ticket_details_dialog.dart';
+import 'package:akimat_project/modules/trips/src/ui/widgets/driver_tickets_list.dart';
 import 'package:akimat_project/services/operations/module.dart';
 import 'package:akimat_project/services/tickets/module.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +53,7 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Для мобильного drawer
   VoidCallback? _routeListener; // Слушатель изменений роута
   bool _isSyncing = false; // Флаг для предотвращения одновременной синхронизации
+  Timer? _refreshTimer; // Таймер для периодического обновления данных
 
   void _onTabControllerChanged() {
     // Этот слушатель больше не обновляет URL, так как URL обновляется кнопками навбара
@@ -84,6 +88,8 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       _syncTabFromRoute();
       // Добавляем слушатель изменений роута после первой отрисовки
       _setupRouteListener();
+      // Запускаем периодическое обновление данных для автоматического обнаружения завершения рейса
+      _startPeriodicRefresh();
     });
   }
   
@@ -246,6 +252,9 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       }
       _routeListener = null;
     }
+    // Останавливаем периодическое обновление
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
     // Останавливаем отслеживание при выходе
     final service = ref.read(driverLocationServiceProvider);
     service.stopTracking();
@@ -376,6 +385,10 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
         final currentTicket = driverState.currentTicket;
         final currentAssignment = driverState.currentAssignment;
 
+        // Отладочная информация
+        debugPrint('DriverHome._buildCurrentTripTab: currentTicket=${currentTicket?.id}, currentAssignment=${currentAssignment?.id}');
+        debugPrint('DriverHome._buildCurrentTripTab: tickets count=${data.tickets.length}, assignments count=${data.assignments.length}');
+
         if (currentTicket == null || currentAssignment == null) {
           return Center(
             child: Column(
@@ -403,6 +416,24 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
                   ),
                   textAlign: TextAlign.center,
                 ),
+                // Отладочная информация
+                if (data.tickets.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Отладка: Загружено тикетов: ${data.tickets.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    'Отладка: Назначений: ${data.assignments.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           );
@@ -420,6 +451,31 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
                 areaName: data.cleaningAreas[currentTicket.cleaningAreaId]?.name ?? 'Участок ${currentTicket.cleaningAreaId.substring(0, 8)}',
                 polygonName: data.polygons.isNotEmpty ? data.polygons.values.first.name : null,
                 vehicle: data.vehicle,
+                onShowDetails: () async {
+                  try {
+                    // Загружаем детали тикета
+                    final ticketDetails = await driverController.getTicketDetails(currentTicket.id);
+                    if (mounted) {
+                      await DriverTicketDetailsDialog.show(
+                        context: context,
+                        ticket: currentTicket,
+                        assignment: currentAssignment,
+                        areaName: data.cleaningAreas[currentTicket.cleaningAreaId]?.name,
+                        polygonName: data.polygons.isNotEmpty ? data.polygons.values.first.name : null,
+                        metrics: ticketDetails['metrics'] as Map<String, dynamic>?,
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Ошибка загрузки деталей тикета: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
                 onStartTrip: () async {
                   try {
                     // Переводим assignment в IN_WORK (статус IN_PROGRESS)
@@ -501,19 +557,19 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
       data: (data) {
         final authState = ref.read(authNotifierProvider);
         final user = authState.user;
+        final driverController = ref.read(driverControllerProvider.notifier);
         
         return Column(
           children: [
             // Информация о водителе, организации и технике (всегда видна)
             _buildDriverInfoCard(data, user),
-            // Список тикетов водителя (использует GET /driver/tickets через TicketsController)
-            // Передаем null для webNavbarWidgets, чтобы избежать дублирования навбара
-            // (навбар уже есть в родительском DriverHome)
+            // Список тикетов водителя с кнопками "Начать работу"
             Expanded(
-              child: TicketsPage(
-                scaffoldKey: GlobalKey<ScaffoldState>(),
-                webNavbarWidgets: const [], // Пустой список, чтобы не показывать навбар
-                mobileNavbarWidgets: const [], // Пустой список для мобильной версии
+              child: DriverTicketsList(
+                tickets: data.tickets,
+                assignments: data.assignments,
+                cleaningAreas: data.cleaningAreas,
+                driverController: driverController,
               ),
             ),
           ],
@@ -540,10 +596,11 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
           cleaningArea = data.cleaningAreas[currentTicket.cleaningAreaId];
         }
 
-        // Полигон загружается из контракта тикета (через DriverController)
+        // Полигон для отображения на карте (опционально)
+        // ВАЖНО: Водителю не нужны контракты, полигоны загружаются по требованию или не загружаются
         model.Polygon? polygon;
         if (data.polygons.isNotEmpty) {
-          // Используем первый доступный полигон из контракта
+          // Используем первый доступный полигон, если он есть
           polygon = data.polygons.values.first;
         }
 
@@ -554,6 +611,16 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
             _currentPosition!.latitude,
             _currentPosition!.longitude,
             cleaningArea.geometry,
+          );
+        }
+
+        // Проверяем, находится ли водитель в зоне полигона
+        bool isInPolygon = false;
+        if (polygon != null && polygon.geometry.isNotEmpty && _currentPosition != null) {
+          isInPolygon = _isPointInPolygon(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+            polygon.geometry,
           );
         }
 
@@ -574,6 +641,7 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
                 cleaningArea: cleaningArea,
                 polygon: polygon,
                 isInArea: isInArea,
+                isInPolygon: isInPolygon,
                 isVehicleInWork: isVehicleInWork,
               ),
             ),
@@ -730,6 +798,35 @@ class _DriverHomeState extends ConsumerState<DriverHome> with SingleTickerProvid
         ],
       ),
     );
+  }
+
+  /// Запускает периодическое обновление данных для автоматического обнаружения завершения рейса
+  /// после выезда с полигона (фиксируется камерами LANDFILL на бэкенде)
+  /// Также обновляет данные для обнаружения новых назначений от подрядчика
+  void _startPeriodicRefresh() {
+    // Обновляем данные каждые 15 секунд
+    // - Если есть активный рейс (IN_WORK) - для обнаружения завершения
+    // - Если нет активного рейса - для обнаружения новых назначений от подрядчика
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      final driverState = ref.read(driverControllerProvider);
+      final currentAssignment = driverState.currentAssignment;
+      
+      // Обновляем данные:
+      // 1. Если есть активный рейс (IN_WORK) - для обнаружения завершения
+      // 2. Если нет текущего рейса - для обнаружения новых назначений от подрядчика
+      final shouldRefresh = currentAssignment?.assignmentStatus == AssignmentStatus.inWork ||
+                            currentAssignment == null;
+      
+      if (shouldRefresh) {
+        debugPrint('DriverHome: Periodic refresh - checking for updates');
+        ref.read(driverControllerProvider.notifier).refresh();
+      }
+    });
   }
 
   /// Проверяет, находится ли точка внутри полигона (алгоритм Ray Casting)

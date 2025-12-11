@@ -113,58 +113,133 @@ class DriverController extends StateNotifier<DriverState> {
         // Загружаем тикеты водителя
         // ВАЖНО: Для роли водителя endpoint /driver/tickets автоматически определяет водителя из JWT токена
         // НЕ передаем driverId, так как сервер сам фильтрует по driver_id из токена
+        debugPrint('DriverController._loadData: Loading tickets for driverId=$_driverId');
         List<Ticket> tickets = [];
         tickets = await _operationsRepository.loadTickets();
+        debugPrint('DriverController._loadData: Loaded ${tickets.length} tickets');
 
         // Загружаем назначения для всех тикетов
+        // ВАЖНО: Для водителя endpoint /driver/tickets/:id уже возвращает назначения, отфильтрованные по driver_id из JWT токена
+        // Поэтому мы принимаем все активные назначения, которые вернул бэкенд
         Map<String, List<TicketAssignment>> assignments = {};
         for (final ticket in tickets) {
           try {
             final ticketAssignments = await _operationsRepository.getTicketAssignments(ticket.id);
-            // Фильтруем только назначения текущего водителя
-            final driverAssignments = ticketAssignments
-                .where((a) => a.driverId == _driverId && a.isActive)
+            debugPrint('DriverController._loadData: Ticket ${ticket.id} has ${ticketAssignments.length} assignments from backend');
+            
+            // Фильтруем только активные назначения
+            // Назначения уже отфильтрованы по водителю на бэкенде через /driver/tickets/:id
+            final activeAssignments = ticketAssignments
+                .where((a) {
+                  if (!a.isActive) {
+                    debugPrint('DriverController._loadData: Assignment ${a.id} filtered out: isActive=false');
+                    return false;
+                  }
+                  // Логируем для отладки, но принимаем все активные назначения
+                  debugPrint('DriverController._loadData: Assignment ${a.id}: driverId=${a.driverId}, isActive=${a.isActive}, status=${a.assignmentStatus}');
+                  return true;
+                })
                 .toList();
-            if (driverAssignments.isNotEmpty) {
-              assignments[ticket.id] = driverAssignments;
+            
+            debugPrint('DriverController._loadData: Ticket ${ticket.id} has ${activeAssignments.length} active assignments');
+            
+            // Если назначения есть, добавляем их
+            if (activeAssignments.isNotEmpty) {
+              assignments[ticket.id] = activeAssignments;
+            } else {
+              debugPrint('DriverController._loadData: WARNING - Ticket ${ticket.id} has no active assignments');
+              // Выводим все назначения для отладки
+              for (final a in ticketAssignments) {
+                debugPrint('DriverController._loadData:   - Assignment ${a.id}: driverId=${a.driverId}, isActive=${a.isActive}, status=${a.assignmentStatus}');
+              }
             }
-          } catch (e) {
-            // Игнорируем ошибки
+          } catch (e, stackTrace) {
+            debugPrint('DriverController._loadData: Failed to load assignments for ticket ${ticket.id}: $e');
+            debugPrint('DriverController._loadData: Stack trace: $stackTrace');
+            // Не игнорируем ошибки полностью, но продолжаем загрузку других тикетов
           }
         }
+        
+        debugPrint('DriverController._loadData: Total assignments found: ${assignments.length} tickets with assignments');
 
-        // Находим текущий активный рейс (assignment со статусом NOT_STARTED или IN_WORK)
+        // Находим текущий активный рейс (assignment со статусом null, NOT_STARTED или IN_WORK)
+        // ВАЖНО: Проверяем статус назначения, а не статус тикета
+        // Даже если тикет отменен (CANCELLED), водитель может начать рейс, если назначение активно
+        // Приоритет: IN_WORK > NOT_STARTED/null (берем первый активный рейс в работе, если есть)
         Ticket? currentTicket;
         TicketAssignment? currentAssignment;
+        
+        // Сначала ищем рейс в работе (IN_WORK)
         for (final ticket in tickets) {
           final ticketAssignments = assignments[ticket.id] ?? [];
+          debugPrint('DriverController._loadData: Checking ticket ${ticket.id} (status=${ticket.status}) with ${ticketAssignments.length} assignments');
+          
           for (final assignment in ticketAssignments) {
-            if (assignment.assignmentStatus == AssignmentStatus.notStarted ||
-                assignment.assignmentStatus == AssignmentStatus.inWork) {
+            final status = assignment.assignmentStatus;
+            debugPrint('DriverController._loadData: Assignment ${assignment.id} has status: $status, isActive=${assignment.isActive}');
+            
+            // Приоритет: сначала ищем рейс в работе
+            if (status == AssignmentStatus.inWork && assignment.isActive) {
               currentTicket = ticket;
               currentAssignment = assignment;
+              debugPrint('DriverController._loadData: Found current trip IN_WORK: ticket=${ticket.id} (status=${ticket.status}), assignment=${assignment.id}');
               break;
             }
           }
           if (currentTicket != null) break;
         }
+        
+        // Если рейс в работе не найден, ищем рейс со статусом NOT_STARTED или null
+        if (currentTicket == null) {
+          for (final ticket in tickets) {
+            final ticketAssignments = assignments[ticket.id] ?? [];
+            
+            for (final assignment in ticketAssignments) {
+              final status = assignment.assignmentStatus;
+              
+              // Проверяем только статус назначения, не статус тикета
+              // Водитель может начать рейс даже для отмененного тикета, если назначение активно
+              if (assignment.isActive && 
+                  (status == null || status == AssignmentStatus.notStarted)) {
+                currentTicket = ticket;
+                currentAssignment = assignment;
+                debugPrint('DriverController._loadData: Found current trip NOT_STARTED: ticket=${ticket.id} (status=${ticket.status}), assignment=${assignment.id}, assignmentStatus=$status');
+                break;
+              }
+            }
+            if (currentTicket != null) break;
+          }
+        }
+        
+        if (currentTicket == null) {
+          debugPrint('DriverController._loadData: No current trip found. Tickets: ${tickets.length}, Assignments: ${assignments.length}');
+          // Детальная информация для отладки
+          if (tickets.isEmpty) {
+            debugPrint('DriverController._loadData: No tickets loaded - check if driver has assignments');
+          } else {
+            debugPrint('DriverController._loadData: Tickets loaded but no current assignment found');
+            for (final ticket in tickets) {
+              final ticketAssignments = assignments[ticket.id] ?? [];
+              debugPrint('DriverController._loadData: Ticket ${ticket.id}: ${ticketAssignments.length} assignments');
+              for (final assignment in ticketAssignments) {
+                debugPrint('DriverController._loadData:   - Assignment ${assignment.id}: status=${assignment.assignmentStatus}, isActive=${assignment.isActive}');
+              }
+            }
+          }
+        } else {
+          debugPrint('DriverController._loadData: Current trip found: ticket=${currentTicket.id}, assignment=${currentAssignment?.id}, status=${currentAssignment?.assignmentStatus}');
+        }
 
         // Загружаем информацию о водителе и технике
-        // Для DRIVER роли используем методы получения по ID вместо списков
+        // ВАЖНО: Для начала рейса информация о водителе не нужна - она используется только для отображения
+        // Убираем загрузку водителя, чтобы не делать лишний запрос к /roles/drivers/:id
         Driver? driver;
         Vehicle? vehicle;
         Organization? contractor;
 
-        if (_driverId != null) {
-          try {
-            // Для DRIVER роли используем getDriver(id) вместо loadDrivers()
-            // GET /roles/drivers/:id доступен для водителя (согласно документации)
-            driver = await _organizationsRepository.getDriver(_driverId!);
-          } catch (e) {
-            // Игнорируем ошибки (возможно, водитель еще не создан в системе)
-            debugPrint('DriverController: Failed to load driver: $e');
-          }
-        }
+        // Информация о водителе не загружается - не нужна для начала рейса
+        // Если понадобится для отображения, можно загрузить позже по требованию
+        debugPrint('DriverController._loadData: Skipping driver info loading - not needed for trip start');
 
         // Загружаем технику из назначения или из водителя
         if (currentAssignment?.vehicleId != null) {
@@ -206,38 +281,39 @@ class DriverController extends StateNotifier<DriverState> {
           }
         }
 
-        // Загружаем участки уборки для текущего тикета
+        // Загружаем участки уборки для всех тикетов водителя
         Map<String, CleaningArea> cleaningAreas = {};
-        if (currentTicket != null) {
-          try {
-            final area = await _operationsRepository.getCleaningArea(currentTicket.cleaningAreaId);
-            cleaningAreas[currentTicket.cleaningAreaId] = area;
-          } catch (e) {
-            debugPrint('DriverController: Failed to load cleaning area: $e');
+        for (final ticket in tickets) {
+          if (!cleaningAreas.containsKey(ticket.cleaningAreaId)) {
+            try {
+              final area = await _operationsRepository.getCleaningArea(ticket.cleaningAreaId);
+              cleaningAreas[ticket.cleaningAreaId] = area;
+              debugPrint('DriverController._loadData: Loaded cleaning area ${area.name} (${area.id})');
+            } catch (e) {
+              debugPrint('DriverController._loadData: Failed to load cleaning area ${ticket.cleaningAreaId}: $e');
+            }
           }
         }
 
-        // Загружаем полигоны из контракта тикета
+        // Загружаем полигоны LANDFILL для отображения на карте
+        // ВАЖНО: Водителю не нужны контракты, но нужны полигоны для карты
+        // Загружаем все активные полигоны через loadPolygons
         Map<String, model.Polygon> polygons = {};
-        if (currentTicket != null) {
-          try {
-            // Получаем контракт по contractId из тикета
-            final contract = await _contractsRepository.getContract(currentTicket.contractId);
-            
-            // Если контракт имеет polygonIds (для LANDFILL_SERVICE), загружаем полигоны
-            if (contract.polygonIds != null && contract.polygonIds!.isNotEmpty) {
-              for (final polygonId in contract.polygonIds!) {
-                try {
-                  final polygon = await _operationsRepository.getPolygon(polygonId);
-                  polygons[polygonId] = polygon;
-                } catch (e) {
-                  debugPrint('DriverController: Failed to load polygon $polygonId: $e');
-                }
-              }
-            }
-          } catch (e) {
-            debugPrint('DriverController: Failed to load contract or polygons: $e');
+        try {
+          // Загружаем все активные полигоны (включая LANDFILL)
+          final allPolygons = await _operationsRepository.loadPolygons(onlyActive: true);
+          debugPrint('DriverController._loadData: Loaded ${allPolygons.length} active polygons');
+          
+          // Добавляем все полигоны для отображения на карте
+          for (final polygon in allPolygons) {
+            polygons[polygon.id] = polygon;
+            debugPrint('DriverController._loadData: Added polygon ${polygon.name} (${polygon.id}) for map');
           }
+          
+          debugPrint('DriverController._loadData: Total polygons loaded for map: ${polygons.length}');
+        } catch (e) {
+          debugPrint('DriverController._loadData: Failed to load polygons for map: $e');
+          // Не критично - карта будет работать без полигонов, но с участками уборки
         }
 
         // Обновляем состояние с текущим рейсом
@@ -276,6 +352,98 @@ class DriverController extends StateNotifier<DriverState> {
     try {
       await _operationsRepository.markAssignmentCompleted(assignmentId);
       await _loadData();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ==================== Driver Appeals ====================
+
+  /// Создать апелляцию водителя
+  Future<Map<String, dynamic>> createAppeal({
+    required String tripId,
+    required String appealReasonType, // ERROR_CAMERA, TRANSIT_PATH, WRONG_ASSIGNMENT, OTHER
+    required String comment,
+  }) async {
+    try {
+      return await _operationsRepository.createDriverAppeal(
+        tripId: tripId,
+        appealReasonType: appealReasonType,
+        comment: comment,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Получить список апелляций водителя
+  Future<List<Map<String, dynamic>>> getAppeals({
+    String? ticketId,
+  }) async {
+    try {
+      return await _operationsRepository.getDriverAppeals(
+        ticketId: ticketId,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Получить детали апелляции водителя
+  Future<Map<String, dynamic>> getAppeal(String appealId) async {
+    try {
+      return await _operationsRepository.getDriverAppeal(appealId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Добавить комментарий к апелляции водителя
+  Future<Map<String, dynamic>> addAppealComment({
+    required String appealId,
+    required String comment,
+  }) async {
+    try {
+      return await _operationsRepository.addDriverAppealComment(
+        appealId: appealId,
+        comment: comment,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Получить комментарии к апелляции водителя
+  Future<List<Map<String, dynamic>>> getAppealComments(String appealId) async {
+    try {
+      return await _operationsRepository.getDriverAppealComments(appealId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Получить детали тикета для водителя
+  /// Возвращает TicketDetails с полями: ticket, metrics, assignments, trips, appeals
+  Future<Map<String, dynamic>> getTicketDetails(String ticketId) async {
+    try {
+      // Используем getTicketAssignments, который уже загружает TicketDetails
+      // и извлекаем полные данные через прямой вызов API
+      final ticket = await _operationsRepository.getTicket(ticketId);
+      final assignments = await _operationsRepository.getTicketAssignments(ticketId);
+      
+      // Загружаем метрики через отдельный запрос (если нужно)
+      // Пока используем данные из тикета
+      final metrics = {
+        'total_trips': ticket.tripsCount ?? 0,
+        'total_volume_m3': ticket.volumeShipped ?? 0.0,
+        'has_violations': ticket.hasViolations,
+      };
+      
+      return {
+        'ticket': ticket,
+        'metrics': metrics,
+        'assignments': assignments,
+      };
     } catch (e) {
       rethrow;
     }

@@ -12,9 +12,10 @@ class DriverCurrentTripCard extends StatelessWidget {
   const DriverCurrentTripCard({
     super.key,
     required this.ticket,
-    required this.assignment,
+    required this.assignment, 
     required this.onStartTrip,
     required this.onCompleteTrip,
+    this.onShowDetails,
     this.areaName,
     this.polygonName,
     this.vehicle,
@@ -24,6 +25,7 @@ class DriverCurrentTripCard extends StatelessWidget {
   final TicketAssignment assignment;
   final VoidCallback onStartTrip;
   final VoidCallback onCompleteTrip;
+  final VoidCallback? onShowDetails; // Колбэк для показа деталей тикета
   final String? areaName;
   final String? polygonName;
   final Vehicle? vehicle; // Техника для индикатора состояния
@@ -32,7 +34,9 @@ class DriverCurrentTripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isInWork = assignment.assignmentStatus == AssignmentStatus.inWork;
     final isCompleted = assignment.assignmentStatus == AssignmentStatus.completed;
-    final canStart = assignment.assignmentStatus == AssignmentStatus.notStarted;
+    // Кнопка "Начать рейс" показывается если статус null (еще не установлен) или NOT_STARTED
+    final canStart = assignment.assignmentStatus == null || 
+                     assignment.assignmentStatus == AssignmentStatus.notStarted;
     final canComplete = isInWork;
 
     return Container(
@@ -66,12 +70,12 @@ class DriverCurrentTripCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppPadding.small),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(ticket.status).withOpacity(0.1),
+                  color: _getAssignmentStatusColor(assignment.assignmentStatus).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppSize.smallRadius),
                 ),
                 child: Icon(
                   Icons.assignment,
-                  color: _getStatusColor(ticket.status),
+                  color: _getAssignmentStatusColor(assignment.assignmentStatus),
                   size: 24,
                 ),
               ),
@@ -81,7 +85,7 @@ class DriverCurrentTripCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Текущее задание',
+                      'Текущий рейс',
                       style: AppTextStyles.title2,
                     ),
                     const SizedBox(height: AppPadding.xs),
@@ -91,13 +95,13 @@ class DriverCurrentTripCard extends StatelessWidget {
                         vertical: AppPadding.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(ticket.status).withOpacity(0.2),
+                        color: _getAssignmentStatusColor(assignment.assignmentStatus).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(AppSize.smallRadius),
                       ),
                       child: Text(
-                        _getStatusLabel(ticket.status),
+                        _getAssignmentStatusDisplayLabel(assignment.assignmentStatus),
                         style: AppTextStyles.caption.copyWith(
-                          color: _getStatusColor(ticket.status),
+                          color: _getAssignmentStatusColor(assignment.assignmentStatus),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -133,8 +137,8 @@ class DriverCurrentTripCard extends StatelessWidget {
           const SizedBox(height: AppPadding.small),
           _buildInfoRow(
             icon: Icons.info_outline,
-            label: 'Статус назначения',
-            value: _getAssignmentStatusLabel(assignment.assignmentStatus),
+            label: 'Статус',
+            value: _getAssignmentStatusDisplayLabel(assignment.assignmentStatus),
           ),
           // Индикатор состояния машины
           if (vehicle != null) ...[
@@ -144,33 +148,67 @@ class DriverCurrentTripCard extends StatelessWidget {
           const SizedBox(height: AppPadding.large),
           // Кнопки действий
           if (canStart)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onStartTrip,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Начать рейс'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: onStartTrip,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Начать рейс'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                    ),
+                  ),
                 ),
-              ),
+                if (onShowDetails != null) ...[
+                  const SizedBox(width: AppPadding.small),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onShowDetails,
+                      icon: const Icon(Icons.info_outline),
+                      label: const Text('Подробнее'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           if (canComplete)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: onCompleteTrip,
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('Завершить рейс'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        onPressed: onCompleteTrip,
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text('Завершить рейс'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (onShowDetails != null) ...[
+                      const SizedBox(width: AppPadding.small),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onShowDetails,
+                          icon: const Icon(Icons.info_outline),
+                          label: const Text('Подробнее'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: AppPadding.small),
                 Padding(
@@ -184,6 +222,19 @@ class DriverCurrentTripCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          // Кнопка "Подробнее" для завершенных рейсов
+          if (isCompleted && onShowDetails != null)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onShowDetails,
+                icon: const Icon(Icons.info_outline),
+                label: const Text('Подробнее'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: AppPadding.normal),
+                ),
+              ),
             ),
           if (isCompleted)
             Container(
@@ -284,6 +335,36 @@ class DriverCurrentTripCard extends StatelessWidget {
         return 'Завершён';
       case null:
         return 'Неизвестно';
+    }
+  }
+
+  /// Получить отображаемый статус в формате PLANNED/IN_PROGRESS/COMPLETED
+  String _getAssignmentStatusDisplayLabel(AssignmentStatus? status) {
+    switch (status) {
+      case AssignmentStatus.notStarted:
+        return 'PLANNED';
+      case AssignmentStatus.inWork:
+        return 'IN_PROGRESS';
+      case AssignmentStatus.completed:
+        return 'COMPLETED';
+      case null:
+        // null означает, что статус еще не установлен, считаем как PLANNED
+        return 'PLANNED';
+    }
+  }
+
+  /// Получить цвет для статуса назначения
+  Color _getAssignmentStatusColor(AssignmentStatus? status) {
+    switch (status) {
+      case AssignmentStatus.notStarted:
+        return Colors.blue;
+      case AssignmentStatus.inWork:
+        return Colors.green;
+      case AssignmentStatus.completed:
+        return Colors.orange;
+      case null:
+        // null означает, что статус еще не установлен, используем цвет для PLANNED
+        return Colors.blue;
     }
   }
 

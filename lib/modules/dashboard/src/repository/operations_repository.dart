@@ -217,6 +217,32 @@ abstract class OperationsRepository {
   /// Установить статус назначения COMPLETED (для водителя)
   Future<TicketAssignment> markAssignmentCompleted(String assignmentId);
 
+  // ==================== Driver Appeals ====================
+
+  /// Создать апелляцию водителя
+  Future<Map<String, dynamic>> createDriverAppeal({
+    required String tripId,
+    required String appealReasonType, // ERROR_CAMERA, TRANSIT_PATH, WRONG_ASSIGNMENT, OTHER
+    required String comment,
+  });
+
+  /// Получить список апелляций водителя
+  Future<List<Map<String, dynamic>>> getDriverAppeals({
+    String? ticketId,
+  });
+
+  /// Получить детали апелляции водителя
+  Future<Map<String, dynamic>> getDriverAppeal(String appealId);
+
+  /// Добавить комментарий к апелляции водителя
+  Future<Map<String, dynamic>> addDriverAppealComment({
+    required String appealId,
+    required String comment,
+  });
+
+  /// Получить комментарии к апелляции водителя
+  Future<List<Map<String, dynamic>>> getDriverAppealComments(String appealId);
+
   // ==================== Landfill Reception Journal ====================
 
   /// Получить журнал приёма снега для LANDFILL

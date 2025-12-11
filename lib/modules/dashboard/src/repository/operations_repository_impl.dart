@@ -524,9 +524,19 @@ class OperationsRepositoryImpl implements OperationsRepository {
 
   @override
   Future<List<TicketAssignment>> getTicketAssignments(String ticketId) async {
-    // Используем Ticket Service для назначений, если доступен
+
     if (_ticketsServices != null && _userRole != null) {
       switch (_userRole!) {
+        case UserRole.driver:
+
+          try {
+            final dtos = await _ticketsServices!.collection.getAssignmentsDriver(ticketId);
+            return dtos.map((dto) => dto.toDomain()).toList();
+          } catch (e) {
+            debugPrint('OperationsRepositoryImpl.getTicketAssignments: Failed to get assignments for driver: $e');
+            // Не используем fallback на Operations Service для водителя, так как он не имеет доступа
+            rethrow;
+          }
         case UserRole.contractorAdmin:
           final dtos = await _ticketsServices!.collection.getAssignmentsContractor(ticketId);
           return dtos.map((dto) => dto.toDomain()).toList();
@@ -548,7 +558,7 @@ class OperationsRepositoryImpl implements OperationsRepository {
       }
     }
     
-    // Fallback на Operations Service
+    // Fallback на Operations Service (не используется для водителя)
     final dtos = await _services.collection.getTicketAssignments(ticketId);
     return dtos.map((dto) => dto.toDomain()).toList();
   }
@@ -609,6 +619,66 @@ class OperationsRepositoryImpl implements OperationsRepository {
     }
     final dto = await _ticketsServices!.collection.markAssignmentCompleted(assignmentId);
     return dto.toDomain();
+  }
+
+  // ==================== Driver Appeals ====================
+
+  @override
+  Future<Map<String, dynamic>> createDriverAppeal({
+    required String tripId,
+    required String appealReasonType,
+    required String comment,
+  }) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    return await _ticketsServices!.collection.createDriverAppeal(
+      tripId: tripId,
+      appealReasonType: appealReasonType,
+      comment: comment,
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getDriverAppeals({
+    String? ticketId,
+  }) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    return await _ticketsServices!.collection.getDriverAppeals(
+      ticketId: ticketId,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getDriverAppeal(String appealId) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    return await _ticketsServices!.collection.getDriverAppeal(appealId);
+  }
+
+  @override
+  Future<Map<String, dynamic>> addDriverAppealComment({
+    required String appealId,
+    required String comment,
+  }) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    return await _ticketsServices!.collection.addDriverAppealComment(
+      appealId: appealId,
+      comment: comment,
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getDriverAppealComments(String appealId) async {
+    if (_ticketsServices == null) {
+      throw Exception('Ticket Service is not available');
+    }
+    return await _ticketsServices!.collection.getDriverAppealComments(appealId);
   }
 
   // ==================== Landfill Reception Journal ====================

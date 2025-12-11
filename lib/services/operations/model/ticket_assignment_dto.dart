@@ -20,6 +20,9 @@ class TicketAssignmentDto {
   @JsonKey(name: 'assignment_status')
   final String? assignmentStatus;
 
+  @JsonKey(name: 'driver_mark_status')
+  final String? driverMarkStatus;
+
   @JsonKey(name: 'is_active')
   final bool isActive;
 
@@ -35,6 +38,7 @@ class TicketAssignmentDto {
     this.driverId,
     this.vehicleId,
     this.assignmentStatus,
+    this.driverMarkStatus,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -60,12 +64,15 @@ class TicketAssignmentDto {
   }
 
   TicketAssignment toDomain() {
+    // Используем driver_mark_status, если assignment_status не задан
+    // Это нужно для совместимости с API, где используется driver_mark_status
+    final status = assignmentStatus ?? driverMarkStatus;
     return TicketAssignment(
       id: id,
       ticketId: ticketId,
       driverId: driverId,
       vehicleId: vehicleId,
-      assignmentStatus: _parseAssignmentStatus(assignmentStatus),
+      assignmentStatus: _parseAssignmentStatus(status),
       isActive: isActive,
       createdAt: createdAt,
       updatedAt: updatedAt,

@@ -11,6 +11,7 @@ class DriverMapWidget extends StatelessWidget {
     this.cleaningArea,
     this.polygon,
     this.isInArea = false,
+    this.isInPolygon = false,
     this.isVehicleInWork = false, // Машина в работе (зеленый цвет на карте)
   });
 
@@ -18,6 +19,7 @@ class DriverMapWidget extends StatelessWidget {
   final CleaningArea? cleaningArea; // Участок уборки
   final model.Polygon? polygon; // Полигон вывоза
   final bool isInArea; // Находится ли водитель в зоне участка
+  final bool isInPolygon; // Находится ли водитель в зоне полигона
   final bool isVehicleInWork; // Машина в работе (зеленый цвет на карте)
 
   @override
@@ -36,6 +38,10 @@ class DriverMapWidget extends StatelessWidget {
         initialZoom: 13.0,
         minZoom: 10.0,
         maxZoom: 18.0,
+        // Обновляем центр карты при изменении позиции
+        onMapReady: () {
+          // Карта готова
+        },
       ),
       children: [
         TileLayer(
@@ -139,13 +145,50 @@ class DriverMapWidget extends StatelessWidget {
               ),
             ],
           ),
-        // Маршруты до участка (если водитель вне зоны участка)
-        // Показываем 1 основной маршрут (зеленый) и 4 альтернативных (серые)
-        // TODO: Интегрировать с API построения маршрутов (OSRM, OpenRouteService) для реалистичных маршрутов
-        if (cleaningArea != null && !isInArea)
+        // Логика маршрутов в зависимости от позиции водителя:
+        // 1. Если водитель на участке → маршрут до полигона
+        // 2. Если водитель на полигоне → маршрут до участка
+        // 3. Если вне границ → маршрут до участка
+        
+        // Сценарий 1: Водитель на участке → маршрут до полигона
+        if (cleaningArea != null && polygon != null && isInArea && !isInPolygon)
           PolylineLayer(
             polylines: [
-              // Основной маршрут до участка (зеленый, толще)
+              // Основной маршрут от текущей позиции до полигона (зеленый, толще)
+              Polyline(
+                points: [
+                  currentLocation,
+                  LatLng(
+                    _calculatePolygonCenter(polygon!.geometry)[1],
+                    _calculatePolygonCenter(polygon!.geometry)[0],
+                  ),
+                ],
+                strokeWidth: 5,
+                color: Colors.green,
+              ),
+              // Альтернативные маршруты (серые, тоньше) - 4 варианта
+              ...List.generate(4, (index) {
+                final offsetLat = (index + 1) * 0.008;
+                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008;
+                final polygonCenter = _calculatePolygonCenter(polygon!.geometry);
+                return Polyline(
+                  points: [
+                    currentLocation,
+                    LatLng(
+                      polygonCenter[1] + offsetLat,
+                      polygonCenter[0] + offsetLon,
+                    ),
+                  ],
+                  strokeWidth: 2,
+                  color: Colors.grey.withOpacity(0.4),
+                );
+              }),
+            ],
+          ),
+
+        if (cleaningArea != null && isInPolygon)
+          PolylineLayer(
+            polylines: [
               Polyline(
                 points: [
                   currentLocation,
@@ -158,11 +201,9 @@ class DriverMapWidget extends StatelessWidget {
                 color: Colors.green,
               ),
               // Альтернативные маршруты (серые, тоньше) - 4 варианта
-              // В реальности нужно использовать API построения маршрутов для получения реальных путей
               ...List.generate(4, (index) {
-                // Создаем альтернативные маршруты с небольшими смещениями
-                final offsetLat = (index + 1) * 0.008; // Смещение по широте
-                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008; // Смещение по долготе
+                final offsetLat = (index + 1) * 0.008;
+                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008;
                 final areaCenter = _calculatePolygonCenter(cleaningArea!.geometry);
                 return Polyline(
                   points: [
@@ -178,45 +219,33 @@ class DriverMapWidget extends StatelessWidget {
               }),
             ],
           ),
-        // Маршруты от участка до полигона (если водитель в зоне участка)
-        // Показываем 1 основной маршрут (зеленый) и 4 альтернативных (серые)
-        // TODO: Интегрировать с API построения маршрутов для реалистичных путей
-        // Примечание: При въезде на полигон камеры LANDFILL фиксируют госномер и объем
-        // После выезда с полигона рейс автоматически завершается (обрабатывается на бэкенде)
-        if (cleaningArea != null && polygon != null && isInArea)
+  
+        if (cleaningArea != null && !isInArea && !isInPolygon)
           PolylineLayer(
             polylines: [
-              // Основной маршрут от участка до полигона (зеленый, толще)
+
               Polyline(
                 points: [
+                  currentLocation,
                   LatLng(
                     _calculatePolygonCenter(cleaningArea!.geometry)[1],
                     _calculatePolygonCenter(cleaningArea!.geometry)[0],
-                  ),
-                  LatLng(
-                    _calculatePolygonCenter(polygon!.geometry)[1],
-                    _calculatePolygonCenter(polygon!.geometry)[0],
                   ),
                 ],
                 strokeWidth: 5,
                 color: Colors.green,
               ),
-              // Альтернативные маршруты (серые, тоньше) - 4 варианта
+
               ...List.generate(4, (index) {
-                // Создаем альтернативные маршруты с небольшими смещениями
-                final offsetLat = (index + 1) * 0.008; // Смещение по широте
-                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008; // Смещение по долготе
+                final offsetLat = (index + 1) * 0.008;
+                final offsetLon = (index % 2 == 0 ? 1 : -1) * (index + 1) * 0.008;
                 final areaCenter = _calculatePolygonCenter(cleaningArea!.geometry);
-                final polygonCenter = _calculatePolygonCenter(polygon!.geometry);
                 return Polyline(
                   points: [
+                    currentLocation,
                     LatLng(
                       areaCenter[1] + offsetLat,
                       areaCenter[0] + offsetLon,
-                    ),
-                    LatLng(
-                      polygonCenter[1] + offsetLat,
-                      polygonCenter[0] + offsetLon,
                     ),
                   ],
                   strokeWidth: 2,

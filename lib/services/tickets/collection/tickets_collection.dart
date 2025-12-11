@@ -511,6 +511,7 @@ class TicketsCollection {
   }
 
   /// GET /driver/tickets/:id - Получить тикет водителя
+  /// Возвращает TicketDetails с полями: ticket, metrics, assignments, trips, appeals
   Future<TicketDto> getTicketDriver(String id) async {
     try {
       final response = await dio.get('/driver/tickets/$id');
@@ -518,8 +519,60 @@ class TicketsCollection {
       if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
         throw TicketsException('Invalid response format');
       }
-      return TicketDto.fromJson(responseData['data'] as Map<String, dynamic>);
+      // TicketDetails содержит поле 'ticket' с данными тикета
+      final data = responseData['data'] as Map<String, dynamic>;
+      if (data.containsKey('ticket')) {
+        return TicketDto.fromJson(data['ticket'] as Map<String, dynamic>);
+      }
+      // Если структура другая, пытаемся парсить как обычный TicketDto
+      return TicketDto.fromJson(data);
     } on DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /driver/tickets/:id - Получить назначения тикета водителя
+  /// Использует GET /driver/tickets/:id и извлекает assignments из TicketDetails
+  /// Для водителя назначения уже отфильтрованы по driver_id из JWT токена
+  Future<List<TicketAssignmentDto>> getAssignmentsDriver(String ticketId) async {
+    try {
+      debugPrint('TicketsCollection.getAssignmentsDriver: Request URL: /driver/tickets/$ticketId');
+      debugPrint('TicketsCollection.getAssignmentsDriver: Extracting assignments from TicketDetails');
+      
+      final response = await dio.get('/driver/tickets/$ticketId');
+      
+      debugPrint('TicketsCollection.getAssignmentsDriver: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      // TicketDetails содержит поле 'assignments' с массивом назначений
+      final data = responseData['data'] as Map<String, dynamic>;
+      final assignmentsData = data['assignments'] as List<dynamic>? ?? [];
+      
+      debugPrint('TicketsCollection.getAssignmentsDriver: Received ${assignmentsData.length} assignments from TicketDetails');
+      
+      // Логируем сырые данные для отладки
+      for (final assignmentJson in assignmentsData) {
+        if (assignmentJson is Map<String, dynamic>) {
+          debugPrint('TicketsCollection.getAssignmentsDriver: Raw assignment: id=${assignmentJson['id']}, driver_mark_status=${assignmentJson['driver_mark_status']}, assignment_status=${assignmentJson['assignment_status']}, is_active=${assignmentJson['is_active']}');
+        }
+      }
+      
+      return assignmentsData
+          .map((json) {
+            final dto = TicketAssignmentDto.fromJson(json as Map<String, dynamic>);
+            debugPrint('TicketsCollection.getAssignmentsDriver: Parsed assignment: id=${dto.id}, assignmentStatus=${dto.assignmentStatus}, driverMarkStatus=${dto.driverMarkStatus}, domainStatus=${dto.toDomain().assignmentStatus}');
+            return dto;
+          })
+          .toList();
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.getAssignmentsDriver: DioException: ${e.type}');
+      debugPrint('TicketsCollection.getAssignmentsDriver: Status code: ${e.response?.statusCode}');
+      debugPrint('TicketsCollection.getAssignmentsDriver: Response data: ${e.response?.data}');
       _handleError(e);
       rethrow;
     }
@@ -570,6 +623,162 @@ class TicketsCollection {
       debugPrint('TicketsCollection.markAssignmentCompleted: DioException: ${e.type}');
       debugPrint('TicketsCollection.markAssignmentCompleted: Status code: ${e.response?.statusCode}');
       debugPrint('TicketsCollection.markAssignmentCompleted: Response data: ${e.response?.data}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  // ==================== Driver Appeals ====================
+
+  /// POST /driver/appeals - Создать апелляцию водителя
+  /// {
+  ///   "trip_id": "uuid",
+  ///   "appeal_reason_type": "ERROR_CAMERA",
+  ///   "comment": "номер распознан неверно"
+  /// }
+  Future<Map<String, dynamic>> createDriverAppeal({
+    required String tripId,
+    required String appealReasonType, // ERROR_CAMERA, TRANSIT_PATH, WRONG_ASSIGNMENT, OTHER
+    required String comment,
+  }) async {
+    try {
+      debugPrint('TicketsCollection.createDriverAppeal: Request URL: /driver/appeals');
+      debugPrint('TicketsCollection.createDriverAppeal: trip_id=$tripId, appeal_reason_type=$appealReasonType');
+
+      final response = await dio.post(
+        '/driver/appeals',
+        data: {
+          'trip_id': tripId,
+          'appeal_reason_type': appealReasonType,
+          'comment': comment,
+        },
+      );
+
+      debugPrint('TicketsCollection.createDriverAppeal: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic>) {
+        throw TicketsException('Invalid response format');
+      }
+
+      return responseData;
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.createDriverAppeal: DioException: ${e.type}');
+      debugPrint('TicketsCollection.createDriverAppeal: Status code: ${e.response?.statusCode}');
+      debugPrint('TicketsCollection.createDriverAppeal: Response data: ${e.response?.data}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /driver/appeals?ticket_id= - Получить список апелляций водителя
+  Future<List<Map<String, dynamic>>> getDriverAppeals({
+    String? ticketId,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (ticketId != null) {
+        queryParams['ticket_id'] = ticketId;
+      }
+
+      debugPrint('TicketsCollection.getDriverAppeals: Request URL: /driver/appeals');
+      debugPrint('TicketsCollection.getDriverAppeals: Query params: $queryParams');
+
+      final response = await dio.get(
+        '/driver/appeals',
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+
+      debugPrint('TicketsCollection.getDriverAppeals: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      final List<dynamic> data = responseData['data'] as List<dynamic>? ?? [];
+      return data.map((json) => json as Map<String, dynamic>).toList();
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.getDriverAppeals: DioException: ${e.type}');
+      debugPrint('TicketsCollection.getDriverAppeals: Status code: ${e.response?.statusCode}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /driver/appeals/:id - Получить детали апелляции водителя
+  Future<Map<String, dynamic>> getDriverAppeal(String appealId) async {
+    try {
+      debugPrint('TicketsCollection.getDriverAppeal: Request URL: /driver/appeals/$appealId');
+
+      final response = await dio.get('/driver/appeals/$appealId');
+
+      debugPrint('TicketsCollection.getDriverAppeal: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      return responseData['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.getDriverAppeal: DioException: ${e.type}');
+      debugPrint('TicketsCollection.getDriverAppeal: Status code: ${e.response?.statusCode}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// POST /driver/appeals/:id/comments - Добавить комментарий к апелляции водителя
+  Future<Map<String, dynamic>> addDriverAppealComment({
+    required String appealId,
+    required String comment,
+  }) async {
+    try {
+      debugPrint('TicketsCollection.addDriverAppealComment: Request URL: /driver/appeals/$appealId/comments');
+
+      final response = await dio.post(
+        '/driver/appeals/$appealId/comments',
+        data: {
+          'comment': comment,
+        },
+      );
+
+      debugPrint('TicketsCollection.addDriverAppealComment: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic>) {
+        throw TicketsException('Invalid response format');
+      }
+
+      return responseData;
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.addDriverAppealComment: DioException: ${e.type}');
+      debugPrint('TicketsCollection.addDriverAppealComment: Status code: ${e.response?.statusCode}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  /// GET /driver/appeals/:id/comments - Получить комментарии к апелляции водителя
+  Future<List<Map<String, dynamic>>> getDriverAppealComments(String appealId) async {
+    try {
+      debugPrint('TicketsCollection.getDriverAppealComments: Request URL: /driver/appeals/$appealId/comments');
+
+      final response = await dio.get('/driver/appeals/$appealId/comments');
+
+      debugPrint('TicketsCollection.getDriverAppealComments: Response status: ${response.statusCode}');
+
+      final responseData = response.data;
+      if (responseData is! Map<String, dynamic> || !responseData.containsKey('data')) {
+        throw TicketsException('Invalid response format');
+      }
+
+      final List<dynamic> data = responseData['data'] as List<dynamic>? ?? [];
+      return data.map((json) => json as Map<String, dynamic>).toList();
+    } on DioException catch (e) {
+      debugPrint('TicketsCollection.getDriverAppealComments: DioException: ${e.type}');
+      debugPrint('TicketsCollection.getDriverAppealComments: Status code: ${e.response?.statusCode}');
       _handleError(e);
       rethrow;
     }
