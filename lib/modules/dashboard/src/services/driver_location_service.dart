@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:akimat_project/modules/dashboard/src/repository/operations_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
-/// Сервис для отслеживания и отправки GPS-локации водителя
 class DriverLocationService {
   final OperationsRepository _repository;
   Position? _lastPosition;
@@ -16,8 +16,7 @@ class DriverLocationService {
     required OperationsRepository repository,
   }) : _repository = repository;
 
-  /// Начать отслеживание GPS-локации
-  /// Отправляет локацию каждые 10 секунд или при изменении позиции > 10 метров
+  
   Future<void> startTracking() async {
     if (_isTracking) {
       debugPrint('DriverLocationService: Already tracking');
@@ -27,7 +26,7 @@ class DriverLocationService {
     _isTracking = true;
     debugPrint('DriverLocationService: Starting GPS tracking');
 
-    // Проверяем разрешения
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       debugPrint('DriverLocationService: Location services are disabled');
@@ -51,13 +50,50 @@ class DriverLocationService {
       return;
     }
 
-    // Настраиваем параметры отслеживания
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Отправляем только если переместились > 10 метров
-    );
 
-    // Слушаем изменения позиции
+    if (permission == LocationPermission.whileInUse) {
+      debugPrint('DriverLocationService: Requesting background location permission');
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.always) {
+        debugPrint('DriverLocationService: Background location permission not granted, but continuing with foreground tracking');
+      } else {
+        debugPrint('DriverLocationService: Background location permission granted');
+      }
+    }
+
+
+    // Настраиваем параметры отслеживания с поддержкой фонового режима
+    // Используем платформо-специфичные настройки
+    final LocationSettings locationSettings;
+    
+    if (Platform.isAndroid) {
+      // Настройки для Android - фоновое отслеживание
+      locationSettings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Отправляем только если переместились > 10 метров
+        foregroundNotificationConfig: ForegroundNotificationConfig(
+          notificationTitle: 'Отслеживание местоположения',
+          notificationText: 'Приложение отслеживает ваше местоположение в фоновом режиме',
+          enableWakeLock: true,
+        ),
+      );
+    } else if (Platform.isIOS) {
+      // Настройки для iOS - фоновое отслеживание
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Отправляем только если переместились > 10 метров
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+      );
+    } else {
+      // Настройки по умолчанию для других платформ
+      locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      );
+    }
+
+
     _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
         .listen(
       (Position position) {
@@ -68,8 +104,6 @@ class DriverLocationService {
       },
     );
 
-    // Также отправляем локацию периодически (каждые 10 секунд)
-    // даже если позиция не изменилась
     _periodicTimer = Timer.periodic(
       const Duration(seconds: 10),
       (timer) {
@@ -84,7 +118,7 @@ class DriverLocationService {
     );
   }
 
-  /// Остановить отслеживание
+
   void stopTracking() {
     _isTracking = false;
     _positionStream?.cancel();
@@ -94,13 +128,13 @@ class DriverLocationService {
     debugPrint('DriverLocationService: Stopped GPS tracking');
   }
 
-  /// Обработка обновления позиции
+
   Future<void> _handlePositionUpdate(Position position) async {
     if (!_isTracking) return;
 
     _lastPosition = position;
 
-    // Отправляем только если прошло достаточно времени или позиция значительно изменилась
+
     final now = DateTime.now();
     final shouldSend = _lastSentAt == null ||
         now.difference(_lastSentAt!) >= const Duration(seconds: 10) ||
@@ -111,7 +145,7 @@ class DriverLocationService {
     }
   }
 
-  /// Проверяет, изменилась ли позиция значительно (> 10 метров)
+
   bool _hasSignificantChange(Position newPosition) {
     if (_lastPosition == null) return true;
 

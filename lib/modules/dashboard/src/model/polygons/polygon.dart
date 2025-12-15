@@ -13,7 +13,7 @@ class Polygon extends Equatable {
   const Polygon({
     required this.id,
     required this.name,
-    this.address,
+    this.address, 
     this.description,
     required this.geometry,
     required this.isActive,

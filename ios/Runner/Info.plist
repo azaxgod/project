@@ -81,5 +81,17 @@
 			</dict>
 		</dict>
 	</dict>
+	<!-- Разрешения для фонового отслеживания GPS водителя -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Приложению требуется доступ к вашему местоположению для отслеживания маршрута водителя</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Приложению требуется доступ к вашему местоположению в фоновом режиме для отслеживания маршрута водителя</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Приложению требуется доступ к вашему местоположению в фоновом режиме для отслеживания маршрута водителя</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+	</array>
 </dict>
 </plist>
