@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
 
+import 'package:equatable/equatable.dart';
 /// Коллекция для работы с ANPR сервисом
 class AnprCollection {
   final Dio dio;

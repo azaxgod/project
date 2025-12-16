@@ -67,7 +67,7 @@ class OrganizationsTooTab extends StatelessWidget {
                   cells: [
                     DataCell(Text(organization.name)),
                     DataCell(Text(organization.bin)),
-                    DataCell(Text(organization.headFullName ?? '—')),
+                    DataCell(Text(organization.HeadFullName ?? '—')),
                     DataCell(Text(organization.address ?? '—')),
                     DataCell(Text(organization.phone ?? '—')),
                     DataCell(OrganizationsStatusChip(isActive: organization.isActive)),

@@ -26,7 +26,7 @@ class OrganizationsDetailsDialogs {
             OrganizationsInfoRow(label: 'БИН', value: organization.bin),
             OrganizationsInfoRow(
               label: 'Руководитель',
-              value: organization.headFullName ?? '—',
+              value: organization.HeadFullName ?? '—',
             ),
             OrganizationsInfoRow(label: 'Телефон', value: organization.phone ?? '—'),
             OrganizationsInfoRow(label: 'Адрес', value: organization.address ?? '—'),

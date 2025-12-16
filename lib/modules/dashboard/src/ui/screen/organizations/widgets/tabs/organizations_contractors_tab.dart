@@ -87,7 +87,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
                   DataCell(Text(contractor.name, overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.bin, overflow: TextOverflow.ellipsis)),
                   if (_shouldShowParentColumn) DataCell(Text(parentName, overflow: TextOverflow.ellipsis)),
-                  DataCell(Text(contractor.headFullName ?? '—', overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(contractor.HeadFullName ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.address ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.phone ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(OrganizationsStatusChip(isActive: contractor.isActive)),

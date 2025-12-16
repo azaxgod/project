@@ -224,12 +224,12 @@ class OrganizationsDialogs {
                   debugPrint('headFullNameValue.isEmpty: ${headFullNameValue.isEmpty}');
                   debugPrint('headFullNameValue.isNotEmpty: ${headFullNameValue.isNotEmpty}');
                   
-                  // ВАЖНО: Передаем значение только если оно НЕ пустое после trim
-                  // Если пустое - передаем null, чтобы API мог обработать это правильно
-                  final finalHeadFullName = headFullNameValue.isNotEmpty ? headFullNameValue : null;
+                  // ВАЖНО: Передаем значение из контроллера как строку
+                  // Всегда передаем строку (даже если пустая) - API обработает
+                  final finalHeadFullName = headFullNameValue;
                   final finalAddress = (addressValue != null && addressValue.isNotEmpty) ? addressValue : null;
                   
-                  debugPrint('finalHeadFullName: "$finalHeadFullName" (isNull: ${finalHeadFullName == null})');
+                  debugPrint('finalHeadFullName: "$finalHeadFullName" (isNull: ${finalHeadFullName == null}, length: ${finalHeadFullName?.length ?? 0})');
                   debugPrint('finalAddress: "$finalAddress" (isNull: ${finalAddress == null})');
                   
                   final organization = Organization(
@@ -237,7 +237,7 @@ class OrganizationsDialogs {
                     type: type,
                     name: nameController.text.trim(),
                     bin: binNormalized,
-                    headFullName: finalHeadFullName,
+                    HeadFullName: finalHeadFullName,
                     address: finalAddress,
                     phone: phoneNormalized,
                     parentOrgId: type == OrganizationType.contractor ? selectedParentOrgId : null,
@@ -246,7 +246,7 @@ class OrganizationsDialogs {
                   
                   // Отладочный вывод после создания
                   debugPrint('=== ORGANIZATION OBJECT ===');
-                  debugPrint('organization.headFullName: "${organization.headFullName}" (isNull: ${organization.headFullName == null})');
+                  debugPrint('organization.HeadFullName: "${organization.HeadFullName}" (isNull: ${organization.HeadFullName == null}, length: ${organization.HeadFullName?.length ?? 0})');
                   debugPrint('organization.address: "${organization.address}" (isNull: ${organization.address == null})');
                   
                   try {
@@ -945,6 +945,7 @@ class OrganizationsDialogs {
     Uint8List? selectedFileBytes,
     String? selectedFileName,
     String? photoUrl,
+    // String? photoSelect,
     bool useDefaultIcon = false,
     required Function(PlatformFile?, Uint8List?, String?) onFileSelected,
     required VoidCallback onRemoveFile,
@@ -1001,6 +1002,7 @@ class OrganizationsDialogs {
                                 : null,
                   ),
                 ),
+                
                 Positioned(
                   top: 8,
                   right: 8,
@@ -1109,7 +1111,7 @@ class OrganizationsDialogs {
           icon: const Icon(Icons.upload_file),
           label: Text(selectedFileBytes != null || (photoUrl != null && photoUrl!.isNotEmpty)
               ? 'Изменить фото'
-              : 'Выбрать фото'),
+              : 'Загрузить фото'),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,

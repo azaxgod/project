@@ -66,7 +66,7 @@ class OrganizationsKguZkhTab extends StatelessWidget {
                 cells: [
                   DataCell(Text(organization.name, overflow: TextOverflow.ellipsis)),
                   DataCell(Text(organization.bin, overflow: TextOverflow.ellipsis)),
-                  DataCell(Text(organization.headFullName ?? '—', overflow: TextOverflow.ellipsis)),
+                  DataCell(Text(organization.HeadFullName ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(Text(organization.phone ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(OrganizationsStatusChip(isActive: organization.isActive)),
                   DataCell(

@@ -70,21 +70,23 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
     if (organization.phone == null || organization.phone!.isEmpty) {
       throw Exception('Телефон обязателен для создания организации');
     }
-    
+
     // Отладочный вывод
     debugPrint('=== REPOSITORY ===');
-    debugPrint('organization.headFullName: "${organization.headFullName}"');
+    debugPrint('organization.HeadFullName: "${organization.HeadFullName}" (isNull: ${organization.HeadFullName == null}, length: ${organization.HeadFullName?.length ?? 0})');
     debugPrint('organization.address: "${organization.address}"');
-    
+
     final result = await _services.rolesCollection.createOrganization(
       name: organization.name,
       type: OrganizationDto.mapTypeToString(organization.type),
       bin: organization.bin,
-      headFullName: organization.headFullName,
+      headFullName: organization.HeadFullName,
       address: organization.address,
       phone: organization.phone,
-      parentOrgId: organization.parentOrgId, // Передаем parentOrgId для подрядчиков
-      adminPhone: organization.phone!, // Телефон администратора = телефон организации
+      parentOrgId:
+          organization.parentOrgId, // Передаем parentOrgId для подрядчиков
+      adminPhone:
+          organization.phone!, // Телефон администратора = телефон организации
     );
     return result.organization.toDomain();
   }
@@ -96,7 +98,7 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
       name: organization.name,
       type: OrganizationDto.mapTypeToString(organization.type),
       bin: organization.bin,
-      headFullName: organization.headFullName,
+      headFullName: organization.HeadFullName,
       address: organization.address,
       phone: organization.phone,
       isActive: organization.isActive,
@@ -134,6 +136,77 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
 
   @override
   Future<Vehicle> createVehicle(Vehicle vehicle) async {
+    // Извлекаем bytes и filename из photoUrl если это временные данные
+    Uint8List? photoBytes;
+    String? photoFileName;
+
+    // Если photoUrl содержит временные данные (data URL), извлекаем bytes
+    if (vehicle.photoUrl != null &&
+        vehicle.photoUrl!.startsWith('data:image/')) {
+      try {
+        final dataUrl = vehicle.photoUrl!;
+        final parts = dataUrl.split(',');
+        if (parts.length < 2) {
+          throw Exception('Invalid data URL format');
+        }
+
+        final base64String = parts[1];
+        if (base64String.isEmpty) {
+          throw Exception('Base64 string is empty');
+        }
+
+        photoBytes = base64Decode(base64String);
+
+        // Проверяем, что декодированные данные не пусты и имеют минимальный размер
+        if (photoBytes.isEmpty || photoBytes.length < 100) {
+          throw Exception('Decoded photo bytes are empty or too small');
+        }
+
+        // Проверяем, что это действительно изображение (magic bytes)
+        final isValidImage = (photoBytes.length >= 4 &&
+            ((photoBytes[0] == 0xFF && photoBytes[1] == 0xD8) || // JPEG
+                (photoBytes[0] == 0x89 &&
+                    photoBytes[1] == 0x50 &&
+                    photoBytes[2] == 0x4E &&
+                    photoBytes[3] == 0x47) || // PNG
+                (photoBytes[0] == 0x47 &&
+                    photoBytes[1] == 0x49 &&
+                    photoBytes[2] == 0x46) || // GIF
+                (photoBytes[0] == 0x52 &&
+                    photoBytes[1] == 0x49 &&
+                    photoBytes[2] == 0x46 &&
+                    photoBytes[8] == 0x57 &&
+                    photoBytes[9] == 0x45 &&
+                    photoBytes[10] == 0x42 &&
+                    photoBytes[11] == 0x50))); // WEBP
+
+        if (!isValidImage) {
+          throw Exception('Invalid image format');
+        }
+
+        // Определяем расширение из MIME типа
+        final mimeType = dataUrl.split(';')[0].split(':')[1];
+        String extension = 'png';
+        if (mimeType.contains('jpeg') || mimeType.contains('jpg')) {
+          extension = 'jpg';
+        } else if (mimeType.contains('png')) {
+          extension = 'png';
+        } else if (mimeType.contains('webp')) {
+          extension = 'webp';
+        } else if (mimeType.contains('gif')) {
+          extension = 'gif';
+        }
+        photoFileName = 'photo.$extension';
+      } catch (e) {
+        debugPrint('Error processing photo data URL: $e');
+        // Если не удалось декодировать, не отправляем фото
+        photoBytes = null;
+        photoFileName = null;
+      }
+    }
+    // Если photoUrl это обычный URL (не должно быть при создании нового), игнорируем его
+    // При создании нового транспорта должен быть только data URL или null
+
     final dto = await _services.rolesCollection.createVehicle(
       plateNumber: vehicle.plateNumber,
       brand: vehicle.brand,
@@ -141,7 +214,8 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
       color: vehicle.color,
       year: vehicle.year,
       bodyVolumeM3: vehicle.bodyVolumeM3,
-      photoUrl: vehicle.photoUrl,
+      photoBytes: photoBytes,
+      photoFileName: photoFileName,
       driverId: vehicle.driverId,
     );
     return dto.toDomain();
@@ -155,7 +229,7 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
     String? existingPhotoUrl; // Сохраняем существующий URL фото
     bool shouldDeletePhoto = false;
     bool keepExistingPhoto = false; // Флаг для сохранения существующего фото
-    
+
     // Если photoUrl = null, это означает что нужно удалить фото (использовать дефолтную иконку)
     if (vehicle.photoUrl == null) {
       shouldDeletePhoto = true;
@@ -168,30 +242,41 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
         if (parts.length < 2) {
           throw Exception('Invalid data URL format');
         }
-        
+
         final base64String = parts[1];
         if (base64String.isEmpty) {
           throw Exception('Base64 string is empty');
         }
-        
+
         photoBytes = base64Decode(base64String);
-        
+
         // Проверяем, что декодированные данные не пусты и имеют минимальный размер
         if (photoBytes.isEmpty || photoBytes.length < 100) {
           throw Exception('Decoded photo bytes are empty or too small');
         }
-        
+
         // Проверяем, что это действительно изображение (magic bytes)
-        final isValidImage = (photoBytes.length >= 4 && 
-          ((photoBytes[0] == 0xFF && photoBytes[1] == 0xD8) || // JPEG
-           (photoBytes[0] == 0x89 && photoBytes[1] == 0x50 && photoBytes[2] == 0x4E && photoBytes[3] == 0x47) || // PNG
-           (photoBytes[0] == 0x47 && photoBytes[1] == 0x49 && photoBytes[2] == 0x46) || // GIF
-           (photoBytes[0] == 0x52 && photoBytes[1] == 0x49 && photoBytes[2] == 0x46 && photoBytes[8] == 0x57 && photoBytes[9] == 0x45 && photoBytes[10] == 0x42 && photoBytes[11] == 0x50))); // WEBP
-        
+        final isValidImage = (photoBytes.length >= 4 &&
+            ((photoBytes[0] == 0xFF && photoBytes[1] == 0xD8) || // JPEG
+                (photoBytes[0] == 0x89 &&
+                    photoBytes[1] == 0x50 &&
+                    photoBytes[2] == 0x4E &&
+                    photoBytes[3] == 0x47) || // PNG
+                (photoBytes[0] == 0x47 &&
+                    photoBytes[1] == 0x49 &&
+                    photoBytes[2] == 0x46) || // GIF
+                (photoBytes[0] == 0x52 &&
+                    photoBytes[1] == 0x49 &&
+                    photoBytes[2] == 0x46 &&
+                    photoBytes[8] == 0x57 &&
+                    photoBytes[9] == 0x45 &&
+                    photoBytes[10] == 0x42 &&
+                    photoBytes[11] == 0x50))); // WEBP
+
         if (!isValidImage) {
           throw Exception('Invalid image format');
         }
-        
+
         // Определяем расширение из MIME типа
         final mimeType = dataUrl.split(';')[0].split(':')[1];
         String extension = 'png';
@@ -216,10 +301,11 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
     }
     // Если photoUrl это обычный URL (существующее фото), загружаем его с сервера
     // чтобы отправить обратно (сервер требует файл в поле photo)
-    else if (vehicle.photoUrl!.isNotEmpty && !vehicle.photoUrl!.startsWith('data:image/')) {
+    else if (vehicle.photoUrl!.isNotEmpty &&
+        !vehicle.photoUrl!.startsWith('data:image/')) {
       keepExistingPhoto = true;
       existingPhotoUrl = vehicle.photoUrl; // Сохраняем существующий URL
-      
+
       // Загружаем существующее фото с сервера, чтобы отправить его обратно
       try {
         final dio = Dio();
@@ -227,10 +313,10 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
           vehicle.photoUrl!,
           options: Options(responseType: ResponseType.bytes),
         );
-        
+
         if (response.data != null && response.data!.isNotEmpty) {
           photoBytes = response.data;
-          
+
           // Определяем расширение из URL
           String extension = 'png';
           final urlPath = vehicle.photoUrl!.toLowerCase();
@@ -251,7 +337,7 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
         // Сервер может принять запрос без фото или вернуть ошибку
       }
     }
-    
+
     final dto = await _services.rolesCollection.updateVehicle(
       vehicle.id,
       plateNumber: vehicle.plateNumber,
@@ -270,13 +356,14 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
     return dto.toDomain();
   }
 
-  OrganizationDto _organizationToDto(Organization organization, {bool ensureId = false}) {
+  OrganizationDto _organizationToDto(Organization organization,
+      {bool ensureId = false}) {
     return OrganizationDto(
       id: ensureId ? _ensureId(organization.id) : organization.id,
       type: OrganizationDto.mapTypeToString(organization.type),
       name: organization.name,
       bin: organization.bin,
-      headFullName: organization.headFullName,
+      headFullName: organization.HeadFullName,
       address: organization.address,
       phone: organization.phone,
       parentOrgId: organization.parentOrgId,
@@ -317,4 +404,3 @@ class OrganizationsRepositoryImpl implements OrganizationsRepository {
     return '${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(9999)}';
   }
 }
-

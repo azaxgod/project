@@ -171,8 +171,7 @@ class RolesCollection {
         'name': name,
         'type': type,
         if (bin != null) 'bin': bin,
-        // Всегда отправляем HeadFullName - если null, отправляем пустую строку
-        // Если не null - отправляем значение (даже если пустое после trim)
+        // Всегда отправляем HeadFullName - обязательно передаем значение
         'HeadFullName': headFullName ?? '',
         // Всегда отправляем Address - если null, отправляем пустую строку
         'Address': address ?? '',
@@ -189,7 +188,9 @@ class RolesCollection {
       debugPrint('createOrganization - headFullName isNull: ${headFullName == null}');
       debugPrint('createOrganization - headFullName isEmpty: ${headFullName?.isEmpty ?? true}');
       debugPrint('createOrganization - headFullName isNotEmpty: ${headFullName?.isNotEmpty ?? false}');
-      debugPrint('createOrganization - sending HeadFullName: "${data['HeadFullName']}" (type: ${data['HeadFullName'].runtimeType})');
+      final headFullNameToSend = headFullName ?? '';
+      debugPrint('createOrganization - headFullNameToSend: "$headFullNameToSend"');
+      debugPrint('createOrganization - sending HeadFullName: "${data['HeadFullName']}" (type: ${data['HeadFullName'].runtimeType}, length: ${(data['HeadFullName'] as String).length})');
       debugPrint('createOrganization - sending Address: "${data['Address']}"');
       debugPrint('createOrganization full data: $data');
       
@@ -922,25 +923,67 @@ class RolesCollection {
     required String color,
     required int year,
     required double bodyVolumeM3,
-    String? photoUrl,
+    Uint8List? photoBytes,
+    String? photoFileName,
     String? driverId,
   }) async {
     try {
-      final response = await dio.post(
-        '/roles/vehicles',
-        data: {
+      // Если есть фото для загрузки, используем multipart/form-data
+      if (photoBytes != null && photoBytes.isNotEmpty) {
+        final formData = FormData.fromMap({
           'plate_number': plateNumber,
           'brand': brand,
           'model': model,
           'color': color,
-          'year': year,
-          'body_volume_m3': bodyVolumeM3,
-          if (photoUrl != null) 'photo_url': photoUrl,
+          'year': year.toString(),
+          'body_volume_m3': bodyVolumeM3.toString(),
           if (driverId != null) 'driver_id': driverId,
-        },
-      );
-      return VehicleDto.fromJson(
-          response.data['vehicle'] as Map<String, dynamic>);
+        });
+        
+        // Определяем MIME тип по расширению файла
+        String mimeType = 'image/png';
+        final extension = photoFileName?.split('.').last.toLowerCase() ?? 'png';
+        if (extension == 'jpg' || extension == 'jpeg') {
+          mimeType = 'image/jpeg';
+        } else if (extension == 'png') {
+          mimeType = 'image/png';
+        } else if (extension == 'webp') {
+          mimeType = 'image/webp';
+        } else if (extension == 'gif') {
+          mimeType = 'image/gif';
+        }
+        
+        // Добавляем фото как multipart file с правильным MIME типом
+        formData.files.add(
+          MapEntry(
+            'photo',
+            MultipartFile.fromBytes(
+              photoBytes,
+              filename: photoFileName ?? 'photo.png',
+            ),
+          ),
+        );
+        
+        final response = await dio.post('/roles/vehicles', data: formData);
+        return VehicleDto.fromJson(
+            response.data['vehicle'] as Map<String, dynamic>);
+      } else {
+        // Если нет фото, отправляем обычный JSON БЕЗ поля photo
+        final response = await dio.post(
+          '/roles/vehicles',
+          data: {
+            'plate_number': plateNumber,
+            'brand': brand,
+            'model': model,
+            'color': color,
+            'year': year,
+            'body_volume_m3': bodyVolumeM3,
+            if (driverId != null) 'driver_id': driverId,
+          },
+        );
+        return VehicleDto.fromJson(
+            response.data['vehicle'] as Map<String, dynamic>);
+      }
     } on DioException catch (e) {
       _handleError(e);
       rethrow;

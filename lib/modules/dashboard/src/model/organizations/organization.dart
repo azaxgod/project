@@ -6,7 +6,7 @@ class Organization extends Equatable {
   final OrganizationType type;
   final String name;
   final String bin;
-  final String? headFullName;
+  final String? HeadFullName;
   final String? address;
   final String? phone;
   final String? parentOrgId;
@@ -17,7 +17,7 @@ class Organization extends Equatable {
     required this.type,
     required this.name,
     required this.bin,
-    this.headFullName,
+    this.HeadFullName,
     this.address,
     this.phone,
     this.parentOrgId,
@@ -29,7 +29,7 @@ class Organization extends Equatable {
     OrganizationType? type,
     String? name,
     String? bin,
-    String? headFullName,
+    String? HeadFullName,
     String? address,
     String? phone,
     String? parentOrgId,
@@ -40,7 +40,7 @@ class Organization extends Equatable {
       type: type ?? this.type,
       name: name ?? this.name,
       bin: bin ?? this.bin,
-      headFullName: headFullName ?? this.headFullName,
+      HeadFullName: HeadFullName ?? this.HeadFullName,
       address: address ?? this.address,
       phone: phone ?? this.phone,
       parentOrgId: parentOrgId ?? this.parentOrgId,
@@ -54,7 +54,7 @@ class Organization extends Equatable {
         type,
         name,
         bin,
-        headFullName,
+        HeadFullName,
         address,
         phone,
         parentOrgId,

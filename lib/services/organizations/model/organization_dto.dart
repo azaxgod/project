@@ -26,23 +26,23 @@ class OrganizationDto {
 
   factory OrganizationDto.fromJson(Map<String, dynamic> json) {
     // Поддержка разных форматов: Type, type
-    final typeValue = json['Type'] as String? ?? 
-                     json['type'] as String? ?? 
-                     'CONTRACTOR';
+    final typeValue =
+        json['Type'] as String? ?? json['type'] as String? ?? 'CONTRACTOR';
     // Нормализуем тип: KGU_ZKH должен быть с подчеркиванием
     final normalizedType = typeValue.toUpperCase().replaceAll(' ', '_');
-    
+
     return OrganizationDto(
       id: json['ID'] as String? ?? json['id'] as String? ?? '',
       type: normalizedType,
       name: json['Name'] as String? ?? json['name'] as String? ?? '',
       bin: json['BIN'] as String? ?? json['bin'] as String? ?? '',
-      headFullName: json['HeadFullName'] as String? ?? json['headFullName'] as String?,
+      headFullName:
+          json['HeadFullName'] as String? ?? json['headFullName'] as String?,
       address: json['Address'] as String? ?? json['address'] as String?,
       phone: json['Phone'] as String? ?? json['phone'] as String?,
-      parentOrgId: json['ParentOrgID'] as String? ?? 
-                   json['parentOrgID'] as String? ?? 
-                   json['parentOrgId'] as String?,
+      parentOrgId: json['ParentOrgID'] as String? ??
+          json['parentOrgID'] as String? ??
+          json['parentOrgId'] as String?,
       isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
     );
   }
@@ -65,7 +65,7 @@ class OrganizationDto {
       type: _mapType(type),
       name: name,
       bin: bin,
-      headFullName: headFullName,
+      HeadFullName: headFullName,
       address: address,
       phone: phone,
       parentOrgId: parentOrgId,
@@ -102,4 +102,3 @@ class OrganizationDto {
     }
   }
 }
-
