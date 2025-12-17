@@ -101,6 +101,7 @@ class AnprCollection {
     String? plate,
     DateTime? from,
     DateTime? to,
+    String? direction, // "enter" or "exit"
     int? limit,
     int? offset,
     String? jwtToken,
@@ -110,6 +111,7 @@ class AnprCollection {
       if (plate != null) queryParams['plate'] = plate;
       if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
       if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
+      if (direction != null) queryParams['direction'] = direction;
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 
@@ -153,17 +155,16 @@ class AnprCollection {
 
   /// POST /api/v1/anpr/sync-vehicle - Синхронизация транспорта
   /// Требует авторизацию (JWT токен)
-  Future<void> syncVehicle({
-    required String plate,
-    required String vehicleId,
+  /// Согласно документации, принимает только plate_number
+  Future<Map<String, dynamic>> syncVehicle({
+    required String plateNumber,
     String? jwtToken,
   }) async {
     try {
-      await dio.post(
+      final response = await dio.post(
         '/api/v1/anpr/sync-vehicle',
         data: {
-          'plate': plate,
-          'vehicle_id': vehicleId,
+          'plate_number': plateNumber,
         },
         options: Options(
           headers: jwtToken != null
@@ -171,6 +172,7 @@ class AnprCollection {
               : null,
         ),
       );
+      return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw Exception('Failed to sync vehicle: ${e.message}');
     }

@@ -71,54 +71,68 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   void _loadInitialData() {
     if (_hasInitialLoad) return;
     
-    final controller = ref.read(analyticsControllerProvider.notifier);
-    final state = ref.read(analyticsControllerProvider);
-    
-    // Проверяем роль пользователя
-    final authState = ref.read(authNotifierProvider);
-    final userRole = userRoleFromString(authState.user?.role);
-    final isLandfillAdmin = userRole == UserRole.landfillAdmin;
-    
-    // Загружаем данные только если они еще не загружены или есть ошибка
-    if (isLandfillAdmin) {
-      // Для LANDFILL_ADMIN загружаем техническую аналитику
-      if (state.technicalAnalytics == null || 
-          (state.technicalAnalytics!.hasError && !state.technicalAnalytics!.isLoading) ||
-          (!state.technicalAnalytics!.hasValue && !state.technicalAnalytics!.isLoading)) {
-        controller.loadTechnicalAnalytics(
-          from: _dateFrom,
-          to: _dateTo,
-        );
-        _hasInitialLoad = true;
-      } else if (state.technicalAnalytics!.hasValue) {
-        _hasInitialLoad = true;
-      }
-    } else {
-      // Для других ролей загружаем обычный дашборд
-      if (state.dashboard == null || 
-          (state.dashboard!.hasError && !state.dashboard!.isLoading) ||
-          (!state.dashboard!.hasValue && !state.dashboard!.isLoading)) {
-        controller.loadDashboard(
-          from: _dateFrom,
-          to: _dateTo,
-        );
-        _hasInitialLoad = true;
-      } else if (state.dashboard!.hasValue) {
-        _hasInitialLoad = true;
-      }
-      // Также загружаем отфильтрованные контракты при инициализации
-      if (_dateFrom != null && _dateTo != null) {
-        if (state.contractsAnalytics == null || 
-            (state.contractsAnalytics!.hasError && !state.contractsAnalytics!.isLoading) ||
-            (!state.contractsAnalytics!.hasValue && !state.contractsAnalytics!.isLoading)) {
-          controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+    // Используем Future.microtask для неблокирующей загрузки
+    Future.microtask(() {
+      if (!mounted) return;
+      
+      final controller = ref.read(analyticsControllerProvider.notifier);
+      final state = ref.read(analyticsControllerProvider);
+      
+      // Проверяем роль пользователя
+      final authState = ref.read(authNotifierProvider);
+      final userRole = userRoleFromString(authState.user?.role);
+      final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+      
+      // Загружаем данные только если они еще не загружены или есть ошибка
+      if (isLandfillAdmin) {
+        // Для LANDFILL_ADMIN загружаем техническую аналитику
+        if (state.technicalAnalytics == null || 
+            (state.technicalAnalytics!.hasError && !state.technicalAnalytics!.isLoading) ||
+            (!state.technicalAnalytics!.hasValue && !state.technicalAnalytics!.isLoading)) {
+          controller.loadTechnicalAnalytics(
+            from: _dateFrom,
+            to: _dateTo,
+          );
+          _hasInitialLoad = true;
+        } else if (state.technicalAnalytics!.hasValue) {
+          _hasInitialLoad = true;
         }
-        // Загружаем данные журнала приёма снега для LANDFILL_ADMIN
-        if (isLandfillAdmin) {
-          _loadLandfillJournal();
+      } else {
+        // Для других ролей загружаем обычный дашборд
+        if (state.dashboard == null || 
+            (state.dashboard!.hasError && !state.dashboard!.isLoading) ||
+            (!state.dashboard!.hasValue && !state.dashboard!.isLoading)) {
+          controller.loadDashboard(
+            from: _dateFrom,
+            to: _dateTo,
+          );
+          _hasInitialLoad = true;
+        } else if (state.dashboard!.hasValue) {
+          _hasInitialLoad = true;
+        }
+        // Также загружаем отфильтрованные контракты при инициализации (асинхронно)
+        if (_dateFrom != null && _dateTo != null) {
+          if (state.contractsAnalytics == null || 
+              (state.contractsAnalytics!.hasError && !state.contractsAnalytics!.isLoading) ||
+              (!state.contractsAnalytics!.hasValue && !state.contractsAnalytics!.isLoading)) {
+            // Загружаем контракты асинхронно, не блокируя основной UI
+            Future.microtask(() {
+              if (mounted) {
+                controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+              }
+            });
+          }
+          // Загружаем данные журнала приёма снега для LANDFILL_ADMIN (асинхронно)
+          if (isLandfillAdmin) {
+            Future.microtask(() {
+              if (mounted) {
+                _loadLandfillJournal();
+              }
+            });
+          }
         }
       }
-    }
+    });
   }
 
   Future<void> _loadLandfillJournal() async {
@@ -170,8 +184,9 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
 
     // Загружаем данные при первой загрузке, если они еще не загружены
+    // Используем Future.microtask вместо addPostFrameCallback для более быстрой загрузки
     if (authState.user != null && _dateFrom != null && _dateTo != null && !_hasInitialLoad) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.microtask(() {
         if (mounted) {
           _loadInitialData();
         }
@@ -1130,9 +1145,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 return const SizedBox.shrink();
               }
               
+              // Согласно документации: период по умолчанию для ANPR - последние 24 часа
+              final anprDateTo = _dateTo ?? DateTime.now();
+              final anprDateFrom = _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
+              
               return AnprSection(
-                dateFrom: _dateFrom,
-                dateTo: _dateTo,
+                dateFrom: anprDateFrom,
+                dateTo: anprDateTo,
               );
             },
           ),

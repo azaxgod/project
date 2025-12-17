@@ -17,6 +17,15 @@ class AnprEvent extends Equatable {
   final double? snowVolumeM3; // Объем снега в м³
   final String? polygonId; // ID полигона
   final double? bodyVolumeM3; // Объем кузова в м³
+  // Поля водителя (из vehicles через номер)
+  final String? driverId;
+  final String? driverFullName;
+  final String? driverIin;
+  final String? driverPhone;
+  // Поля подрядчика (из vehicles через номер)
+  final String? contractorId;
+  final String? contractorName;
+  final String? contractorBin;
 
   const AnprEvent({
     required this.id,
@@ -34,6 +43,13 @@ class AnprEvent extends Equatable {
     this.snowVolumeM3,
     this.polygonId,
     this.bodyVolumeM3,
+    this.driverId,
+    this.driverFullName,
+    this.driverIin,
+    this.driverPhone,
+    this.contractorId,
+    this.contractorName,
+    this.contractorBin,
   });
 
   /// Вычисляет объем снега: confidence * body_volume_m3
@@ -76,6 +92,25 @@ class AnprEvent extends Equatable {
       }
     }
     
+    // Парсим vehicle - может быть вложенным объектом или плоскими полями
+    VehicleInfo? vehicle;
+    if (json['vehicle'] != null && json['vehicle'] is Map) {
+      vehicle = VehicleInfo.fromJson(json['vehicle'] as Map<String, dynamic>);
+    } else if (json['vehicle_color'] != null || 
+               json['vehicle_brand'] != null || 
+               json['vehicle_type'] != null) {
+      // Плоская структура из API (vehicle_color, vehicle_brand, etc.)
+      vehicle = VehicleInfo(
+        color: json['vehicle_color'] as String?,
+        type: json['vehicle_type'] as String?,
+        brand: json['vehicle_brand'] as String?,
+        model: json['vehicle_model'] as String?,
+        country: json['vehicle_country'] as String?,
+        plateColor: json['vehicle_plate_color'] as String?,
+        speed: (json['vehicle_speed'] as num?)?.toDouble(),
+      );
+    }
+    
     return AnprEvent(
       id: json['id'] as String,
       plateId: json['plate_id'] as String?,
@@ -87,9 +122,7 @@ class AnprEvent extends Equatable {
       confidence: (json['confidence'] as num?)?.toDouble(),
       direction: json['direction'] as String?,
       lane: json['lane'] as int?,
-      vehicle: json['vehicle'] != null
-          ? VehicleInfo.fromJson(json['vehicle'] as Map<String, dynamic>)
-          : null,
+      vehicle: vehicle,
       photos: (json['photos'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -97,6 +130,13 @@ class AnprEvent extends Equatable {
       snowVolumeM3: (json['snow_volume_m3'] as num?)?.toDouble(),
       polygonId: json['polygon_id'] as String?,
       bodyVolumeM3: bodyVolumeM3,
+      driverId: json['driver_id'] as String?,
+      driverFullName: json['driver_full_name'] as String?,
+      driverIin: json['driver_iin'] as String?,
+      driverPhone: json['driver_phone'] as String?,
+      contractorId: json['contractor_id'] as String?,
+      contractorName: json['contractor_name'] as String?,
+      contractorBin: json['contractor_bin'] as String?,
     );
   }
 
@@ -117,6 +157,13 @@ class AnprEvent extends Equatable {
       if (snowVolumeM3 != null) 'snow_volume_m3': snowVolumeM3,
       if (polygonId != null) 'polygon_id': polygonId,
       if (bodyVolumeM3 != null) 'body_volume_m3': bodyVolumeM3,
+      if (driverId != null) 'driver_id': driverId,
+      if (driverFullName != null) 'driver_full_name': driverFullName,
+      if (driverIin != null) 'driver_iin': driverIin,
+      if (driverPhone != null) 'driver_phone': driverPhone,
+      if (contractorId != null) 'contractor_id': contractorId,
+      if (contractorName != null) 'contractor_name': contractorName,
+      if (contractorBin != null) 'contractor_bin': contractorBin,
     };
   }
 
@@ -137,6 +184,13 @@ class AnprEvent extends Equatable {
         snowVolumeM3,
         polygonId,
         bodyVolumeM3,
+        driverId,
+        driverFullName,
+        driverIin,
+        driverPhone,
+        contractorId,
+        contractorName,
+        contractorBin,
       ];
 }
 
@@ -146,12 +200,18 @@ class VehicleInfo extends Equatable {
   final String? type; // "car", "truck", etc.
   final String? brand;
   final String? model;
+  final String? country; // Страна регистрации (например, "KZ")
+  final String? plateColor; // Цвет номерного знака
+  final double? speed; // Скорость (км/ч)
 
   const VehicleInfo({
     this.color,
     this.type,
     this.brand,
     this.model,
+    this.country,
+    this.plateColor,
+    this.speed,
   });
 
   factory VehicleInfo.fromJson(Map<String, dynamic> json) {
@@ -160,6 +220,9 @@ class VehicleInfo extends Equatable {
       type: json['type'] as String?,
       brand: json['brand'] as String?,
       model: json['model'] as String?,
+      country: json['country'] as String?,
+      plateColor: json['plate_color'] as String? ?? json['plateColor'] as String?,
+      speed: (json['speed'] as num?)?.toDouble(),
     );
   }
 
@@ -169,11 +232,14 @@ class VehicleInfo extends Equatable {
       if (type != null) 'type': type,
       if (brand != null) 'brand': brand,
       if (model != null) 'model': model,
+      if (country != null) 'country': country,
+      if (plateColor != null) 'plate_color': plateColor,
+      if (speed != null) 'speed': speed,
     };
   }
 
   @override
-  List<Object?> get props => [color, type, brand, model];
+  List<Object?> get props => [color, type, brand, model, country, plateColor, speed];
 }
 
 /// Ответ на создание события
@@ -237,6 +303,11 @@ class AnprEventRequest extends Equatable {
   final DateTime? eventTime;
   final VehicleInfo? vehicle;
   final String? snapshotUrl;
+  // Поля для анализа объема снега
+  final double? snowVolumePercentage; // Процент заполнения кузова снегом (0-100)
+  final double? snowVolumeConfidence; // Уверенность определения объема снега (0.0-1.0)
+  final bool? matchedSnow; // Обнаружен ли снег в кузове
+  final Map<String, dynamic>? rawPayload; // Дополнительные поля для хранения
 
   const AnprEventRequest({
     required this.cameraId,
@@ -248,6 +319,10 @@ class AnprEventRequest extends Equatable {
     this.eventTime,
     this.vehicle,
     this.snapshotUrl,
+    this.snowVolumePercentage,
+    this.snowVolumeConfidence,
+    this.matchedSnow,
+    this.rawPayload,
   });
 
   Map<String, dynamic> toJson() {
@@ -261,6 +336,10 @@ class AnprEventRequest extends Equatable {
       if (eventTime != null) 'event_time': eventTime!.toIso8601String(),
       if (vehicle != null) 'vehicle': vehicle!.toJson(),
       if (snapshotUrl != null) 'snapshot_url': snapshotUrl,
+      if (snowVolumePercentage != null) 'snow_volume_percentage': snowVolumePercentage,
+      if (snowVolumeConfidence != null) 'snow_volume_confidence': snowVolumeConfidence,
+      if (matchedSnow != null) 'matched_snow': matchedSnow,
+      if (rawPayload != null) 'raw_payload': rawPayload,
     };
   }
 
@@ -275,6 +354,10 @@ class AnprEventRequest extends Equatable {
         eventTime,
         vehicle,
         snapshotUrl,
+        snowVolumePercentage,
+        snowVolumeConfidence,
+        matchedSnow,
+        rawPayload,
       ];
 }
 

@@ -66,24 +66,26 @@ class _AnimatedKPICardState extends State<AnimatedKPICard>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: _buildCard(),
+        final isAnimationComplete = _fadeAnimation.value >= 1.0;
+        return IgnorePointer(
+          ignoring: !isAnimationComplete,
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Opacity(
+              opacity: _fadeAnimation.value,
+              child: _buildCard(isAnimationComplete),
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildCard() {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
+  Widget _buildCard(bool isAnimationComplete) {
+    final cardContent = GestureDetector(
+      onTap: isAnimationComplete ? widget.onTap : null,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           padding: const EdgeInsets.all(AppPadding.large),
@@ -184,7 +186,17 @@ class _AnimatedKPICardState extends State<AnimatedKPICard>
             ],
           ),
         ),
-      ),
+    );
+    
+    // Обертываем в MouseRegion только после завершения анимации
+    return MouseRegion(
+      onEnter: isAnimationComplete ? (_) {
+        if (mounted) setState(() => _isHovered = true);
+      } : null,
+      onExit: isAnimationComplete ? (_) {
+        if (mounted) setState(() => _isHovered = false);
+      } : null,
+      child: cardContent,
     );
   }
 }

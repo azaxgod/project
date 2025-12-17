@@ -22,6 +22,9 @@ class AnprController extends StateNotifier<AnprState> {
     int? limit,
     int? offset,
   }) async {
+    // Не загружаем если уже загружается
+    if (state.events?.isLoading ?? false) return;
+    
     state = state.copyWith(
       events: const AsyncLoading(),
     );
@@ -32,7 +35,7 @@ class AnprController extends StateNotifier<AnprState> {
         plate: plate,
         from: from,
         to: to,
-        limit: limit ?? 100,
+        limit: limit ?? 50, // Уменьшено с 100 для быстрой загрузки
         offset: offset ?? 0,
         jwtToken: token,
       );
@@ -52,17 +55,21 @@ class AnprController extends StateNotifier<AnprState> {
     DateTime? from,
     DateTime? to,
   }) async {
+    // Не загружаем если уже загружается
+    if (state.statistics?.isLoading ?? false) return;
+    
     state = state.copyWith(
       statistics: const AsyncLoading(),
     );
 
     try {
       final token = await TokenStorage.getAccessToken();
-      // Загружаем все события для статистики
+      // Загружаем ограниченное количество событий для статистики (оптимизация)
+      // Используем меньший лимит для быстрой загрузки
       final response = await _anprCollection.getEvents(
         from: from,
         to: to,
-        limit: 1000,
+        limit: 500, // Уменьшено с 1000 для быстрой загрузки
         offset: 0,
         jwtToken: token,
       );
@@ -164,6 +171,9 @@ class AnprController extends StateNotifier<AnprState> {
     int? limit,
     int? offset,
   }) async {
+    // Не загружаем если уже загружается
+    if (state.reports?.isLoading ?? false) return;
+    
     state = state.copyWith(
       reports: const AsyncLoading(),
     );
@@ -177,7 +187,7 @@ class AnprController extends StateNotifier<AnprState> {
         plate: plate,
         from: from,
         to: to,
-        limit: limit ?? 100,
+        limit: limit ?? 50, // Уменьшено с 100 для быстрой загрузки
         offset: offset ?? 0,
         jwtToken: token,
       );
