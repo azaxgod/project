@@ -372,6 +372,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
             builder: (context, controller) => OrganizationsTooTab(
               data: data,
               controller: controller,
+              userRole: role,
             ),
           ),
           _OrganizationsTabDefinition(
@@ -379,6 +380,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
             builder: (context, controller) => OrganizationsContractorsTab(
               data: data,
               controller: controller,
+              canManage: false, // AKIMAT_ADMIN только просматривает
             ),
           ),
           _OrganizationsTabDefinition(
@@ -390,8 +392,17 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
               organizationId: null,
             ),
           ),
+          _OrganizationsTabDefinition(
+            getLabel: (ctx) => S.of(ctx)!.vehicles,
+            builder: (context, controller) => OrganizationsVehiclesTab(
+              data: data,
+              controller: controller,
+              showAll: true, // AKIMAT_ADMIN видит весь транспорт, как KGU_ZKH_ADMIN
+            ),
+          ),
         ];
       case UserRole.kguZkhAdmin:
+        // Вкладки показываются только если organizationId != null
         if (organizationId != null) {
           return [
             _OrganizationsTabDefinition(

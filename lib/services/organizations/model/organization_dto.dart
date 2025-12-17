@@ -12,6 +12,7 @@ class OrganizationDto {
     this.phone,
     this.parentOrgId,
     required this.isActive,
+    this.originalType,
   });
 
   final String id;
@@ -23,6 +24,8 @@ class OrganizationDto {
   final String? phone;
   final String? parentOrgId;
   final bool isActive;
+  /// Исходный тип из JSON до нормализации (для различения TOO и LANDFILL)
+  final String? originalType;
 
   factory OrganizationDto.fromJson(Map<String, dynamic> json) {
     // Поддержка разных форматов: Type, type
@@ -30,6 +33,8 @@ class OrganizationDto {
         json['Type'] as String? ?? json['type'] as String? ?? 'CONTRACTOR';
     // Нормализуем тип: KGU_ZKH должен быть с подчеркиванием
     final normalizedType = typeValue.toUpperCase().replaceAll(' ', '_');
+    // Сохраняем исходное значение для различения TOO и LANDFILL (до нормализации)
+    final originalTypeValue = typeValue.toUpperCase();
 
     return OrganizationDto(
       id: json['ID'] as String? ?? json['id'] as String? ?? '',
@@ -44,6 +49,7 @@ class OrganizationDto {
           json['parentOrgID'] as String? ??
           json['parentOrgId'] as String?,
       isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
+      originalType: originalTypeValue, // Сохраняем исходный тип для различения TOO и LANDFILL
     );
   }
 
@@ -70,6 +76,7 @@ class OrganizationDto {
       phone: phone,
       parentOrgId: parentOrgId,
       isActive: isActive,
+      originalType: originalType ?? type, // Сохраняем исходный тип из JSON для различения TOO и LANDFILL
     );
   }
 

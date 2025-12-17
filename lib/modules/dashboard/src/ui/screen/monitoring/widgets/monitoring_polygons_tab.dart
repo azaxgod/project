@@ -245,9 +245,9 @@ class _MonitoringPolygonsTabState extends ConsumerState<MonitoringPolygonsTab> {
     bool isSelected,
     List<PolygonAccess> accesses,
   ) {
-    // Проверяем, может ли пользователь привязывать подрядчиков (KGU роли)
-    final canGrantAccess = widget.state.role == UserRole.kguZkhAdmin || 
-                          widget.state.role == UserRole.akimatAdmin;
+    // Проверяем, может ли пользователь привязывать подрядчиков (только KGU_ZKH_ADMIN)
+    // AKIMAT_ADMIN только просматривает (read-only)
+    final canGrantAccess = widget.state.role == UserRole.kguZkhAdmin;
     
     // Получаем список привязанных подрядчиков
     final contractorIds = accesses.map((a) => a.contractorId).toSet();

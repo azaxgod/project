@@ -43,25 +43,27 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
-        // Игнорируем ошибки "missing token" если токены уже очищены (пользователь вышел)
-        final refreshToken = await TokenStorage.getRefreshToken();
-        final accessToken = await TokenStorage.getAccessToken();
-        if ((refreshToken == null || refreshToken.isEmpty) && 
-            (accessToken == null || accessToken.isEmpty)) {
-          // Проверяем, не является ли это ошибкой "missing token"
-          if (error.response?.data != null) {
-            final errorData = error.response!.data;
-            String errorMessage = '';
-            if (errorData is Map) {
-              errorMessage = (errorData['error'] ?? errorData['message'] ?? '').toString().toLowerCase();
-            } else if (errorData is String) {
-              errorMessage = errorData.toLowerCase();
-            }
-            if (errorMessage.contains('missing token') || 
-                errorMessage.contains('token missing') ||
-                errorMessage.contains('no token') ||
-                errorMessage.contains('token not found')) {
-              // Игнорируем ошибку, не передаем дальше
+        // Игнорируем ошибки "missing token" - это нормально при выходе из аккаунта
+        // Проверяем, не является ли это ошибкой "missing token"
+        if (error.response?.data != null) {
+          final errorData = error.response!.data;
+          String errorMessage = '';
+          if (errorData is Map) {
+            errorMessage = (errorData['error'] ?? errorData['message'] ?? '').toString().toLowerCase();
+          } else if (errorData is String) {
+            errorMessage = errorData.toLowerCase();
+          }
+          if (errorMessage.contains('missing token') || 
+              errorMessage.contains('token missing') ||
+              errorMessage.contains('no token') ||
+              errorMessage.contains('token not found')) {
+            // Проверяем, очищены ли токены (пользователь вышел)
+            final refreshToken = await TokenStorage.getRefreshToken();
+            final accessToken = await TokenStorage.getAccessToken();
+            if ((refreshToken == null || refreshToken.isEmpty) && 
+                (accessToken == null || accessToken.isEmpty)) {
+              // Игнорируем ошибку, не передаем дальше - пользователь уже вышел
+              debugPrint('Missing token error ignored - user logged out');
               return;
             }
           }
@@ -128,6 +130,31 @@ final rolesDioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
+        // Игнорируем ошибки "missing token" - это нормально при выходе из аккаунта
+        if (error.response?.data != null) {
+          final errorData = error.response!.data;
+          String errorMessage = '';
+          if (errorData is Map) {
+            errorMessage = (errorData['error'] ?? errorData['message'] ?? '').toString().toLowerCase();
+          } else if (errorData is String) {
+            errorMessage = errorData.toLowerCase();
+          }
+          if (errorMessage.contains('missing token') || 
+              errorMessage.contains('token missing') ||
+              errorMessage.contains('no token') ||
+              errorMessage.contains('token not found')) {
+            // Проверяем, очищены ли токены (пользователь вышел)
+            final refreshToken = await TokenStorage.getRefreshToken();
+            final accessToken = await TokenStorage.getAccessToken();
+            if ((refreshToken == null || refreshToken.isEmpty) && 
+                (accessToken == null || accessToken.isEmpty)) {
+              // Игнорируем ошибку, не передаем дальше - пользователь уже вышел
+              debugPrint('Missing token error ignored (rolesDio) - user logged out');
+              return;
+            }
+          }
+        }
+        
         // Автоматический refresh токена при ошибках токена
         final tokenRefreshed = await handleTokenError(
           error,

@@ -184,10 +184,11 @@ class _MonitoringAreasTabState extends ConsumerState<MonitoringAreasTab> {
           ),
         ),
         // Кнопка создания участка снизу (только если не в режиме создания)
-        // KGU_ZKH_ADMIN и AKIMAT_ADMIN могут создавать участки, LANDFILL_ADMIN - нет
+        // KGU_ZKH_ADMIN может создавать участки, LANDFILL_ADMIN и AKIMAT_ADMIN - нет
         if (widget.canEdit && 
             !isCreating &&
-            widget.state.role != UserRole.landfillAdmin)
+            widget.state.role != UserRole.landfillAdmin &&
+            widget.state.role != UserRole.akimatAdmin)
           Container(
             padding: const EdgeInsets.all(AppPadding.normal),
             decoration: BoxDecoration(

@@ -11,6 +11,8 @@ class Organization extends Equatable {
   final String? phone;
   final String? parentOrgId;
   final bool isActive;
+  /// Исходный тип из JSON (для различения TOO и LANDFILL)
+  final String? originalType;
 
   const Organization({
     required this.id,
@@ -22,6 +24,7 @@ class Organization extends Equatable {
     this.phone,
     this.parentOrgId,
     required this.isActive,
+    this.originalType,
   });
 
   Organization copyWith({
@@ -34,6 +37,7 @@ class Organization extends Equatable {
     String? phone,
     String? parentOrgId,
     bool? isActive,
+    String? originalType,
   }) {
     return Organization(
       id: id ?? this.id,
@@ -45,6 +49,7 @@ class Organization extends Equatable {
       phone: phone ?? this.phone,
       parentOrgId: parentOrgId ?? this.parentOrgId,
       isActive: isActive ?? this.isActive,
+      originalType: originalType ?? this.originalType,
     );
   }
 
@@ -59,5 +64,6 @@ class Organization extends Equatable {
         phone,
         parentOrgId,
         isActive,
+        originalType,
       ];
 }

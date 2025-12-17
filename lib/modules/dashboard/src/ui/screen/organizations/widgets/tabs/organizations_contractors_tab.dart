@@ -17,11 +17,13 @@ class OrganizationsContractorsTab extends StatelessWidget {
     required this.data,
     required this.controller,
     this.parentOrganizationId,
+    this.canManage = true,
   });
 
   final OrganizationsData data;
   final OrganizationsController controller;
   final String? parentOrganizationId;
+  final bool canManage;
 
   bool get _shouldShowParentColumn => parentOrganizationId == null;
 
@@ -39,16 +41,22 @@ class OrganizationsContractorsTab extends StatelessWidget {
         OrganizationsTabHeader(
           title: 'Подрядчики',
           subtitle: parentOrganizationId == null
-              ? 'Управление подрядчиками всех КГУ ЖКХ'
-              : 'Подрядчики текущего КГУ ЖКХ',
-          actionLabel: 'Добавить подрядчика',
-          onAction: () => OrganizationsDialogs.showOrganizationDialog(
-            context: context,
-            controller: controller,
-            type: OrganizationType.contractor,
-            data: data,
-            parentOrganizationId: parentOrganizationId,
-          ),
+              ? (canManage 
+                  ? 'Управление подрядчиками всех КГУ ЖКХ'
+                  : 'Просмотр подрядчиков всех КГУ ЖКХ')
+              : (canManage
+                  ? 'Подрядчики текущего КГУ ЖКХ'
+                  : 'Просмотр подрядчиков текущего КГУ ЖКХ'),
+          actionLabel: canManage ? 'Добавить подрядчика' : null,
+          onAction: canManage
+              ? () => OrganizationsDialogs.showOrganizationDialog(
+                    context: context,
+                    controller: controller,
+                    type: OrganizationType.contractor,
+                    data: data,
+                    parentOrganizationId: parentOrganizationId,
+                  )
+              : () {},
         ),
         const SizedBox(height: 12),
         if (contractors.isEmpty)

@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/dashboard/src/controller/organizations_co
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_status_chip.dart';
@@ -17,16 +18,29 @@ class OrganizationsTooTab extends StatelessWidget {
     super.key,
     required this.data,
     required this.controller,
+    this.userRole,
   });
 
   final OrganizationsData data;
   final OrganizationsController controller;
+  final UserRole? userRole;
 
   @override
   Widget build(BuildContext context) {
+    // Для KGU_ZKH_ADMIN показываем все организации типа TOO (включая LANDFILL)
+    // Это включает организации, связанные с ролью LANDFILL_ADMIN
+    // Для других ролей также показываем все TOO
     final organizations = data.organizations
         .where((organization) => organization.type == OrganizationType.too)
         .toList();
+    
+    // Отладочная информация
+    debugPrint('OrganizationsTooTab: userRole=$userRole');
+    debugPrint('OrganizationsTooTab: Total organizations: ${data.organizations.length}');
+    debugPrint('OrganizationsTooTab: TOO organizations: ${organizations.length}');
+    for (final org in organizations) {
+      debugPrint('OrganizationsTooTab: Org ${org.name} - type: ${org.type}, originalType: ${org.originalType}');
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

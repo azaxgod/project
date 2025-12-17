@@ -1123,13 +1123,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             },
           ),
           
-          // Секция ANPR (только для KGU_ZKH_ADMIN)
+          // Секция ANPR (для KGU_ZKH_ADMIN и AKIMAT_ADMIN)
           Builder(
             builder: (context) {
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
               
-              if (userRole != UserRole.kguZkhAdmin) {
+              if (userRole != UserRole.kguZkhAdmin && userRole != UserRole.akimatAdmin) {
                 return const SizedBox.shrink();
               }
               
@@ -1141,7 +1141,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
               
-              if (userRole != UserRole.kguZkhAdmin) {
+              if (userRole != UserRole.kguZkhAdmin && userRole != UserRole.akimatAdmin) {
                 return const SizedBox.shrink();
               }
               

@@ -37,6 +37,16 @@ class ErrorParser {
         serverMessage = errorData;
       }
 
+      // Игнорируем ошибки "missing token" - это нормально при выходе из аккаунта
+      final errorMessageLower = serverMessage.toLowerCase();
+      if (errorMessageLower.contains('missing token') || 
+          errorMessageLower.contains('token missing') ||
+          errorMessageLower.contains('no token') ||
+          errorMessageLower.contains('token not found')) {
+        // Возвращаем пустую строку, чтобы не показывать ошибку пользователю
+        return '';
+      }
+
       // Если есть сообщение от сервера, используем его
       if (serverMessage.isNotEmpty) {
         return _formatServerError(statusCode!, serverMessage);
