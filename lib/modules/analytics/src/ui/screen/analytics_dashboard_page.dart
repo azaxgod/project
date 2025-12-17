@@ -56,6 +56,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   String? _selectedContractId;
   AsyncValue<Map<String, dynamic>>? _landfillJournalData;
   bool _hasInitialLoad = false;
+  bool _isLoadingInitialData = false;
 
   @override
   void initState() {
@@ -69,70 +70,63 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   }
 
   void _loadInitialData() {
-    if (_hasInitialLoad) return;
+    if (!mounted || _isLoadingInitialData) return;
     
-    // Используем Future.microtask для неблокирующей загрузки
-    Future.microtask(() {
-      if (!mounted) return;
+    _isLoadingInitialData = true;
+    
+    final controller = ref.read(analyticsControllerProvider.notifier);
+    final state = ref.read(analyticsControllerProvider);
+    
+    // Проверяем роль пользователя
+    final authState = ref.read(authNotifierProvider);
+    if (authState.user == null) {
+      _isLoadingInitialData = false;
+      return;
+    }
+    
+    final userRole = userRoleFromString(authState.user?.role);
+    final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+    
+    // Упрощенная логика: загружаем если данных нет или есть ошибка
+    if (isLandfillAdmin) {
+      // Для LANDFILL_ADMIN загружаем техническую аналитику
+      if (state.technicalAnalytics == null || 
+          (!state.technicalAnalytics!.isLoading && !state.technicalAnalytics!.hasValue) ||
+          (state.technicalAnalytics!.hasError && !state.technicalAnalytics!.isLoading)) {
+        controller.loadTechnicalAnalytics(
+          from: _dateFrom,
+          to: _dateTo,
+        );
+      }
+      _hasInitialLoad = true;
+    } else {
+      // Для других ролей загружаем обычный дашборд
+      if (state.dashboard == null || 
+          (!state.dashboard!.isLoading && !state.dashboard!.hasValue) ||
+          (state.dashboard!.hasError && !state.dashboard!.isLoading)) {
+        controller.loadDashboard(
+          from: _dateFrom,
+          to: _dateTo,
+        );
+      }
+      _hasInitialLoad = true;
       
-      final controller = ref.read(analyticsControllerProvider.notifier);
-      final state = ref.read(analyticsControllerProvider);
-      
-      // Проверяем роль пользователя
-      final authState = ref.read(authNotifierProvider);
-      final userRole = userRoleFromString(authState.user?.role);
-      final isLandfillAdmin = userRole == UserRole.landfillAdmin;
-      
-      // Загружаем данные только если они еще не загружены или есть ошибка
-      if (isLandfillAdmin) {
-        // Для LANDFILL_ADMIN загружаем техническую аналитику
-        if (state.technicalAnalytics == null || 
-            (state.technicalAnalytics!.hasError && !state.technicalAnalytics!.isLoading) ||
-            (!state.technicalAnalytics!.hasValue && !state.technicalAnalytics!.isLoading)) {
-          controller.loadTechnicalAnalytics(
-            from: _dateFrom,
-            to: _dateTo,
-          );
-          _hasInitialLoad = true;
-        } else if (state.technicalAnalytics!.hasValue) {
-          _hasInitialLoad = true;
-        }
-      } else {
-        // Для других ролей загружаем обычный дашборд
-        if (state.dashboard == null || 
-            (state.dashboard!.hasError && !state.dashboard!.isLoading) ||
-            (!state.dashboard!.hasValue && !state.dashboard!.isLoading)) {
-          controller.loadDashboard(
-            from: _dateFrom,
-            to: _dateTo,
-          );
-          _hasInitialLoad = true;
-        } else if (state.dashboard!.hasValue) {
-          _hasInitialLoad = true;
-        }
-        // Также загружаем отфильтрованные контракты при инициализации (асинхронно)
-        if (_dateFrom != null && _dateTo != null) {
-          if (state.contractsAnalytics == null || 
-              (state.contractsAnalytics!.hasError && !state.contractsAnalytics!.isLoading) ||
-              (!state.contractsAnalytics!.hasValue && !state.contractsAnalytics!.isLoading)) {
-            // Загружаем контракты асинхронно, не блокируя основной UI
-            Future.microtask(() {
-              if (mounted) {
-                controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
-              }
-            });
-          }
-          // Загружаем данные журнала приёма снега для LANDFILL_ADMIN (асинхронно)
-          if (isLandfillAdmin) {
-            Future.microtask(() {
-              if (mounted) {
-                _loadLandfillJournal();
-              }
-            });
-          }
+      // Также загружаем отфильтрованные контракты при инициализации
+      if (_dateFrom != null && _dateTo != null) {
+        if (state.contractsAnalytics == null || 
+            (!state.contractsAnalytics!.isLoading && !state.contractsAnalytics!.hasValue) ||
+            (state.contractsAnalytics!.hasError && !state.contractsAnalytics!.isLoading)) {
+          // Загружаем контракты асинхронно, не блокируя основной UI
+          Future.microtask(() {
+            if (mounted) {
+              controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+            }
+          });
         }
       }
-    });
+    }
+    
+    _isLoadingInitialData = false;
   }
 
   Future<void> _loadLandfillJournal() async {
@@ -183,14 +177,16 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final userRole = userRoleFromString(authState.user?.role);
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
 
-    // Загружаем данные при первой загрузке, если они еще не загружены
-    // Используем Future.microtask вместо addPostFrameCallback для более быстрой загрузки
-    if (authState.user != null && _dateFrom != null && _dateTo != null && !_hasInitialLoad) {
-      Future.microtask(() {
-        if (mounted) {
-          _loadInitialData();
-        }
-      });
+    // Загружаем данные при первой загрузке
+    // Используем addPostFrameCallback для гарантированной загрузки после построения виджета
+    if (authState.user != null && _dateFrom != null && _dateTo != null) {
+      if (!_hasInitialLoad && !_isLoadingInitialData) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_hasInitialLoad) {
+            _loadInitialData();
+          }
+        });
+      }
     }
 
     return Scaffold(
@@ -220,7 +216,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           Expanded(
             child: isLandfillAdmin
                 ? _buildTechnicalAnalytics(state, controller)
-                : (state.dashboard == null || state.dashboard!.isLoading)
+                : state.dashboard == null
                     ? _buildLoadingState()
                     : state.dashboard!.when(
                     data: (data) => _buildDashboardContent(data, controller),
@@ -334,10 +330,10 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     AnalyticsState state,
     AnalyticsController controller,
   ) {
-    if (state.technicalAnalytics == null || state.technicalAnalytics!.isLoading) {
+    if (state.technicalAnalytics == null) {
       return _buildLoadingState();
     }
-    
+
     return state.technicalAnalytics!.when(
       data: (data) => _buildTechnicalContent(data, controller),
       loading: () => _buildLoadingState(),
@@ -429,13 +425,19 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         initialStartDate: _dateFrom,
                         initialEndDate: _dateTo,
                         onDateRangeSelected: (start, end) {
+                          if (start == null || end == null) return;
+                          
                           setState(() {
                             _dateFrom = start;
                             _dateTo = end;
+                            // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
+                            _hasInitialLoad = false;
                           });
-                          if (start != null && end != null) {
-                            controller.loadTechnicalAnalytics(from: start, to: end);
-                          }
+                          
+                          // Обновляем диапазон дат в контроллере
+                          controller.updateDateRange(start, end);
+                          // Загружаем техническую аналитику
+                          controller.loadTechnicalAnalytics(from: start, to: end);
                         },
                       ),
                     ),
@@ -805,31 +807,29 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         initialStartDate: _dateFrom,
                         initialEndDate: _dateTo,
                         onDateRangeSelected: (start, end) {
+                          if (start == null || end == null) return;
+                          
                           setState(() {
                             _dateFrom = start;
                             _dateTo = end;
                             // При изменении даты сбрасываем выбранный контракт, чтобы показать все контракты в новом периоде
-                            if (start != null && end != null) {
-                              _selectedContractId = null;
-                            }
+                            _selectedContractId = null;
+                            // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
+                            _hasInitialLoad = false;
                           });
-                          if (start != null && end != null) {
-                            setState(() {
-                              _dateFrom = start;
-                              _dateTo = end;
-                            });
-                            controller.updateDateRange(start, end);
-                            
-                            // Для LANDFILL_ADMIN загружаем техническую аналитику
-                            if (isLandfillAdmin) {
-                              controller.loadTechnicalAnalytics(from: start, to: end);
-                            } else {
-                              controller.loadDashboard(from: start, to: end);
-                              // Перезагружаем контракты с фильтром по дате
-                              controller.loadContractsAnalytics(from: start, to: end);
-                              // Перезагружаем данные журнала приёма снега
-                              _loadLandfillJournal();
-                            }
+                          
+                          // Обновляем диапазон дат в контроллере
+                          controller.updateDateRange(start, end);
+                          
+                          // Для LANDFILL_ADMIN загружаем техническую аналитику
+                          if (isLandfillAdmin) {
+                            controller.loadTechnicalAnalytics(from: start, to: end);
+                          } else {
+                            controller.loadDashboard(from: start, to: end);
+                            // Перезагружаем контракты с фильтром по дате
+                            controller.loadContractsAnalytics(from: start, to: end);
+                            // Перезагружаем данные журнала приёма снега
+                            _loadLandfillJournal();
                           }
                         },
                       ),
