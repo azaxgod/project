@@ -100,6 +100,10 @@ class MonitoringController extends StateNotifier<MonitoringState> {
   final OperationsRepository _operationsRepository;
   final OrganizationsRepository _organizationsRepository;
   Timer? _vehicleUpdateTimer;
+  // Кэш списка водителей для оптимизации (обновляется реже, чем локации)
+  List<Driver>? _cachedDrivers;
+  DateTime? _driversCacheTime;
+  static const _driversCacheDuration = Duration(minutes: 5); // Кэш на 5 минут
 
   @override
   void dispose() {
@@ -307,13 +311,30 @@ class MonitoringController extends StateNotifier<MonitoringState> {
             }
             debugPrint('MonitoringController._loadData: Loaded ${driversLocationsList.length} driver locations');
             
-            // Загружаем список водителей для получения contractorId
+            // Загружаем список водителей для получения contractorId (с кэшированием)
             List<Driver> allDrivers = [];
             try {
-              allDrivers = await _organizationsRepository.loadDrivers();
-              debugPrint('MonitoringController._loadData: Loaded ${allDrivers.length} drivers');
+              // Используем кэш, если он еще актуален
+              final now = DateTime.now();
+              if (_cachedDrivers != null && 
+                  _driversCacheTime != null && 
+                  now.difference(_driversCacheTime!) < _driversCacheDuration) {
+                allDrivers = _cachedDrivers!;
+                debugPrint('MonitoringController._loadData: Using cached drivers list (${allDrivers.length} drivers)');
+              } else {
+                // Обновляем кэш
+                allDrivers = await _organizationsRepository.loadDrivers();
+                _cachedDrivers = allDrivers;
+                _driversCacheTime = now;
+                debugPrint('MonitoringController._loadData: Loaded and cached ${allDrivers.length} drivers');
+              }
             } catch (e) {
               debugPrint('MonitoringController._loadData: Failed to load drivers: $e');
+              // Используем кэш, если есть, даже если он устарел
+              if (_cachedDrivers != null) {
+                allDrivers = _cachedDrivers!;
+                debugPrint('MonitoringController._loadData: Using stale cache due to error');
+              }
             }
             
             // Создаем Map для быстрого поиска водителя по ID
@@ -333,7 +354,10 @@ class MonitoringController extends StateNotifier<MonitoringState> {
                   }
                 } else if (state.role == UserRole.akimatAdmin || state.role == UserRole.kguZkhAdmin) {
                   // KGU и Akimat видят всех водителей - не фильтруем
-                  debugPrint('MonitoringController._loadData: KGU/Akimat admin - showing all drivers, driverId: ${driverLocation.driverId}');
+                  // Уменьшаем количество логов для AKIMAT_ADMIN для оптимизации производительности
+                  if (state.role != UserRole.akimatAdmin) {
+                    debugPrint('MonitoringController._loadData: KGU admin - showing all drivers, driverId: ${driverLocation.driverId}');
+                  }
                 }
                 
                 // Преобразуем локацию водителя в VehicleMonitoring
@@ -369,7 +393,9 @@ class MonitoringController extends StateNotifier<MonitoringState> {
         
         // Загружаем доступы только для KGU и Akimat (им нужно видеть все доступы)
         // Для подрядчика API /polygons уже фильтрует по доступам
-        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
+        // TODO: Временно закомментировано для AKIMAT_ADMIN
+        // if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
+        if (state.role == UserRole.kguZkhAdmin) {
           for (final polygon in polygons) {
             try {
               final accesses = await _operationsRepository.getPolygonAccess(polygon.id);
@@ -403,15 +429,16 @@ class MonitoringController extends StateNotifier<MonitoringState> {
         debugPrint('MonitoringController._loadData: Loading polygon accesses for display');
         final polygonAccesses = <String, List<PolygonAccess>>{};
         
-        // Для KGU и Akimat используем уже загруженные доступы
+        // Для KGU используем уже загруженные доступы
+        // TODO: Временно закомментировано для AKIMAT_ADMIN
         // Для подрядчика не загружаем доступы (API /polygons уже фильтрует)
-        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
+        if (state.role == UserRole.kguZkhAdmin) {
           for (final polygon in filteredPolygons) {
             try {
               // Используем уже загруженные доступы
               final accesses = polygonAccessesBeforeFilter[polygon.id] ?? [];
               debugPrint('MonitoringController._loadData: Using ${accesses.length} accesses for polygon ${polygon.id}');
-              // KGU и Akimat видят все доступы
+              // KGU видит все доступы
               polygonAccesses[polygon.id] = accesses;
               debugPrint('MonitoringController._loadData: Added ${accesses.length} accesses for polygon ${polygon.id} (role: ${state.role})');
             } catch (e) {
@@ -420,6 +447,13 @@ class MonitoringController extends StateNotifier<MonitoringState> {
             }
           }
           debugPrint('MonitoringController._loadData: Loaded accesses for ${polygonAccesses.length} polygons');
+        } else if (state.role == UserRole.akimatAdmin) {
+          // TODO: Временно закомментирован запрос к /polygons/.../access для AKIMAT_ADMIN
+          // Инициализируем пустые списки для всех полигонов
+          for (final polygon in filteredPolygons) {
+            polygonAccesses[polygon.id] = [];
+          }
+          debugPrint('MonitoringController._loadData: Skipping polygon access loading for AKIMAT_ADMIN (temporarily disabled)');
         } else {
           // Для подрядчика и других ролей не загружаем доступы
           debugPrint('MonitoringController._loadData: Skipping polygon access loading for role ${state.role}');
@@ -586,7 +620,11 @@ class MonitoringController extends StateNotifier<MonitoringState> {
   /// Запуск периодического обновления техники
   void _startVehicleUpdates() {
     _vehicleUpdateTimer?.cancel();
-    _vehicleUpdateTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Для AKIMAT_ADMIN увеличиваем интервал обновления, чтобы уменьшить нагрузку
+    final updateInterval = state.role == UserRole.akimatAdmin 
+        ? const Duration(seconds: 15) 
+        : const Duration(seconds: 5);
+    _vehicleUpdateTimer = Timer.periodic(updateInterval, (_) {
       _updateVehicles();
     });
   }
@@ -597,11 +635,16 @@ class MonitoringController extends StateNotifier<MonitoringState> {
     if (currentData == null) return;
 
     try {
-      debugPrint('MonitoringController._updateVehicles: Updating vehicles...');
+      // Уменьшаем количество логов для AKIMAT_ADMIN для оптимизации производительности
+      if (state.role != UserRole.akimatAdmin) {
+        debugPrint('MonitoringController._updateVehicles: Updating vehicles...');
+      }
       final vehicles = await _operationsRepository.getVehiclesLive(
         contractorId: state.contractorFilter,
       );
-      debugPrint('MonitoringController._updateVehicles: Loaded ${vehicles.length} vehicles');
+      if (state.role != UserRole.akimatAdmin) {
+        debugPrint('MonitoringController._updateVehicles: Loaded ${vehicles.length} vehicles');
+      }
 
       // Загружаем локации водителей (для ролей, которые должны их видеть)
       List<VehicleMonitoring> driverVehicles = [];
@@ -634,12 +677,30 @@ class MonitoringController extends StateNotifier<MonitoringState> {
           }
           debugPrint('MonitoringController._updateVehicles: Loaded ${driversLocationsList.length} driver locations');
           
-          // Загружаем список водителей для получения contractorId
+          // Загружаем список водителей для получения contractorId (с кэшированием)
           List<Driver> allDrivers = [];
           try {
-            allDrivers = await _organizationsRepository.loadDrivers();
+            // Используем кэш, если он еще актуален
+            final now = DateTime.now();
+            if (_cachedDrivers != null && 
+                _driversCacheTime != null && 
+                now.difference(_driversCacheTime!) < _driversCacheDuration) {
+              allDrivers = _cachedDrivers!;
+              debugPrint('MonitoringController._updateVehicles: Using cached drivers list (${allDrivers.length} drivers)');
+            } else {
+              // Обновляем кэш
+              allDrivers = await _organizationsRepository.loadDrivers();
+              _cachedDrivers = allDrivers;
+              _driversCacheTime = now;
+              debugPrint('MonitoringController._updateVehicles: Loaded and cached ${allDrivers.length} drivers');
+            }
           } catch (e) {
             debugPrint('MonitoringController._updateVehicles: Failed to load drivers: $e');
+            // Используем кэш, если есть, даже если он устарел
+            if (_cachedDrivers != null) {
+              allDrivers = _cachedDrivers!;
+              debugPrint('MonitoringController._updateVehicles: Using stale cache due to error');
+            }
           }
           
           // Создаем Map для быстрого поиска водителя по ID
@@ -659,7 +720,10 @@ class MonitoringController extends StateNotifier<MonitoringState> {
                 }
               } else if (state.role == UserRole.akimatAdmin || state.role == UserRole.kguZkhAdmin) {
                 // KGU и Akimat видят всех водителей - не фильтруем
-                debugPrint('MonitoringController._updateVehicles: KGU/Akimat admin - showing all drivers, driverId: ${driverLocation.driverId}');
+                // Уменьшаем количество логов для AKIMAT_ADMIN для оптимизации производительности
+                if (state.role != UserRole.akimatAdmin) {
+                  debugPrint('MonitoringController._updateVehicles: KGU admin - showing all drivers, driverId: ${driverLocation.driverId}');
+                }
               }
               
               // Преобразуем локацию водителя в VehicleMonitoring

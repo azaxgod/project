@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
+import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 
 import 'package:equatable/equatable.dart';
 /// Коллекция для работы с ANPR сервисом
@@ -9,6 +10,17 @@ class AnprCollection {
   final Dio dio;
 
   AnprCollection({required Dio dio}) : dio = dio;
+
+  /// Форматирует DateTime в RFC 3339 формат (UTC с Z в конце, без миллисекунд)
+  String _formatDateTimeRfc3339(DateTime dateTime) {
+    final utc = dateTime.toUtc();
+    return '${utc.year.toString().padLeft(4, '0')}-'
+        '${utc.month.toString().padLeft(2, '0')}-'
+        '${utc.day.toString().padLeft(2, '0')}T'
+        '${utc.hour.toString().padLeft(2, '0')}:'
+        '${utc.minute.toString().padLeft(2, '0')}:'
+        '${utc.second.toString().padLeft(2, '0')}Z';
+  }
 
   /// POST /api/v1/anpr/events - Приём события от камеры
   /// 
@@ -96,8 +108,8 @@ class AnprCollection {
     try {
       final queryParams = <String, dynamic>{};
       if (plate != null) queryParams['plate'] = plate;
-      if (from != null) queryParams['from'] = from.toIso8601String();
-      if (to != null) queryParams['to'] = to.toIso8601String();
+      if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
+      if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 
@@ -213,6 +225,46 @@ class AnprCollection {
       return response.statusCode == 200;
     } on DioException catch (e) {
       return false;
+    }
+  }
+
+  /// GET /api/v1/reports - Получение отчетов по объему снега и поездкам
+  /// Требует авторизацию (JWT токен)
+  Future<AnprReportResponse> getReports({
+    String? contractorId,
+    String? polygonId,
+    String? vehicleId,
+    String? plate,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+    int? offset,
+    String? jwtToken,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (contractorId != null) queryParams['contractor_id'] = contractorId;
+      if (polygonId != null) queryParams['polygon_id'] = polygonId;
+      if (vehicleId != null) queryParams['vehicle_id'] = vehicleId;
+      if (plate != null) queryParams['plate'] = plate;
+      if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
+      if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
+      if (limit != null) queryParams['limit'] = limit;
+      if (offset != null) queryParams['offset'] = offset;
+
+      final response = await dio.get(
+        '/api/v1/reports',
+        queryParameters: queryParams,
+        options: Options(
+          headers: jwtToken != null
+              ? {'Authorization': 'Bearer $jwtToken'}
+              : null,
+        ),
+      );
+
+      return AnprReportResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to get reports: ${e.message}');
     }
   }
 }

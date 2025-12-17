@@ -14,6 +14,9 @@ class AnprEvent extends Equatable {
   final int? lane;
   final VehicleInfo? vehicle;
   final List<String> photos; // URLs фотографий
+  final double? snowVolumeM3; // Объем снега в м³
+  final String? polygonId; // ID полигона
+  final double? bodyVolumeM3; // Объем кузова в м³
 
   const AnprEvent({
     required this.id,
@@ -28,9 +31,51 @@ class AnprEvent extends Equatable {
     this.lane,
     this.vehicle,
     this.photos = const [],
+    this.snowVolumeM3,
+    this.polygonId,
+    this.bodyVolumeM3,
   });
 
+  /// Вычисляет объем снега: confidence * body_volume_m3
+  /// Если расчет невозможен, возвращает готовый snow_volume_m3 из API
+  double? get calculatedSnowVolume {
+    // Приоритет 1: Вычисляем из confidence * body_volume_m3
+    if (confidence != null && bodyVolumeM3 != null && confidence! > 0 && bodyVolumeM3! > 0) {
+      return confidence! * bodyVolumeM3!;
+    }
+    // Приоритет 2: Используем готовый объем из API
+    if (snowVolumeM3 != null && snowVolumeM3! > 0) {
+      return snowVolumeM3;
+    }
+    // Если есть только confidence, но нет body_volume_m3, возвращаем null
+    // (нужно будет получать body_volume_m3 из другого источника)
+    return null;
+  }
+
   factory AnprEvent.fromJson(Map<String, dynamic> json) {
+    // Парсим body_volume_m3 из разных возможных мест в ответе
+    double? bodyVolumeM3;
+    
+    // Пробуем разные варианты названий полей
+    if (json['body_volume_m3'] != null) {
+      bodyVolumeM3 = (json['body_volume_m3'] as num).toDouble();
+    } else if (json['vehicle_body_volume_m3'] != null) {
+      bodyVolumeM3 = (json['vehicle_body_volume_m3'] as num).toDouble();
+    } else if (json['bodyVolumeM3'] != null) {
+      bodyVolumeM3 = (json['bodyVolumeM3'] as num).toDouble();
+    } else if (json['BodyVolumeM3'] != null) {
+      bodyVolumeM3 = (json['BodyVolumeM3'] as num).toDouble();
+    } else if (json['vehicle'] != null && json['vehicle'] is Map) {
+      final vehicle = json['vehicle'] as Map<String, dynamic>;
+      if (vehicle['body_volume_m3'] != null) {
+        bodyVolumeM3 = (vehicle['body_volume_m3'] as num).toDouble();
+      } else if (vehicle['bodyVolumeM3'] != null) {
+        bodyVolumeM3 = (vehicle['bodyVolumeM3'] as num).toDouble();
+      } else if (vehicle['BodyVolumeM3'] != null) {
+        bodyVolumeM3 = (vehicle['BodyVolumeM3'] as num).toDouble();
+      }
+    }
+    
     return AnprEvent(
       id: json['id'] as String,
       plateId: json['plate_id'] as String?,
@@ -49,6 +94,9 @@ class AnprEvent extends Equatable {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      snowVolumeM3: (json['snow_volume_m3'] as num?)?.toDouble(),
+      polygonId: json['polygon_id'] as String?,
+      bodyVolumeM3: bodyVolumeM3,
     );
   }
 
@@ -66,6 +114,9 @@ class AnprEvent extends Equatable {
       if (lane != null) 'lane': lane,
       if (vehicle != null) 'vehicle': vehicle!.toJson(),
       'photos': photos,
+      if (snowVolumeM3 != null) 'snow_volume_m3': snowVolumeM3,
+      if (polygonId != null) 'polygon_id': polygonId,
+      if (bodyVolumeM3 != null) 'body_volume_m3': bodyVolumeM3,
     };
   }
 
@@ -83,6 +134,9 @@ class AnprEvent extends Equatable {
         lane,
         vehicle,
         photos,
+        snowVolumeM3,
+        polygonId,
+        bodyVolumeM3,
       ];
 }
 

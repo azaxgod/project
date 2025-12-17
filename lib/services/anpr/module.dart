@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final anprDioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: 'http://localhost:8082', // TODO: заменить на реальный URL из конфигурации
+      baseUrl: 'https://snowops-anpr-service.onrender.com',
       connectTimeout: const Duration(seconds: 30), // Загрузка фотографий может занять время
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),

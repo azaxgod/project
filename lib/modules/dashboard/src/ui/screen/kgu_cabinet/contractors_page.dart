@@ -13,6 +13,8 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/wid
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_tab_header.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_contractors_tab.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/anpr_contractors_section.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,10 +81,26 @@ class ContractorsPage extends ConsumerWidget {
                         title: 'Нет подрядчиков',
                         message: 'Создайте подрядчика для начала работы.',
                       )
-                    : OrganizationsContractorsTab(
-                        data: data,
-                        controller: ref.read(organizationsControllerProvider.notifier),
-                        parentOrganizationId: kguOrgId,
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: OrganizationsContractorsTab(
+                              data: data,
+                              controller: ref.read(organizationsControllerProvider.notifier),
+                              parentOrganizationId: kguOrgId,
+                            ),
+                          ),
+                          // Секция ANPR для KGU_ZKH_ADMIN
+                          Builder(
+                            builder: (context) {
+                              final userRole = userRoleFromString(authState.user?.role);
+                              if (userRole == UserRole.kguZkhAdmin) {
+                                return const AnprContractorsSection();
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
                       ),
               ),
             ],
