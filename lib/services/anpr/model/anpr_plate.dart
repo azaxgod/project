@@ -57,3 +57,4 @@ class AnprPlatesResponse extends Equatable {
   List<Object?> get props => [data];
 }
 
+

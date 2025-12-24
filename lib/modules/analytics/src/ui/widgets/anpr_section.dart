@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
@@ -6,6 +7,8 @@ import 'package:akimat_project/modules/analytics/src/controller/analytics_provid
 import 'package:akimat_project/modules/analytics/src/controller/anpr_controller.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_kpi_card.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_section.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 import 'package:flutter/foundation.dart';
@@ -13,9 +16,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+// ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+double? _getMockSnowVolume(String? plateNumber) {
+  if (plateNumber == null) return null;
+  
+  // Для номера 723 возвращаем 18
+  if (plateNumber.contains('723')) {
+    return 18.0;
+  }
+  
+  // Для остальных номеров - случайное значение от 14 до 19
+  final random = Random(plateNumber.hashCode); // Детерминированный рандом на основе номера
+  return 14.0 + random.nextDouble() * 5.0; // От 14 до 19
+}
+
+// Функция для определения подрядчика по номеру машины
+String? _getContractorNameByPlate(String? plateNumber, OrganizationsData? organizationsData) {
+  if (plateNumber == null || organizationsData == null) return null;
+  
+  try {
+    // Нормализуем номер (убираем пробелы, приводим к верхнему регистру)
+    final normalizedPlate = plateNumber.replaceAll(' ', '').toUpperCase();
+    
+    // Ищем транспорт по номеру
+    final vehicle = organizationsData.vehicles.firstWhere(
+      (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == normalizedPlate,
+    );
+    
+    if (vehicle.contractorId.isEmpty) return null;
+    
+    // Ищем организацию по contractorId
+    final contractor = organizationsData.organizations.firstWhere(
+      (org) => org.id == vehicle.contractorId,
+    );
+    return contractor.name;
+  } catch (e) {
+    // Если транспорт или организация не найдены, возвращаем null
+    return null;
+  }
+}
+
 /// Виджет для отображения секции ANPR данных
 /// Согласно документации: период по умолчанию - последние 24 часа
-class AnprSection extends ConsumerWidget {
+class AnprSection extends ConsumerStatefulWidget {
   const AnprSection({
     super.key,
     this.dateFrom,
@@ -34,49 +77,92 @@ class AnprSection extends ConsumerWidget {
   final String? plate; // Поиск по номеру
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final anprState = ref.watch(anprControllerProvider);
+  ConsumerState<AnprSection> createState() => _AnprSectionState();
+}
+
+class _AnprSectionState extends ConsumerState<AnprSection> {
+  bool _hasLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Загружаем данные один раз при инициализации
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasLoaded) {
+        _loadData();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(AnprSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Перезагружаем данные только если изменились параметры фильтрации
+    final paramsChanged = oldWidget.dateFrom != widget.dateFrom ||
+        oldWidget.dateTo != widget.dateTo ||
+        oldWidget.contractorId != widget.contractorId ||
+        oldWidget.polygonId != widget.polygonId ||
+        oldWidget.vehicleId != widget.vehicleId ||
+        oldWidget.plate != widget.plate;
+    
+    if (paramsChanged) {
+      _hasLoaded = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_hasLoaded) {
+          _loadData();
+        }
+      });
+    }
+  }
+
+  void _loadData() {
+    if (_hasLoaded) return;
+    
+    final anprState = ref.read(anprControllerProvider);
     final anprController = ref.read(anprControllerProvider.notifier);
 
     // Согласно документации: период по умолчанию - последние 24 часа
-    final effectiveFrom = dateFrom ?? DateTime.now().subtract(const Duration(hours: 24));
-    final effectiveTo = dateTo ?? DateTime.now();
+    final effectiveFrom = widget.dateFrom ?? DateTime.now().subtract(const Duration(hours: 24));
+    final effectiveTo = widget.dateTo ?? DateTime.now();
 
-    // Загружаем данные при первой загрузке
-    // Используем addPostFrameCallback для гарантированной загрузки
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Загружаем статистику только если её нет и не загружается
-      final statsIsLoading = anprState.statistics?.isLoading ?? false;
-      if (anprState.statistics == null && !statsIsLoading) {
-        anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
-      }
-      
-      // Загружаем отчеты только если их нет и не загружается
-      // Согласно документации: отчеты показывают поездки и объем снега
-      final reportsIsLoading = anprState.reports?.isLoading ?? false;
-      if (anprState.reports == null && !reportsIsLoading) {
-        anprController.loadReports(
-          from: effectiveFrom,
-          to: effectiveTo,
-          contractorId: contractorId,
-          polygonId: polygonId,
-          vehicleId: vehicleId,
-          plate: plate,
-          limit: 100, // Согласно документации: по умолчанию 100, макс 1000
-        );
-      }
-      
-      // Загружаем события только если их нет и не загружается
-      // Согласно документации: по умолчанию 50, максимум 100
-      final eventsIsLoading = anprState.events?.isLoading ?? false;
-      if (anprState.events == null && !eventsIsLoading) {
-        anprController.loadEvents(
-          from: effectiveFrom, 
-          to: effectiveTo,
-          limit: 50, // Согласно документации: по умолчанию 50
-        );
-      }
-    });
+    // Загружаем статистику только если её нет и не загружается
+    final statsIsLoading = anprState.statistics?.isLoading ?? false;
+    if (anprState.statistics == null && !statsIsLoading) {
+      anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
+    }
+    
+    // Загружаем отчеты только если их нет и не загружается
+    // Согласно документации: отчеты показывают поездки и объем снега
+    final reportsIsLoading = anprState.reports?.isLoading ?? false;
+    if (anprState.reports == null && !reportsIsLoading) {
+      anprController.loadReports(
+        from: effectiveFrom,
+        to: effectiveTo,
+        contractorId: widget.contractorId,
+        polygonId: widget.polygonId,
+        vehicleId: widget.vehicleId,
+        plate: widget.plate,
+        limit: 100, // Согласно документации: по умолчанию 100, макс 1000
+      );
+    }
+    
+    // Загружаем события только если их нет и не загружается
+    // Согласно документации: по умолчанию 50, максимум 100
+    final eventsIsLoading = anprState.events?.isLoading ?? false;
+    if (anprState.events == null && !eventsIsLoading) {
+      anprController.loadEvents(
+        from: effectiveFrom, 
+        to: effectiveTo,
+        limit: 50, // Согласно документации: по умолчанию 50
+      );
+    }
+    
+    _hasLoaded = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final anprState = ref.watch(anprControllerProvider);
 
     // Получаем данные отчетов для использования в таблице событий
     final reportsData = anprState.reports?.valueOrNull;
@@ -106,7 +192,10 @@ class AnprSection extends ConsumerWidget {
           title: 'Отчеты по объему снега и поездкам',
           icon: Icons.assessment,
           child: anprState.reports?.when(
-            data: (reportData) => _buildReportsSection(context, reportData, anprController),
+            data: (reportData) {
+              final anprController = ref.read(anprControllerProvider.notifier);
+              return _buildReportsSection(context, reportData, anprController);
+            },
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.all(AppPadding.large),
@@ -122,7 +211,12 @@ class AnprSection extends ConsumerWidget {
           title: 'События распознавания',
           icon: Icons.event,
           child: anprState.events?.when(
-            data: (events) => _buildEventsTable(context, events, anprController, reportsData),
+            data: (events) {
+              final organizationsState = ref.watch(organizationsControllerProvider);
+              final organizationsData = organizationsState.data.valueOrNull;
+              final anprController = ref.read(anprControllerProvider.notifier);
+              return _buildEventsTable(context, events, anprController, reportsData, organizationsData);
+            },
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.all(AppPadding.large),
@@ -213,6 +307,7 @@ class AnprSection extends ConsumerWidget {
     List<AnprEvent> events,
     AnprController controller,
     AnprReportData? reportsData,
+    OrganizationsData? organizationsData,
   ) {
     if (events.isEmpty) {
       return Container(
@@ -254,7 +349,13 @@ class AnprSection extends ConsumerWidget {
         _buildSnowVolumeWidget(snowVolumeStats),
         const SizedBox(height: AppPadding.large),
         // Таблица событий
-        _buildEventsDataTable(context, events, controller, reportsData),
+        Builder(
+          builder: (context) {
+            final organizationsState = ref.watch(organizationsControllerProvider);
+            final organizationsData = organizationsState.data.valueOrNull;
+            return _buildEventsDataTable(context, events, controller, reportsData, organizationsData);
+          },
+        ),
       ],
     );
   }
@@ -297,6 +398,9 @@ class AnprSection extends ConsumerWidget {
       if (volume == null && event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
         volume = event.snowVolumeM3;
       }
+
+      // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+      volume = _getMockSnowVolume(event.normalizedPlate) ?? volume;
 
       if (volume != null && volume > 0) {
         totalVolume += volume;
@@ -558,6 +662,7 @@ class AnprSection extends ConsumerWidget {
     AnprEvent event,
     AnprController controller,
     AnprReportData? reportsData,
+    OrganizationsData? organizationsData,
   ) {
     // Вычисляем объем снега
     double? volume = event.calculatedSnowVolume;
@@ -588,6 +693,9 @@ class AnprSection extends ConsumerWidget {
     if (volume == null && event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
       volume = event.snowVolumeM3;
     }
+
+    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+    volume = _getMockSnowVolume(event.normalizedPlate) ?? volume;
 
     final directionColor = event.direction == 'enter' ? Colors.green : Colors.orange;
     final directionIcon = event.direction == 'enter' ? Icons.arrow_downward : Icons.arrow_upward;
@@ -1172,6 +1280,7 @@ class AnprSection extends ConsumerWidget {
     List<AnprEvent> events,
     AnprController controller,
     AnprReportData? reportsData,
+    OrganizationsData? organizationsData,
   ) {
     return Center(
       child: SingleChildScrollView(
@@ -1262,6 +1371,25 @@ class AnprSection extends ConsumerWidget {
               label: Row(
                 children: [
                   Icon(
+                    Icons.business,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Подрядчик',
+                    style: AppTextStyles.title3.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            DataColumn(
+              label: Row(
+                children: [
+                  Icon(
                     Icons.ac_unit,
                     size: 18,
                     color: Colors.cyan.shade700,
@@ -1324,6 +1452,9 @@ class AnprSection extends ConsumerWidget {
             if (volume == null && event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
               volume = event.snowVolumeM3;
             }
+            
+            // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+            volume = _getMockSnowVolume(event.normalizedPlate) ?? volume;
             
             // Если есть confidence, но нет bodyVolumeM3 и нет объема в отчетах,
             // пытаемся вычислить хотя бы приблизительно (но это не рекомендуется)
@@ -1456,6 +1587,45 @@ class AnprSection extends ConsumerWidget {
                   ),
                 ),
                 DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.blue.shade200,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.business,
+                          size: 14,
+                          color: Colors.blue.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            event.contractorName ?? _getContractorNameByPlate(event.normalizedPlate, organizationsData) ?? '—',
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade900,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DataCell(
                   volume != null && volume > 0
                       ? Container(
                           padding: const EdgeInsets.symmetric(
@@ -1566,6 +1736,36 @@ class AnprSection extends ConsumerWidget {
     AnprReportData reportData,
     AnprController controller,
   ) {
+    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+    // Вычисляем общий объем и количество поездок на основе событий с моком
+    double mockTotalVolume = 0.0;
+    int mockTripCount = 0;
+    
+    // Применяем мок ко всем событиям и суммируем объем
+    if (reportData.events.isNotEmpty) {
+      for (final event in reportData.events) {
+        final mockVolume = _getMockSnowVolume(event.plateNumber);
+        if (mockVolume != null && mockVolume > 0) {
+          mockTotalVolume += mockVolume;
+          mockTripCount++;
+        } else {
+          // Если мок не вернул значение, генерируем случайное от 14 до 19
+          final random = Random(event.plateNumber.hashCode);
+          final volume = 14.0 + random.nextDouble() * 5.0;
+          mockTotalVolume += volume;
+          mockTripCount++;
+        }
+      }
+    }
+    
+    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+    // Если после применения мока значения равны 0, используем фиксированные мок-значения
+    if (mockTripCount == 0 || mockTotalVolume == 0.0) {
+      // Используем фиксированные значения для скриншота
+      mockTripCount = 25; // Примерное количество поездок
+      mockTotalVolume = 425.5; // Примерный общий объем (25 * ~17 м³)
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1575,7 +1775,7 @@ class AnprSection extends ConsumerWidget {
             Expanded(
               child: AnimatedKPICard(
                 title: 'Всего поездок',
-                value: reportData.tripCount.toString(),
+                value: mockTripCount.toString(),
                 icon: Icons.directions_car,
                 color: Colors.blue,
                 onTap: () {
@@ -1587,7 +1787,7 @@ class AnprSection extends ConsumerWidget {
             Expanded(
               child: AnimatedKPICard(
                 title: 'Общий объем снега',
-                value: '${reportData.totalVolume.toStringAsFixed(1)} м³',
+                value: '${mockTotalVolume.toStringAsFixed(1)} м³',
                 icon: Icons.snowing,
                 color: Colors.cyan,
                 onTap: () {
@@ -1628,7 +1828,13 @@ class AnprSection extends ConsumerWidget {
             ),
           )
         else
-          _buildReportsTable(context, reportData, controller),
+          Builder(
+            builder: (context) {
+              final organizationsState = ref.watch(organizationsControllerProvider);
+              final organizationsData = organizationsState.data.valueOrNull;
+              return _buildReportsTable(context, reportData, controller, organizationsData);
+            },
+          ),
       ],
     );
   }
@@ -1637,8 +1843,10 @@ class AnprSection extends ConsumerWidget {
     BuildContext context,
     AnprReportEvent event,
     AnprController controller,
+    OrganizationsData? organizationsData,
   ) {
-    final volume = event.snowVolumeM3;
+    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+    final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
     
     return GestureDetector(
       onTap: () {
@@ -1780,19 +1988,31 @@ class AnprSection extends ConsumerWidget {
                           size: 20,
                         ),
                       ),
-                      if (event.contractorName != null) ...[
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            event.contractorName!,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                      Builder(
+                        builder: (context) {
+                          // organizationsData доступен через замыкание из _buildReportEventCard
+                          final contractorName = event.contractorName ?? _getContractorNameByPlate(event.plateNumber, organizationsData);
+                          if (contractorName != null) {
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    contractorName,
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                     ],
                   ),
                 ],
@@ -1982,213 +2202,209 @@ class AnprSection extends ConsumerWidget {
                                     ),
                                   ),
                                   // Правая часть - объем (обернута в контейнер для четкости)
-                                  if (event.snowVolumeM3 != null && event.snowVolumeM3! > 0) ...[
-                                    Container(
-                                      padding: EdgeInsets.all(isWeb ? 16 : 12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.cyan.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: Colors.cyan.withOpacity(0.2),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Container(
-                                                width: isWeb ? 5 : 4,
-                                                height: isWeb ? 24 : 20,
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    begin: Alignment.topCenter,
-                                                    end: Alignment.bottomCenter,
-                                                    colors: [
-                                                      Colors.cyan.shade600,
-                                                      Colors.cyan.shade400,
-                                                    ],
-                                                  ),
-                                                  borderRadius: BorderRadius.circular(2),
-                                                ),
-                                              ),
-                                              SizedBox(width: isWeb ? 8 : 6),
-                                              Text(
-                                                'ОБЪЕМ СНЕГА',
-                                                style: AppTextStyles.caption.copyWith(
-                                                  color: AppColors.textSecondary,
-                                                  fontSize: isWeb ? 11 : 10,
-                                                  fontWeight: FontWeight.w600,
-                                                  letterSpacing: isWeb ? 2.0 : 1.5,
-                                                ),
-                                              ),
-                                            ],
+                                  // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+                                  Builder(
+                                    builder: (context) {
+                                      final mockVolume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
+                                      if (mockVolume != null && mockVolume > 0) {
+                                        return Container(
+                                          padding: EdgeInsets.all(isWeb ? 16 : 12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.cyan.withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: Colors.cyan.withOpacity(0.2),
+                                              width: 1,
+                                            ),
                                           ),
-                                          SizedBox(height: isWeb ? 16 : 12),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
+                                          child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Column(
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Container(
+                                                    width: isWeb ? 5 : 4,
+                                                    height: isWeb ? 24 : 20,
+                                                    decoration: BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        begin: Alignment.topCenter,
+                                                        end: Alignment.bottomCenter,
+                                                        colors: [
+                                                          Colors.cyan.shade600,
+                                                          Colors.cyan.shade400,
+                                                        ],
+                                                      ),
+                                                      borderRadius: BorderRadius.circular(2),
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: isWeb ? 8 : 6),
+                                                  Text(
+                                                    'ОБЪЕМ СНЕГА',
+                                                    style: AppTextStyles.caption.copyWith(
+                                                      color: AppColors.textSecondary,
+                                                      fontSize: isWeb ? 11 : 10,
+                                                      fontWeight: FontWeight.w600,
+                                                      letterSpacing: isWeb ? 2.0 : 1.5,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              SizedBox(height: isWeb ? 16 : 12),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
                                                 crossAxisAlignment: CrossAxisAlignment.end,
                                                 children: [
-                                                  Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.end,
                                                     children: [
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                                        children: [
+                                                          Container(
+                                                            padding: EdgeInsets.all(isWeb ? 8 : 6),
+                                                            decoration: BoxDecoration(
+                                                              color: Colors.cyan.shade100,
+                                                              borderRadius: BorderRadius.circular(10),
+                                                            ),
+                                                            child: Icon(
+                                                              Icons.ac_unit,
+                                                              color: Colors.cyan.shade700,
+                                                              size: isWeb ? 28 : 24,
+                                                            ),
+                                                          ),
+                                                          SizedBox(width: isWeb ? 12 : 8),
+                                                          Text(
+                                                            '${mockVolume.toStringAsFixed(1)}',
+                                                            style: AppTextStyles.title2.copyWith(
+                                                              fontWeight: FontWeight.w800,
+                                                              color: Colors.cyan.shade700,
+                                                              fontSize: volumeFontSize,
+                                                              height: 1,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      SizedBox(height: isWeb ? 6 : 4),
                                                       Container(
-                                                        padding: EdgeInsets.all(isWeb ? 8 : 6),
+                                                        padding: EdgeInsets.symmetric(
+                                                          horizontal: isWeb ? 12 : 10,
+                                                          vertical: isWeb ? 6 : 4,
+                                                        ),
                                                         decoration: BoxDecoration(
-                                                          color: Colors.cyan.shade100,
-                                                          borderRadius: BorderRadius.circular(10),
+                                                          color: Colors.cyan.shade50,
+                                                          borderRadius: BorderRadius.circular(8),
+                                                          border: Border.all(
+                                                            color: Colors.cyan.shade200,
+                                                            width: 1,
+                                                          ),
                                                         ),
-                                                        child: Icon(
-                                                          Icons.ac_unit,
-                                                          color: Colors.cyan.shade700,
-                                                          size: isWeb ? 28 : 24,
-                                                        ),
-                                                      ),
-                                                      SizedBox(width: isWeb ? 12 : 8),
-                                                      Text(
-                                                        '${event.snowVolumeM3!.toStringAsFixed(1)}',
-                                                        style: AppTextStyles.title2.copyWith(
-                                                          fontWeight: FontWeight.w800,
-                                                          color: Colors.cyan.shade700,
-                                                          fontSize: volumeFontSize,
-                                                          height: 1,
+                                                        child: Text(
+                                                          'м³',
+                                                          style: AppTextStyles.caption.copyWith(
+                                                            color: Colors.cyan.shade700,
+                                                            fontSize: isWeb ? 12 : 11,
+                                                            fontWeight: FontWeight.w700,
+                                                          ),
                                                         ),
                                                       ),
                                                     ],
-                                                  ),
-                                                  SizedBox(height: isWeb ? 6 : 4),
-                                                  Container(
-                                                    padding: EdgeInsets.symmetric(
-                                                      horizontal: isWeb ? 12 : 10,
-                                                      vertical: isWeb ? 6 : 4,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.cyan.shade50,
-                                                      borderRadius: BorderRadius.circular(8),
-                                                      border: Border.all(
-                                                        color: Colors.cyan.shade200,
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                    child: Text(
-                                                      'м³',
-                                                      style: AppTextStyles.caption.copyWith(
-                                                        color: Colors.cyan.shade700,
-                                                        fontSize: isWeb ? 12 : 11,
-                                                        fontWeight: FontWeight.w700,
-                                                      ),
-                                                    ),
                                                   ),
                                                 ],
                                               ),
                                             ],
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                  ] else ...[
-                                    Container(
-                                      padding: EdgeInsets.all(isWeb ? 16 : 12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.withOpacity(0.05),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: Colors.grey.withOpacity(0.2),
-                                          width: 1,
+                                        );
+                                      }
+                                      return Container(
+                                        padding: EdgeInsets.all(isWeb ? 16 : 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: Colors.grey.withOpacity(0.2),
+                                            width: 1,
+                                          ),
                                         ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Container(
-                                                width: isWeb ? 5 : 4,
-                                                height: isWeb ? 24 : 20,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey.shade400,
-                                                  borderRadius: BorderRadius.circular(2),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  width: isWeb ? 5 : 4,
+                                                  height: isWeb ? 24 : 20,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      begin: Alignment.topCenter,
+                                                      end: Alignment.bottomCenter,
+                                                      colors: [
+                                                        Colors.grey.shade400,
+                                                        Colors.grey.shade300,
+                                                      ],
+                                                    ),
+                                                    borderRadius: BorderRadius.circular(2),
+                                                  ),
                                                 ),
-                                              ),
-                                              SizedBox(width: isWeb ? 8 : 6),
-                                              Text(
-                                                'ОБЪЕМ СНЕГА',
-                                                style: AppTextStyles.caption.copyWith(
-                                                  color: AppColors.textSecondary,
-                                                  fontSize: isWeb ? 11 : 10,
-                                                  fontWeight: FontWeight.w600,
-                                                  letterSpacing: isWeb ? 2.0 : 1.5,
+                                                SizedBox(width: isWeb ? 8 : 6),
+                                                Text(
+                                                  'ОБЪЕМ СНЕГА',
+                                                  style: AppTextStyles.caption.copyWith(
+                                                    color: AppColors.textSecondary,
+                                                    fontSize: isWeb ? 11 : 10,
+                                                    fontWeight: FontWeight.w600,
+                                                    letterSpacing: isWeb ? 2.0 : 1.5,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: isWeb ? 16 : 12),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: [
-                                              Column(
-                                                crossAxisAlignment: CrossAxisAlignment.end,
-                                                children: [
-                                                  Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.ac_unit_outlined,
-                                                        color: Colors.grey.shade400,
-                                                        size: iconSize,
-                                                      ),
-                                                      SizedBox(width: isWeb ? 12 : 8),
-                                                      Text(
-                                                        '—',
-                                                        style: AppTextStyles.title2.copyWith(
-                                                          fontWeight: FontWeight.w800,
-                                                          color: Colors.grey.shade500,
-                                                          fontSize: volumeFontSize,
-                                                          height: 1,
+                                              ],
+                                            ),
+                                            SizedBox(height: isWeb ? 16 : 12),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                                      children: [
+                                                        Container(
+                                                          padding: EdgeInsets.all(isWeb ? 8 : 6),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.grey.shade100,
+                                                            borderRadius: BorderRadius.circular(10),
+                                                          ),
+                                                          child: Icon(
+                                                            Icons.ac_unit,
+                                                            color: Colors.grey.shade600,
+                                                            size: isWeb ? 28 : 24,
+                                                          ),
                                                         ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  SizedBox(height: isWeb ? 6 : 4),
-                                                  Container(
-                                                    padding: EdgeInsets.symmetric(
-                                                      horizontal: isWeb ? 12 : 10,
-                                                      vertical: isWeb ? 6 : 4,
+                                                        SizedBox(width: isWeb ? 12 : 8),
+                                                        Text(
+                                                          '—',
+                                                          style: AppTextStyles.title2.copyWith(
+                                                            fontWeight: FontWeight.w800,
+                                                            color: Colors.grey.shade600,
+                                                            fontSize: volumeFontSize,
+                                                            height: 1,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.grey.shade100,
-                                                      borderRadius: BorderRadius.circular(8),
-                                                      border: Border.all(
-                                                        color: Colors.grey.shade300,
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                    child: Text(
-                                                      'м³',
-                                                      style: AppTextStyles.caption.copyWith(
-                                                        color: Colors.grey.shade600,
-                                                        fontSize: isWeb ? 12 : 11,
-                                                        fontWeight: FontWeight.w700,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
@@ -2210,6 +2426,7 @@ class AnprSection extends ConsumerWidget {
     BuildContext context,
     AnprReportData reportData,
     AnprController controller,
+    OrganizationsData? organizationsData,
   ) {
     return Center(
       child: SingleChildScrollView(
@@ -2366,7 +2583,8 @@ class AnprSection extends ConsumerWidget {
           rows: reportData.events.asMap().entries.map((entry) {
             final index = entry.key;
             final event = entry.value;
-            final volume = event.snowVolumeM3;
+            // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+            final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
             
             return DataRow(
               cells: [
@@ -2534,7 +2752,7 @@ class AnprSection extends ConsumerWidget {
                       ),
                     ),
                     child: Text(
-                      event.contractorName ?? '—',
+                      event.contractorName ?? _getContractorNameByPlate(event.plateNumber, organizationsData) ?? '—',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.purple.shade700,
@@ -2774,38 +2992,50 @@ class AnprSection extends ConsumerWidget {
                           ),
                         ),
                       ],
-                      if (event.snowVolumeM3 != null && event.snowVolumeM3! > 0) ...[
-                        const SizedBox(height: AppPadding.normal),
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.normal),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.cyan.withOpacity(0.2),
-                                Colors.cyan.withOpacity(0.1),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.snowing,
-                                size: 20,
-                                color: Colors.cyan.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Объем снега: ${event.snowVolumeM3!.toStringAsFixed(2)} м³',
-                                style: AppTextStyles.title2.copyWith(
-                                  color: Colors.cyan.shade700,
-                                  fontWeight: FontWeight.bold,
+                      // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+                      Builder(
+                        builder: (context) {
+                          final mockVolume1 = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
+                          if (mockVolume1 != null && mockVolume1 > 0) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: AppPadding.normal),
+                                Container(
+                                  padding: const EdgeInsets.all(AppPadding.normal),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.cyan.withOpacity(0.2),
+                                        Colors.cyan.withOpacity(0.1),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.snowing,
+                                        size: 20,
+                                        color: Colors.cyan.shade700,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Объем снега: ${mockVolume1.toStringAsFixed(2)} м³',
+                                        style: AppTextStyles.title2.copyWith(
+                                          color: Colors.cyan.shade700,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       if (event.platePhotoUrl != null || event.bodyPhotoUrl != null) ...[
                         const SizedBox(height: AppPadding.large),
                         Container(
@@ -3099,83 +3329,103 @@ class AnprSection extends ConsumerWidget {
                           ),
                         ),
                       ],
-                      if (event.calculatedSnowVolume != null) ...[
-                        const SizedBox(height: AppPadding.normal),
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.normal),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.cyan.withOpacity(0.2),
-                                Colors.cyan.withOpacity(0.1),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.snowing,
-                                    size: 20,
-                                    color: Colors.cyan.shade700,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Объем снега: ${event.calculatedSnowVolume!.toStringAsFixed(2)} м³',
-                                    style: AppTextStyles.title2.copyWith(
-                                      color: Colors.cyan.shade700,
-                                      fontWeight: FontWeight.bold,
+                      // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+                      Builder(
+                        builder: (context) {
+                          final mockCalculatedVolume = _getMockSnowVolume(event.normalizedPlate) ?? event.calculatedSnowVolume;
+                          if (mockCalculatedVolume != null) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: AppPadding.normal),
+                                Container(
+                                  padding: const EdgeInsets.all(AppPadding.normal),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.cyan.withOpacity(0.2),
+                                        Colors.cyan.withOpacity(0.1),
+                                      ],
                                     ),
+                                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
                                   ),
-                                ],
-                              ),
-                              if (event.confidence != null && event.bodyVolumeM3 != null) ...[
-                                const SizedBox(height: AppPadding.small),
-                                Text(
-                                  'Расчет: ${(event.confidence! * 100).toStringAsFixed(1)}% × ${event.bodyVolumeM3!.toStringAsFixed(2)} м³ = ${event.calculatedSnowVolume!.toStringAsFixed(2)} м³',
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.textSecondary,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.snowing,
+                                            size: 20,
+                                            color: Colors.cyan.shade700,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Объем снега: ${mockCalculatedVolume.toStringAsFixed(2)} м³',
+                                            style: AppTextStyles.title2.copyWith(
+                                              color: Colors.cyan.shade700,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (event.confidence != null && event.bodyVolumeM3 != null) ...[
+                                        const SizedBox(height: AppPadding.small),
+                                        Text(
+                                          'Расчет: ${(event.confidence! * 100).toStringAsFixed(1)}% × ${event.bodyVolumeM3!.toStringAsFixed(2)} м³ = ${mockCalculatedVolume.toStringAsFixed(2)} м³',
+                                          style: AppTextStyles.caption.copyWith(
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],
-                            ],
-                          ),
-                        ),
-                      ] else if (event.snowVolumeM3 != null) ...[
-                        const SizedBox(height: AppPadding.normal),
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.normal),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.cyan.withOpacity(0.2),
-                                Colors.cyan.withOpacity(0.1),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.snowing,
-                                size: 20,
-                                color: Colors.cyan.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Объем снега: ${event.snowVolumeM3!.toStringAsFixed(2)} м³',
-                                style: AppTextStyles.title2.copyWith(
-                                  color: Colors.cyan.shade700,
-                                  fontWeight: FontWeight.bold,
+                            );
+                          }
+                          // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
+                          final mockVolume2 = _getMockSnowVolume(event.normalizedPlate) ?? event.snowVolumeM3;
+                          if (mockVolume2 != null && mockVolume2 > 0) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: AppPadding.normal),
+                                Container(
+                                  padding: const EdgeInsets.all(AppPadding.normal),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.cyan.withOpacity(0.2),
+                                        Colors.cyan.withOpacity(0.1),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.snowing,
+                                        size: 20,
+                                        color: Colors.cyan.shade700,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Объем снега: ${mockVolume2.toStringAsFixed(2)} м³',
+                                        style: AppTextStyles.title2.copyWith(
+                                          color: Colors.cyan.shade700,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       if (event.photos.isNotEmpty) ...[
                         const SizedBox(height: AppPadding.large),
                         Container(
@@ -3270,3 +3520,5 @@ class AnprSection extends ConsumerWidget {
     );
   }
 }
+
+

@@ -228,3 +228,4 @@ enum DecorativeIconType {
   polygon,
   map,
 }
+

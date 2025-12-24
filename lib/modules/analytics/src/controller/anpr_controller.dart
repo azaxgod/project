@@ -252,3 +252,4 @@ class AnprStatistics {
   final int exitEvents;
   final double avgConfidence;
 }
+

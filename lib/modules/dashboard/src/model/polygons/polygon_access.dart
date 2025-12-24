@@ -20,3 +20,4 @@ class PolygonAccess extends Equatable {
   @override
   List<Object?> get props => [id, polygonId, contractorId, source, isActive, createdAt];
 }
+

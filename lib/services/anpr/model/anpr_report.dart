@@ -141,3 +141,4 @@ class AnprReportResponse extends Equatable {
   @override
   List<Object?> get props => [data];
 }
+

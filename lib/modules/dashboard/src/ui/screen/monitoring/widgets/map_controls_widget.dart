@@ -313,3 +313,4 @@ class MapControlsWidget extends StatelessWidget {
     controller.move(center, 12.0);
   }
 }
+

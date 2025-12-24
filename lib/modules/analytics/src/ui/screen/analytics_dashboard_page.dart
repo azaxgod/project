@@ -638,6 +638,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final authState = ref.watch(authNotifierProvider);
     final userRole = userRoleFromString(authState.user?.role);
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+    final isContractorAdmin = userRole == UserRole.contractorAdmin;
     
     // Получаем отфильтрованные контракты из contractsAnalytics (если доступны)
     final state = ref.watch(analyticsControllerProvider);
@@ -696,8 +697,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN)
-                if (!isLandfillAdmin)
+                // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+                if (!isLandfillAdmin && !isContractorAdmin)
                   Builder(
                     builder: (context) {
                       final contractsState = ref.watch(contractsControllerProvider);
@@ -861,8 +862,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
                   ],
                 ),
-                // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN)
-                if (!isLandfillAdmin && _selectedContractId != null) ...[
+                // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+                if (!isLandfillAdmin && !isContractorAdmin && _selectedContractId != null) ...[
                   const SizedBox(height: AppPadding.normal),
                   Container(
                     padding: const EdgeInsets.all(AppPadding.small),
@@ -951,7 +952,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 ],
               ),
             ),
-          // KPI Cards (скрыты для LANDFILL_ADMIN)
+          // KPI Cards (скрыты для LANDFILL_ADMIN, но показываются для CONTRACTOR_ADMIN)
           if (!isLandfillAdmin) ...[
             Row(
               children: [
@@ -999,8 +1000,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             const SizedBox(height: AppPadding.large),
           ],
           
-          // Карта (скрыта для LANDFILL_ADMIN)
-          if (!isLandfillAdmin && 
+          // Карта (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+          if (!isLandfillAdmin && !isContractorAdmin && 
               (dashboardData.data.map.areas.isNotEmpty || 
                dashboardData.data.map.polygons.isNotEmpty))
             AnimatedSection(
@@ -1009,13 +1010,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               child: _buildMapSection(dashboardData.data.map),
             ),
           
-          if (!isLandfillAdmin && 
+          if (!isLandfillAdmin && !isContractorAdmin && 
               (dashboardData.data.map.areas.isNotEmpty || 
                dashboardData.data.map.polygons.isNotEmpty))
           const SizedBox(height: AppPadding.large),
           
-          // Подрядчики (скрыты для LANDFILL_ADMIN)
-          if (!isLandfillAdmin)
+          // Подрядчики (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+          if (!isLandfillAdmin && !isContractorAdmin)
             AnimatedSection(
               title: 'Подрядчики',
               icon: Icons.business,
@@ -1059,11 +1060,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               ),
             ),
           
-          if (!isLandfillAdmin)
+          if (!isLandfillAdmin && !isContractorAdmin)
           const SizedBox(height: AppPadding.large),
           
-          // Контракты (скрыты для LANDFILL_ADMIN)
-          if (!isLandfillAdmin)
+          // Контракты (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+          if (!isLandfillAdmin && !isContractorAdmin)
             AnimatedSection(
               title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
               icon: Icons.description,
@@ -1085,11 +1086,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
             ),
           
-          if (!isLandfillAdmin)
+          if (!isLandfillAdmin && !isContractorAdmin)
           const SizedBox(height: AppPadding.large),
           
-          // Камеры (скрыты для LANDFILL_ADMIN)
-          if (!isLandfillAdmin)
+          // Камеры (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+          if (!isLandfillAdmin && !isContractorAdmin)
             AnimatedSection(
               title: 'Камеры',
               icon: Icons.videocam,
@@ -1123,13 +1124,15 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             },
           ),
           
-          // Секция ANPR (для KGU_ZKH_ADMIN и AKIMAT_ADMIN)
+          // Секция ANPR (для KGU_ZKH_ADMIN, AKIMAT_ADMIN и CONTRACTOR_ADMIN)
           Builder(
             builder: (context) {
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
               
-              if (userRole != UserRole.kguZkhAdmin && userRole != UserRole.akimatAdmin) {
+              if (userRole != UserRole.kguZkhAdmin && 
+                  userRole != UserRole.akimatAdmin &&
+                  userRole != UserRole.contractorAdmin) {
                 return const SizedBox.shrink();
               }
               
@@ -1141,7 +1144,9 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
               
-              if (userRole != UserRole.kguZkhAdmin && userRole != UserRole.akimatAdmin) {
+              if (userRole != UserRole.kguZkhAdmin && 
+                  userRole != UserRole.akimatAdmin &&
+                  userRole != UserRole.contractorAdmin) {
                 return const SizedBox.shrink();
               }
               
@@ -1149,9 +1154,15 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               final anprDateTo = _dateTo ?? DateTime.now();
               final anprDateFrom = _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
               
+              // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
+              final contractorId = userRole == UserRole.contractorAdmin 
+                  ? authState.user?.organizationId 
+                  : null;
+              
               return AnprSection(
                 dateFrom: anprDateFrom,
                 dateTo: anprDateTo,
+                contractorId: contractorId,
               );
             },
           ),

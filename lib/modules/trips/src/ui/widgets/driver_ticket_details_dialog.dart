@@ -258,3 +258,4 @@ class DriverTicketDetailsDialog extends StatelessWidget {
     }
   }
 }
+
