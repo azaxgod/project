@@ -153,14 +153,14 @@ class AnprController extends StateNotifier<AnprState> {
     }
   }
 
-  /// Очистить выбранное событие
+
   void clearSelectedEvent() {
     state = state.copyWith(
       selectedEvent: null,
     );
   }
 
-  /// Загрузить отчеты по объему снега и поездкам
+
   Future<void> loadReports({
     String? contractorId,
     String? polygonId,
@@ -171,7 +171,7 @@ class AnprController extends StateNotifier<AnprState> {
     int? limit,
     int? offset,
   }) async {
-    // Не загружаем если уже загружается
+
     if (state.reports?.isLoading ?? false) return;
     
     state = state.copyWith(

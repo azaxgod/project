@@ -177,10 +177,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
           child: anprState.statistics?.when(
             data: (stats) => _buildStatistics(stats),
             loading: () => const Center(
-              child: Padding(
+              child: Padding( 
                 padding: EdgeInsets.all(AppPadding.large),
                 child: CircularProgressIndicator(),
-              ),
+              ), 
             ),
             error: (error, stack) => _buildErrorState(error.toString()),
           ) ?? const SizedBox.shrink(),
