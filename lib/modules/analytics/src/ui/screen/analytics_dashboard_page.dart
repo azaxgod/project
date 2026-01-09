@@ -47,10 +47,12 @@ class AnalyticsDashboardPage extends ConsumerStatefulWidget {
   final List<Widget>? mobileNavbarWidgets;
 
   @override
-  ConsumerState<AnalyticsDashboardPage> createState() => _AnalyticsDashboardPageState();
+  ConsumerState<AnalyticsDashboardPage> createState() =>
+      _AnalyticsDashboardPageState();
 }
 
-class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage> {
+class _AnalyticsDashboardPageState
+    extends ConsumerState<AnalyticsDashboardPage> {
   DateTime? _dateFrom;
   DateTime? _dateTo;
   String? _selectedContractId;
@@ -71,28 +73,30 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
 
   void _loadInitialData() {
     if (!mounted || _isLoadingInitialData) return;
-    
+
     _isLoadingInitialData = true;
-    
+
     final controller = ref.read(analyticsControllerProvider.notifier);
     final state = ref.read(analyticsControllerProvider);
-    
+
     // Проверяем роль пользователя
     final authState = ref.read(authNotifierProvider);
     if (authState.user == null) {
       _isLoadingInitialData = false;
       return;
     }
-    
+
     final userRole = userRoleFromString(authState.user?.role);
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
-    
+
     // Упрощенная логика: загружаем если данных нет или есть ошибка
     if (isLandfillAdmin) {
       // Для LANDFILL_ADMIN загружаем техническую аналитику
-      if (state.technicalAnalytics == null || 
-          (!state.technicalAnalytics!.isLoading && !state.technicalAnalytics!.hasValue) ||
-          (state.technicalAnalytics!.hasError && !state.technicalAnalytics!.isLoading)) {
+      if (state.technicalAnalytics == null ||
+          (!state.technicalAnalytics!.isLoading &&
+              !state.technicalAnalytics!.hasValue) ||
+          (state.technicalAnalytics!.hasError &&
+              !state.technicalAnalytics!.isLoading)) {
         controller.loadTechnicalAnalytics(
           from: _dateFrom,
           to: _dateTo,
@@ -101,7 +105,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       _hasInitialLoad = true;
     } else {
       // Для других ролей загружаем обычный дашборд
-      if (state.dashboard == null || 
+      if (state.dashboard == null ||
           (!state.dashboard!.isLoading && !state.dashboard!.hasValue) ||
           (state.dashboard!.hasError && !state.dashboard!.isLoading)) {
         controller.loadDashboard(
@@ -110,12 +114,14 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
         );
       }
       _hasInitialLoad = true;
-      
+
       // Также загружаем отфильтрованные контракты при инициализации
       if (_dateFrom != null && _dateTo != null) {
-        if (state.contractsAnalytics == null || 
-            (!state.contractsAnalytics!.isLoading && !state.contractsAnalytics!.hasValue) ||
-            (state.contractsAnalytics!.hasError && !state.contractsAnalytics!.isLoading)) {
+        if (state.contractsAnalytics == null ||
+            (!state.contractsAnalytics!.isLoading &&
+                !state.contractsAnalytics!.hasValue) ||
+            (state.contractsAnalytics!.hasError &&
+                !state.contractsAnalytics!.isLoading)) {
           // Загружаем контракты асинхронно, не блокируя основной UI
           Future.microtask(() {
             if (mounted) {
@@ -125,14 +131,14 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
         }
       }
     }
-    
+
     _isLoadingInitialData = false;
   }
 
   Future<void> _loadLandfillJournal() async {
     final authState = ref.read(authNotifierProvider);
     final userRole = userRoleFromString(authState.user?.role);
-    
+
     if (userRole != UserRole.landfillAdmin) {
       return;
     }
@@ -171,7 +177,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final s = S.of(context)!;
     final state = ref.watch(analyticsControllerProvider);
     final controller = ref.read(analyticsControllerProvider.notifier);
-    
+
     // Проверяем роль пользователя
     final authState = ref.watch(authNotifierProvider);
     final userRole = userRoleFromString(authState.user?.role);
@@ -195,7 +201,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       appBar: kIsWeb
           ? null
           : AppBar(
-              title: Text(isLandfillAdmin ? 'Техническая аналитика' : s.analytics),
+              title:
+                  Text(isLandfillAdmin ? 'Техническая аналитика' : s.analytics),
               leading: Builder(
                 builder: (context) => IconButton(
                   icon: const Icon(Icons.menu),
@@ -219,106 +226,120 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 : state.dashboard == null
                     ? _buildLoadingState()
                     : state.dashboard!.when(
-                    data: (data) => _buildDashboardContent(data, controller),
-                    loading: () => _buildLoadingState(),
-                    error: (error, stack) => Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppPadding.large),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Ошибка загрузки данных',
-                        style: AppTextStyles.title.copyWith(
-                          color: Colors.red,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(AppPadding.normal),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondaryBackground,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          error.toString(),
-                          style: AppTextStyles.body,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              // Для LANDFILL_ADMIN загружаем техническую аналитику
-                              final authState = ref.read(authNotifierProvider);
-                              final userRole = userRoleFromString(authState.user?.role);
-                              final isLandfillAdmin = userRole == UserRole.landfillAdmin;
-                              
-                              if (isLandfillAdmin) {
-                                controller.loadTechnicalAnalytics(from: _dateFrom, to: _dateTo);
-                              } else {
-                                controller.loadDashboard(from: _dateFrom, to: _dateTo);
-                              }
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Повторить'),
-                          ),
-                          const SizedBox(width: 8),
-                          TextButton.icon(
-                            onPressed: () {
-                              // Показать детали ошибки
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Детали ошибки'),
-                                  content: SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('Ошибка:', style: AppTextStyles.title2),
-                                        const SizedBox(height: 4),
-                                        Text(error.toString()),
-                                        if (stack != null) ...[
-                                          const SizedBox(height: 16),
-                                          Text('Stack trace:', style: AppTextStyles.title2),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            stack.toString(),
-                                            style: AppTextStyles.caption,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
+                        data: (data) =>
+                            _buildDashboardContent(data, controller),
+                        loading: () => _buildLoadingState(),
+                        error: (error, stack) => Center(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(AppPadding.large),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Ошибка загрузки данных',
+                                  style: AppTextStyles.title.copyWith(
+                                    color: Colors.red,
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.of(context).pop(),
-                                      child: const Text('Закрыть'),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding:
+                                      const EdgeInsets.all(AppPadding.normal),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondaryBackground,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    error.toString(),
+                                    style: AppTextStyles.body,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        // Для LANDFILL_ADMIN загружаем техническую аналитику
+                                        final authState =
+                                            ref.read(authNotifierProvider);
+                                        final userRole = userRoleFromString(
+                                            authState.user?.role);
+                                        final isLandfillAdmin =
+                                            userRole == UserRole.landfillAdmin;
+
+                                        if (isLandfillAdmin) {
+                                          controller.loadTechnicalAnalytics(
+                                              from: _dateFrom, to: _dateTo);
+                                        } else {
+                                          controller.loadDashboard(
+                                              from: _dateFrom, to: _dateTo);
+                                        }
+                                      },
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Повторить'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        // Показать детали ошибки
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Детали ошибки'),
+                                            content: SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text('Ошибка:',
+                                                      style:
+                                                          AppTextStyles.title2),
+                                                  const SizedBox(height: 4),
+                                                  Text(error.toString()),
+                                                  if (stack != null) ...[
+                                                    const SizedBox(height: 16),
+                                                    Text('Stack trace:',
+                                                        style: AppTextStyles
+                                                            .title2),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      stack.toString(),
+                                                      style:
+                                                          AppTextStyles.caption,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context).pop(),
+                                                child: const Text('Закрыть'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.info_outline),
+                                      label: const Text('Детали'),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.info_outline),
-                            label: const Text('Детали'),
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-                    ),
           ),
         ],
       ),
@@ -390,7 +411,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     AnalyticsController controller,
   ) {
     final config = PlatformConfig.instance;
-    
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(config.padding),
       child: Column(
@@ -426,32 +447,38 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         initialEndDate: _dateTo,
                         onDateRangeSelected: (start, end) {
                           if (start == null || end == null) return;
-                          
+
                           setState(() {
                             _dateFrom = start;
                             _dateTo = end;
                             // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
                             _hasInitialLoad = false;
                           });
-                          
+
                           // Обновляем диапазон дат в контроллере
                           controller.updateDateRange(start, end);
                           // Загружаем техническую аналитику
-                          controller.loadTechnicalAnalytics(from: start, to: end);
+                          controller.loadTechnicalAnalytics(
+                              from: start, to: end);
                         },
                       ),
+                      
                     ),
+                    
                     const SizedBox(width: AppPadding.normal),
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                        borderRadius:
+                            BorderRadius.circular(AppSize.smallRadius),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.refresh, color: AppColors.primary),
+                        icon:
+                            const Icon(Icons.refresh, color: AppColors.primary),
                         tooltip: 'Обновить данные',
                         onPressed: () {
-                          controller.loadTechnicalAnalytics(from: _dateFrom, to: _dateTo);
+                          controller.loadTechnicalAnalytics(
+                              from: _dateFrom, to: _dateTo);
                         },
                       ),
                     ),
@@ -460,19 +487,21 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               ],
             ),
           ),
-          
+
           // Общая статистика
-          if (data.data.errorRate != null || data.data.eventFrequency != null || data.data.lastEventAt != null)
+          if (data.data.errorRate != null ||
+              data.data.eventFrequency != null ||
+              data.data.lastEventAt != null)
             _buildTechnicalOverallStats(data.data),
-          
+
           const SizedBox(height: AppPadding.large),
-          
+
           // Камеры
           if (data.data.cameras.isNotEmpty)
             _buildTechnicalCamerasTable(data.data.cameras),
-          
+
           const SizedBox(height: AppPadding.large),
-          
+
           // Полигоны
           if (data.data.polygons.isNotEmpty)
             _buildTechnicalPolygonsTable(data.data.polygons),
@@ -503,11 +532,14 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     title: 'Доля ошибок',
                     value: '${(data.errorRate! * 100).toStringAsFixed(2)}%',
                     icon: Icons.error_outline,
-                    color: (data.errorRate ?? 0) > 0.05 ? Colors.red : Colors.green,
+                    color: (data.errorRate ?? 0) > 0.05
+                        ? Colors.red
+                        : Colors.green,
                   ),
                 ),
               if (data.eventFrequency != null) ...[
-                if (data.errorRate != null) const SizedBox(width: AppPadding.normal),
+                if (data.errorRate != null)
+                  const SizedBox(width: AppPadding.normal),
                 Expanded(
                   child: AnimatedKPICard(
                     title: 'Частота событий',
@@ -523,7 +555,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 Expanded(
                   child: AnimatedKPICard(
                     title: 'Последнее событие',
-                    value: DateFormat('dd.MM.yyyy\nHH:mm').format(data.lastEventAt!),
+                    value: DateFormat('dd.MM.yyyy\nHH:mm')
+                        .format(data.lastEventAt!),
                     icon: Icons.access_time,
                     color: Colors.grey,
                   ),
@@ -553,13 +586,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           ],
           rows: cameras.map((camera) {
             final totalEvents = camera.lprEvents + camera.volumeEvents;
-            final errorRate = totalEvents > 0
-                ? (camera.errorEvents / totalEvents)
-                : 0.0;
-            
+            final errorRate =
+                totalEvents > 0 ? (camera.errorEvents / totalEvents) : 0.0;
+
             return DataRow(
               cells: [
-                DataCell(Text(camera.cameraName ?? camera.cameraId.substring(0, 8))),
+                DataCell(
+                    Text(camera.cameraName ?? camera.cameraId.substring(0, 8))),
                 DataCell(Text(camera.lprEvents.toString())),
                 DataCell(Text(camera.volumeEvents.toString())),
                 DataCell(
@@ -567,7 +600,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     camera.errorEvents.toString(),
                     style: TextStyle(
                       color: camera.errorEvents > 0 ? Colors.red : null,
-                      fontWeight: camera.errorEvents > 0 ? FontWeight.bold : null,
+                      fontWeight:
+                          camera.errorEvents > 0 ? FontWeight.bold : null,
                     ),
                   ),
                 ),
@@ -607,7 +641,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             final errors = polygon.errors ?? 0;
             return DataRow(
               cells: [
-                DataCell(Text(polygon.polygonName ?? polygon.polygonId.substring(0, 8))),
+                DataCell(Text(
+                    polygon.polygonName ?? polygon.polygonId.substring(0, 8))),
                 DataCell(Text(polygon.tripCount.toString())),
                 DataCell(Text(volume.toStringAsFixed(2))),
                 DataCell(
@@ -627,37 +662,42 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     );
   }
 
-  Widget _buildDashboardContent(DashboardResponse dashboardData, AnalyticsController controller) {
+  Widget _buildDashboardContent(
+      DashboardResponse dashboardData, AnalyticsController controller) {
     final stats = dashboardData.data.stats;
     final contractors = dashboardData.data.contractors;
     final dashboardContracts = dashboardData.data.contracts;
     final cameras = dashboardData.data.cameras;
     final config = PlatformConfig.instance;
-    
+
     // Проверяем роль пользователя
     final authState = ref.watch(authNotifierProvider);
     final userRole = userRoleFromString(authState.user?.role);
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
     final isContractorAdmin = userRole == UserRole.contractorAdmin;
-    
+
     // Получаем отфильтрованные контракты из contractsAnalytics (если доступны)
     final state = ref.watch(analyticsControllerProvider);
     final contractsAnalyticsData = state.contractsAnalytics?.valueOrNull;
-    
+
     // Используем отфильтрованные контракты из /analytics/contracts, если они доступны
     // Иначе используем контракты из дашборда
     List<DashboardContract> contractsToUse;
-    if (contractsAnalyticsData != null && _dateFrom != null && _dateTo != null) {
+    if (contractsAnalyticsData != null &&
+        _dateFrom != null &&
+        _dateTo != null) {
       // Преобразуем ContractSummary в DashboardContract для отображения
-      final filteredContractIds = contractsAnalyticsData.data.summary
-          .map((c) => c.contractId)
-          .toSet();
-      
+      final filteredContractIds =
+          contractsAnalyticsData.data.summary.map((c) => c.contractId).toSet();
+
       // Также добавляем контракты из других списков (topBudget, atRisk, budgetIssues)
-      filteredContractIds.addAll(contractsAnalyticsData.data.topBudget.map((c) => c.contractId));
-      filteredContractIds.addAll(contractsAnalyticsData.data.atRisk.map((c) => c.contractId));
-      filteredContractIds.addAll(contractsAnalyticsData.data.budgetIssues.map((c) => c.contractId));
-      
+      filteredContractIds.addAll(
+          contractsAnalyticsData.data.topBudget.map((c) => c.contractId));
+      filteredContractIds
+          .addAll(contractsAnalyticsData.data.atRisk.map((c) => c.contractId));
+      filteredContractIds.addAll(
+          contractsAnalyticsData.data.budgetIssues.map((c) => c.contractId));
+
       // Фильтруем контракты из дашборда по ID из contractsAnalytics
       contractsToUse = dashboardContracts.where((contract) {
         return filteredContractIds.contains(contract.contractId);
@@ -666,11 +706,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       // Если contractsAnalytics не загружены, используем контракты из дашборда
       contractsToUse = dashboardContracts;
     }
-    
+
     // Дополнительная фильтрация по выбранному контракту
     // Если выбран контракт из списка созданных контрактов, показываем только его
     final filteredContracts = _selectedContractId != null
-        ? contractsToUse.where((contract) => contract.contractId == _selectedContractId).toList()
+        ? contractsToUse
+            .where((contract) => contract.contractId == _selectedContractId)
+            .toList()
         : contractsToUse;
 
     return SingleChildScrollView(
@@ -701,29 +743,37 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 if (!isLandfillAdmin && !isContractorAdmin)
                   Builder(
                     builder: (context) {
-                      final contractsState = ref.watch(contractsControllerProvider);
+                      final contractsState =
+                          ref.watch(contractsControllerProvider);
                       final contractsData = contractsState.data.valueOrNull;
-                      final allContracts = contractsData?.contracts ?? <Contract>[];
-                      
+                      final allContracts =
+                          contractsData?.contracts ?? <Contract>[];
+
                       // Фильтруем контракты по выбранной дате (если дата выбрана)
                       List<Contract> contractsToShow = allContracts;
                       if (_dateFrom != null && _dateTo != null) {
                         contractsToShow = allContracts.where((contract) {
-                          final contractStart = DateTime(contract.startAt.year, contract.startAt.month, contract.startAt.day);
-                          final contractEnd = DateTime(contract.endAt.year, contract.endAt.month, contract.endAt.day);
-                          final selectedFrom = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
-                          final selectedTo = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
-                          
+                          final contractStart = DateTime(contract.startAt.year,
+                              contract.startAt.month, contract.startAt.day);
+                          final contractEnd = DateTime(contract.endAt.year,
+                              contract.endAt.month, contract.endAt.day);
+                          final selectedFrom = DateTime(_dateFrom!.year,
+                              _dateFrom!.month, _dateFrom!.day);
+                          final selectedTo = DateTime(
+                              _dateTo!.year, _dateTo!.month, _dateTo!.day);
+
                           // Показываем контракты, которые активны в выбранный период
-                          return contractStart.isBefore(selectedTo.add(const Duration(days: 1))) &&
-                                 contractEnd.isAfter(selectedFrom.subtract(const Duration(days: 1)));
+                          return contractStart.isBefore(
+                                  selectedTo.add(const Duration(days: 1))) &&
+                              contractEnd.isAfter(selectedFrom
+                                  .subtract(const Duration(days: 1)));
                         }).toList();
                       }
-                      
+
                       if (contractsToShow.isEmpty) {
                         return const SizedBox.shrink();
                       }
-                      
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -742,7 +792,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                                 labelText: 'Контракт',
                                 hintText: 'Все контракты',
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                  borderRadius: BorderRadius.circular(
+                                      AppSize.smallRadius),
                                 ),
                                 prefixIcon: const Icon(Icons.description),
                                 isDense: true,
@@ -756,12 +807,14 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                                   return DropdownMenuItem<String>(
                                     value: contract.id,
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
                                           contract.name,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
                                         ),
                                         Text(
                                           '${DateFormat('dd.MM.yyyy').format(contract.startAt)} - ${DateFormat('dd.MM.yyyy').format(contract.endAt)}',
@@ -778,17 +831,21 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                               onChanged: (value) {
                                 setState(() {
                                   _selectedContractId = value;
-                                  
+
                                   // Если выбран контракт, устанавливаем его период как выбранную дату
                                   if (value != null) {
-                                    final selectedContract = contractsToShow.firstWhere((c) => c.id == value);
+                                    final selectedContract = contractsToShow
+                                        .firstWhere((c) => c.id == value);
                                     _dateFrom = selectedContract.startAt;
                                     _dateTo = selectedContract.endAt;
-                                    
+
                                     // Обновляем данные аналитики
-                                    final analyticsController = ref.read(analyticsControllerProvider.notifier);
-                                    analyticsController.loadDashboard(from: _dateFrom, to: _dateTo);
-                                    analyticsController.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                                    final analyticsController = ref.read(
+                                        analyticsControllerProvider.notifier);
+                                    analyticsController.loadDashboard(
+                                        from: _dateFrom, to: _dateTo);
+                                    analyticsController.loadContractsAnalytics(
+                                        from: _dateFrom, to: _dateTo);
                                   }
                                 });
                               },
@@ -800,8 +857,10 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     },
                   ),
                 // Выбор даты
+                
                 Row(
                   children: [
+                    
                     Expanded(
                       child: CustomDateRangePicker(
                         label: 'Период аналитики',
@@ -809,7 +868,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         initialEndDate: _dateTo,
                         onDateRangeSelected: (start, end) {
                           if (start == null || end == null) return;
-                          
+
                           setState(() {
                             _dateFrom = start;
                             _dateTo = end;
@@ -818,41 +877,49 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                             // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
                             _hasInitialLoad = false;
                           });
-                          
+
                           // Обновляем диапазон дат в контроллере
                           controller.updateDateRange(start, end);
-                          
+
                           // Для LANDFILL_ADMIN загружаем техническую аналитику
                           if (isLandfillAdmin) {
-                            controller.loadTechnicalAnalytics(from: start, to: end);
+                            controller.loadTechnicalAnalytics(
+                                from: start, to: end);
                           } else {
                             controller.loadDashboard(from: start, to: end);
                             // Перезагружаем контракты с фильтром по дате
-                            controller.loadContractsAnalytics(from: start, to: end);
+                            controller.loadContractsAnalytics(
+                                from: start, to: end);
                             // Перезагружаем данные журнала приёма снега
                             _loadLandfillJournal();
                           }
                         },
                       ),
                     ),
+
                     const SizedBox(width: AppPadding.normal),
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                        borderRadius:
+                            BorderRadius.circular(AppSize.smallRadius),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.refresh, color: AppColors.primary),
+                        icon:
+                            const Icon(Icons.refresh, color: AppColors.primary),
                         tooltip: 'Обновить данные',
                         onPressed: () {
                           // Для LANDFILL_ADMIN загружаем техническую аналитику
                           if (isLandfillAdmin) {
-                            controller.loadTechnicalAnalytics(from: _dateFrom, to: _dateTo);
+                            controller.loadTechnicalAnalytics(
+                                from: _dateFrom, to: _dateTo);
                           } else {
-                            controller.loadDashboard(from: _dateFrom, to: _dateTo);
+                            controller.loadDashboard(
+                                from: _dateFrom, to: _dateTo);
                             // Всегда загружаем отфильтрованные контракты при обновлении
                             if (_dateFrom != null && _dateTo != null) {
-                              controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+                              controller.loadContractsAnalytics(
+                                  from: _dateFrom, to: _dateTo);
                               // Перезагружаем данные журнала приёма снега
                               _loadLandfillJournal();
                             }
@@ -862,8 +929,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
                   ],
                 ),
+                
                 // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-                if (!isLandfillAdmin && !isContractorAdmin && _selectedContractId != null) ...[
+                if (!isLandfillAdmin &&
+                    !isContractorAdmin &&
+                    _selectedContractId != null) ...[
                   const SizedBox(height: AppPadding.normal),
                   Container(
                     padding: const EdgeInsets.all(AppPadding.small),
@@ -877,13 +947,18 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
                     child: Builder(
                       builder: (context) {
-                        final contractsState = ref.watch(contractsControllerProvider);
+                        final contractsState =
+                            ref.watch(contractsControllerProvider);
                         final contractsData = contractsState.data.valueOrNull;
-                        final allCreatedContracts = contractsData?.contracts ?? <Contract>[];
-                        final selectedCreatedContract = _selectedContractId != null
-                            ? allCreatedContracts.where((c) => c.id == _selectedContractId).firstOrNull
-                            : null;
-                        
+                        final allCreatedContracts =
+                            contractsData?.contracts ?? <Contract>[];
+                        final selectedCreatedContract =
+                            _selectedContractId != null
+                                ? allCreatedContracts
+                                    .where((c) => c.id == _selectedContractId)
+                                    .firstOrNull
+                                : null;
+
                         if (selectedCreatedContract == null) {
                           return Row(
                             children: [
@@ -905,7 +980,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                             ],
                           );
                         }
-                        
+
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -949,193 +1024,195 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
                   ),
                 ],
-                ],
-              ),
+              ],
             ),
+          ),
           // KPI Cards (скрыты для LANDFILL_ADMIN, но показываются для CONTRACTOR_ADMIN)
           if (!isLandfillAdmin) ...[
             Row(
               children: [
-                Expanded(
-                  child: AnimatedKPICard(
-                    title: 'Активные рейсы',
-                    value: stats.activeTrips.toString(),
-                    icon: Icons.directions_car,
-                    color: Colors.blue,
-                  ),
-                ),
+                // Expanded(
+                //   child: AnimatedKPICard(
+                //     title: 'Активные рейсы',
+                //     value: stats.activeTrips.toString(),
+                //     icon: Icons.directions_car,
+                //     color: Colors.blue,
+                //   ),
+                // ),
                 const SizedBox(width: AppPadding.normal),
-                Expanded(
-                  child: AnimatedKPICard(
-                    title: 'Завершено рейсов',
-                    value: stats.completedTrips.toString(),
-                    icon: Icons.check_circle,
-                    color: Colors.green,
-                  ),
-                ),
+                // Expanded(
+                //   child: AnimatedKPICard(
+                //     title: 'Завершено рейсов',
+                //     value: stats.completedTrips.toString(),
+                //     icon: Icons.check_circle,
+                //     color: Colors.green,
+                //   ),
+                // ),
               ],
             ),
             const SizedBox(height: AppPadding.normal),
-            Row(
-              children: [
-                Expanded(
-                  child: AnimatedKPICard(
-                    title: 'Нарушения',
-                    value: stats.violations.toString(),
-                    icon: Icons.warning,
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(width: AppPadding.normal),
-                Expanded(
-                  child: AnimatedKPICard(
-                    title: 'Тикеты в работе',
-                    value: stats.ticketsInProgress.toString(),
-                    icon: Icons.assignment,
-                    color: Colors.purple,
-                  ),
-                ),
-              ],
-            ),
+            // Row(
+            //   children: [
+            //     Expanded(
+            //       child: AnimatedKPICard(
+            //         title: 'Нарушения',
+            //         value: stats.violations.toString(),
+            //         icon: Icons.warning,
+            //         color: Colors.orange,
+            //       ),
+            //     ),
+            //     const SizedBox(width: AppPadding.normal),
+            //     Expanded(
+            //       child: AnimatedKPICard(
+            //         title: 'Тикеты в работе',
+            //         value: stats.ticketsInProgress.toString(),
+            //         icon: Icons.assignment,
+            //         color: Colors.purple,
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(height: AppPadding.large),
           ],
-          
+
           // Карта (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-          if (!isLandfillAdmin && !isContractorAdmin && 
-              (dashboardData.data.map.areas.isNotEmpty || 
-               dashboardData.data.map.polygons.isNotEmpty))
+          if (!isLandfillAdmin &&
+              !isContractorAdmin &&
+              (dashboardData.data.map.areas.isNotEmpty ||
+                  dashboardData.data.map.polygons.isNotEmpty))
             AnimatedSection(
               title: 'Карта города',
               icon: Icons.map,
               child: _buildMapSection(dashboardData.data.map),
             ),
-          
-          if (!isLandfillAdmin && !isContractorAdmin && 
-              (dashboardData.data.map.areas.isNotEmpty || 
-               dashboardData.data.map.polygons.isNotEmpty))
-          const SizedBox(height: AppPadding.large),
-          
+
+          if (!isLandfillAdmin &&
+              !isContractorAdmin &&
+              (dashboardData.data.map.areas.isNotEmpty ||
+                  dashboardData.data.map.polygons.isNotEmpty))
+            const SizedBox(height: AppPadding.large),
+
           // Подрядчики (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
           if (!isLandfillAdmin && !isContractorAdmin)
-            AnimatedSection(
-              title: 'Подрядчики',
-              icon: Icons.business,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (contractors.active.isNotEmpty) ...[
-                    Text(
-                      'В работе:',
-                      style: AppTextStyles.headline.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...contractors.active.asMap().entries.map((entry) {
-                      return _buildAnimatedContractorCard(
-                        entry.value,
-                        true,
-                        entry.key,
-                      );
-                    }),
-                  ],
-                  if (contractors.idle.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Без работы:',
-                      style: AppTextStyles.headline.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...contractors.idle.asMap().entries.map((entry) {
-                      return _buildAnimatedContractorCard(
-                        entry.value,
-                        false,
-                        contractors.active.length + entry.key,
-                      );
-                    }),
-                  ],
-                ],
-              ),
-            ),
-          
+            // AnimatedSection(
+            //   title: 'Подрядчики',
+            //   icon: Icons.business,
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       if (contractors.active.isNotEmpty) ...[
+            //         Text(
+            //           'В работе:',
+            //           style: AppTextStyles.headline.copyWith(
+            //             color: AppColors.textSecondary,
+            //           ),
+            //         ),
+            //         const SizedBox(height: 12),
+            //         ...contractors.active.asMap().entries.map((entry) {
+            //           return _buildAnimatedContractorCard(
+            //             entry.value,
+            //             true,
+            //             entry.key,
+            //           );
+            //         }),
+            //       ],
+            //       if (contractors.idle.isNotEmpty) ...[
+            //         const SizedBox(height: 20),
+            //         Text(
+            //           'Без работы:',
+            //           style: AppTextStyles.headline.copyWith(
+            //             color: AppColors.textSecondary,
+            //           ),
+            //         ),
+            //         const SizedBox(height: 12),
+            //         ...contractors.idle.asMap().entries.map((entry) {
+            //           return _buildAnimatedContractorCard(
+            //             entry.value,
+            //             false,
+            //             contractors.active.length + entry.key,
+            //           );
+            //         }),
+            //       ],
+            //     ],
+            //   ),
+            // ),
+         
           if (!isLandfillAdmin && !isContractorAdmin)
-          const SizedBox(height: AppPadding.large),
-          
+            const SizedBox(height: AppPadding.large),
+
           // Контракты (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
           if (!isLandfillAdmin && !isContractorAdmin)
-            AnimatedSection(
-              title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
-              icon: Icons.description,
-              child: filteredContracts.isEmpty
-                  ? Center(
-                      child: Text(
-                        _selectedContractId != null
-                            ? 'Контракт не найден в выбранном периоде'
-                            : 'Нет данных',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    )
-                  : Column(
-                      children: filteredContracts.asMap().entries.map((entry) {
-                        return _buildAnimatedContractCard(entry.value, entry.key);
-                      }).toList(),
-                    ),
+            //   AnimatedSection(
+            //     title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
+            //     icon: Icons.description,
+            //     child: filteredContracts.isEmpty
+            //         ? Center(
+            //             child: Text(
+            //               _selectedContractId != null
+            //                   ? 'Контракт не найден в выбранном периоде'
+            //                   : 'Нет данных',
+            //               style: AppTextStyles.body.copyWith(
+            //                 color: AppColors.textSecondary,
+            //               ),
+            //             ),
+            //           )
+            //         : Column(
+            //             children: filteredContracts.asMap().entries.map((entry) {
+            //               return _buildAnimatedContractCard(entry.value, entry.key);
+            //             }).toList(),
+            //           ),
+            //   ),
+
+            // if (!isLandfillAdmin && !isContractorAdmin)
+            // const SizedBox(height: AppPadding.large),
+
+            // // Камеры (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+            // if (!isLandfillAdmin && !isContractorAdmin)
+            //   AnimatedSection(
+            //     title: 'Камеры',
+            //     icon: Icons.videocam,
+            //     child: cameras.isEmpty
+            //         ? Center(
+            //             child: Text(
+            //               'Нет данных',
+            //               style: AppTextStyles.body.copyWith(
+            //                 color: AppColors.textSecondary,
+            //               ),
+            //             ),
+            //           )
+            //         : Column(
+            //             children: cameras.asMap().entries.map((entry) {
+            //               return _buildAnimatedCameraCard(entry.value, entry.key);
+            //             }).toList(),
+            //           ),
+            //   ),
+
+            // Акт работ (только для LANDFILL_ADMIN)
+            Builder(
+              builder: (context) {
+                final authState = ref.watch(authNotifierProvider);
+                final userRole = userRoleFromString(authState.user?.role);
+
+                if (userRole != UserRole.landfillAdmin) {
+                  return const SizedBox.shrink();
+                }
+
+                return _buildLandfillActSection();
+              },
             ),
-          
-          if (!isLandfillAdmin && !isContractorAdmin)
-          const SizedBox(height: AppPadding.large),
-          
-          // Камеры (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-          if (!isLandfillAdmin && !isContractorAdmin)
-            AnimatedSection(
-              title: 'Камеры',
-              icon: Icons.videocam,
-              child: cameras.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Нет данных',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    )
-                  : Column(
-                      children: cameras.asMap().entries.map((entry) {
-                        return _buildAnimatedCameraCard(entry.value, entry.key);
-                      }).toList(),
-                    ),
-            ),
-          
-          // Акт работ (только для LANDFILL_ADMIN)
-          Builder(
-            builder: (context) {
-              final authState = ref.watch(authNotifierProvider);
-              final userRole = userRoleFromString(authState.user?.role);
-              
-              if (userRole != UserRole.landfillAdmin) {
-                return const SizedBox.shrink();
-              }
-              
-              return _buildLandfillActSection();
-            },
-          ),
-          
+
           // Секция ANPR (для KGU_ZKH_ADMIN, AKIMAT_ADMIN и CONTRACTOR_ADMIN)
           Builder(
             builder: (context) {
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
-              
-              if (userRole != UserRole.kguZkhAdmin && 
+
+              if (userRole != UserRole.kguZkhAdmin &&
                   userRole != UserRole.akimatAdmin &&
                   userRole != UserRole.contractorAdmin) {
                 return const SizedBox.shrink();
               }
-              
+
               return const SizedBox(height: AppPadding.large);
             },
           ),
@@ -1143,22 +1220,23 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             builder: (context) {
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
-              
-              if (userRole != UserRole.kguZkhAdmin && 
+
+              if (userRole != UserRole.kguZkhAdmin &&
                   userRole != UserRole.akimatAdmin &&
                   userRole != UserRole.contractorAdmin) {
                 return const SizedBox.shrink();
               }
-              
+
               // Согласно документации: период по умолчанию для ANPR - последние 24 часа
               final anprDateTo = _dateTo ?? DateTime.now();
-              final anprDateFrom = _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
-              
+              final anprDateFrom =
+                  _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
+
               // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
-              final contractorId = userRole == UserRole.contractorAdmin 
-                  ? authState.user?.organizationId 
+              final contractorId = userRole == UserRole.contractorAdmin
+                  ? authState.user?.organizationId
                   : null;
-              
+
               return AnprSection(
                 dateFrom: anprDateFrom,
                 dateTo: anprDateTo,
@@ -1176,167 +1254,169 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       title: 'Объём привезённого снега',
       icon: Icons.snowing,
       child: _landfillJournalData?.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Text(
-            'Ошибка загрузки данных: $error',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.error,
-            ),
-          ),
-        ),
-        data: (data) {
-          final tripsData = data['data'] as Map<String, dynamic>?;
-          final totalVolumeM3 = (tripsData?['total_volume_m3'] as num?)?.toDouble() ?? 0.0;
-          final totalTrips = (tripsData?['total_trips'] as int?) ?? 0;
-          
-          return Container(
-            padding: const EdgeInsets.all(AppPadding.large),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.blue.withOpacity(0.15),
-                  Colors.blue.withOpacity(0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.blue.withOpacity(0.3),
-                width: 1,
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Text(
+                'Ошибка загрузки данных: $error',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.error,
+                ),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.snowing,
-                        size: 28,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Общий объём привезённого снега',
-                            style: AppTextStyles.title2.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Всеми подрядчиками на полигоны организации',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Column(
-                      children: [
-                        Text(
-                          '${totalVolumeM3.toStringAsFixed(2)}',
-                          style: AppTextStyles.headline.copyWith(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'м³',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Объём снега',
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                    Container(
-                      width: 1,
-                      height: 60,
-                      color: AppColors.divider,
-                    ),
-                    Column(
-                      children: [
-                        Text(
-                          '$totalTrips',
-                          style: AppTextStyles.headline.copyWith(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'рейсов',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Всего рейсов',
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                if (_dateFrom != null && _dateTo != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(AppPadding.small),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Период: ${DateFormat('dd.MM.yyyy').format(_dateFrom!)} - ${DateFormat('dd.MM.yyyy').format(_dateTo!)}',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
+            data: (data) {
+              final tripsData = data['data'] as Map<String, dynamic>?;
+              final totalVolumeM3 =
+                  (tripsData?['total_volume_m3'] as num?)?.toDouble() ?? 0.0;
+              final totalTrips = (tripsData?['total_trips'] as int?) ?? 0;
+
+              return Container(
+                padding: const EdgeInsets.all(AppPadding.large),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.blue.withOpacity(0.15),
+                      Colors.blue.withOpacity(0.05),
+                    ],
                   ),
-                ],
-              ],
-            ),
-          );
-        },
-      ) ?? const Center(child: CircularProgressIndicator()),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.blue.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.snowing,
+                            size: 28,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Общий объём привезённого снега',
+                                style: AppTextStyles.title2.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Всеми подрядчиками на полигоны организации',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              '${totalVolumeM3.toStringAsFixed(2)}',
+                              style: AppTextStyles.headline.copyWith(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'м³',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Объём снега',
+                              style: AppTextStyles.caption,
+                            ),
+                          ],
+                        ),
+                        Container(
+                          width: 1,
+                          height: 60,
+                          color: AppColors.divider,
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '$totalTrips',
+                              style: AppTextStyles.headline.copyWith(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'рейсов',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Всего рейсов',
+                              style: AppTextStyles.caption,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (_dateFrom != null && _dateTo != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(AppPadding.small),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Colors.blue,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Период: ${DateFormat('dd.MM.yyyy').format(_dateFrom!)} - ${DateFormat('dd.MM.yyyy').format(_dateTo!)}',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ) ??
+          const Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -1488,7 +1568,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 '${contractor.count} рейсов',
                 style: AppTextStyles.caption.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: isActive ? Colors.green.shade700 : Colors.grey.shade700,
+                  color:
+                      isActive ? Colors.green.shade700 : Colors.grey.shade700,
                 ),
               ),
             ),
@@ -1500,7 +1581,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   Widget _buildContractCard(DashboardContract contract) {
     final budgetProgress = contract.budgetProgress ?? 0.0;
     final volumeProgress = contract.volumeProgress ?? 0.0;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(AppPadding.normal),
@@ -1580,9 +1661,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 valueColor: AlwaysStoppedAnimation<Color>(
                   budgetProgress > 1.0
                       ? Colors.red
-                      : (budgetProgress > 0.8
-                          ? Colors.orange
-                          : Colors.blue),
+                      : (budgetProgress > 0.8 ? Colors.orange : Colors.blue),
                 ),
               ),
             ),
@@ -1627,11 +1706,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               final authState = ref.watch(authNotifierProvider);
               final userRole = userRoleFromString(authState.user?.role);
               final canGenerateActs = _canGenerateActs(userRole);
-              
+
               if (!canGenerateActs) {
                 return const SizedBox.shrink();
               }
-              
+
               return Column(
                 children: [
                   const SizedBox(height: 12),
@@ -1640,13 +1719,15 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     child: FilledButton.icon(
                       onPressed: () {
                         // Используем ID контракта из карточки или выбранный контракт из виджета
-                        final contractIdToUse = _selectedContractId ?? contract.contractId;
-                        
+                        final contractIdToUse =
+                            _selectedContractId ?? contract.contractId;
+
                         // Если период не выбран, бэкенд использует период действия контракта
                         if (_dateFrom == null || _dateTo == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Период не выбран. Будет использован период действия контракта (ID: ${contractIdToUse.substring(0, 12)}...)'),
+                              content: Text(
+                                  'Период не выбран. Будет использован период действия контракта (ID: ${contractIdToUse.substring(0, 12)}...)'),
                               backgroundColor: Colors.blue,
                               duration: const Duration(seconds: 3),
                             ),
@@ -1663,7 +1744,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         }
                       },
                       icon: const Icon(Icons.download, size: 18),
-                      label: const Text('Скачать акт (PDF)', style: TextStyle(fontSize: 12)),
+                      label: const Text('Скачать акт (PDF)',
+                          style: TextStyle(fontSize: 12)),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -1691,7 +1773,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   }
 
   /// Скачивание акта с валидацией периода относительно контракта
-  Future<void> _downloadActWithValidation(String contractId, DashboardContract contract) async {
+  Future<void> _downloadActWithValidation(
+      String contractId, DashboardContract contract) async {
     if (_dateFrom == null || _dateTo == null) {
       // Если период не выбран, используем период контракта
       await _downloadActWithPeriod(contractId, null, null);
@@ -1707,18 +1790,23 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     if (contract.startAt != null && contract.endAt != null) {
       final contractStart = contract.startAt!;
       final contractEnd = contract.endAt!;
-      
+
       // Нормализуем даты (убираем время)
-      final contractStartDate = DateTime(contractStart.year, contractStart.month, contractStart.day);
-      final contractEndDate = DateTime(contractEnd.year, contractEnd.month, contractEnd.day);
-      final selectedStartDate = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
-      final selectedEndDate = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
+      final contractStartDate =
+          DateTime(contractStart.year, contractStart.month, contractStart.day);
+      final contractEndDate =
+          DateTime(contractEnd.year, contractEnd.month, contractEnd.day);
+      final selectedStartDate =
+          DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
+      final selectedEndDate =
+          DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
 
       // Проверяем начало периода
       if (selectedStartDate.isBefore(contractStartDate)) {
         validatedStart = contractStartDate;
         periodAdjusted = true;
-        adjustmentMessage = 'Начало периода скорректировано до даты начала контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)})';
+        adjustmentMessage =
+            'Начало периода скорректировано до даты начала контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)})';
       }
 
       // Проверяем конец периода
@@ -1726,18 +1814,22 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
         validatedEnd = contractEndDate;
         periodAdjusted = true;
         if (adjustmentMessage != null) {
-          adjustmentMessage = 'Период скорректирован до периода действия контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)} - ${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
+          adjustmentMessage =
+              'Период скорректирован до периода действия контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)} - ${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
         } else {
-          adjustmentMessage = 'Конец периода скорректирован до даты окончания контракта (${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
+          adjustmentMessage =
+              'Конец периода скорректирован до даты окончания контракта (${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
         }
       }
 
       // Если период полностью вне контракта, используем период контракта
-      if (selectedEndDate.isBefore(contractStartDate) || selectedStartDate.isAfter(contractEndDate)) {
+      if (selectedEndDate.isBefore(contractStartDate) ||
+          selectedStartDate.isAfter(contractEndDate)) {
         validatedStart = null; // Бэкенд использует start_at контракта
         validatedEnd = null; // Бэкенд использует end_at контракта
         periodAdjusted = true;
-        adjustmentMessage = 'Выбранный период полностью вне действия контракта. Будет использован период действия контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)} - ${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
+        adjustmentMessage =
+            'Выбранный период полностью вне действия контракта. Будет использован период действия контракта (${DateFormat('dd.MM.yyyy').format(contractStartDate)} - ${DateFormat('dd.MM.yyyy').format(contractEndDate)})';
       }
     }
 
@@ -1816,17 +1908,19 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
       debugPrint('Error downloading act: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        
+
         // Парсим сообщение об ошибке для более понятного отображения
         String errorMessage = e.toString();
         String userFriendlyMessage = errorMessage;
-        
+
         // Обработка ошибки 422 - нет рейсов для выбранного периода
-        if (errorMessage.contains('no trips') || errorMessage.contains('422') || errorMessage.contains('Unprocessable')) {
+        if (errorMessage.contains('no trips') ||
+            errorMessage.contains('422') ||
+            errorMessage.contains('Unprocessable')) {
           final periodStr = periodStart != null && periodEnd != null
               ? '${DateFormat('dd.MM.yyyy').format(periodStart!)} - ${DateFormat('dd.MM.yyyy').format(periodEnd!)}'
               : 'выбранного периода';
-          
+
           userFriendlyMessage = 'Нет рейсов для генерации акта\n\n'
               'Для выбранного контракта и периода ($periodStr) не найдено рейсов со статусом "OK".\n\n'
               'Возможные причины:\n'
@@ -1838,36 +1932,49 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               '• Проверить наличие рейсов в разделе "Рейсы"';
         }
         // Проверяем, содержит ли ошибка информацию о датах контракта
-        else if (errorMessage.contains('period_start') && errorMessage.contains('contract start date')) {
+        else if (errorMessage.contains('period_start') &&
+            errorMessage.contains('contract start date')) {
           // Извлекаем даты из сообщения об ошибке
-          final startDateMatch = RegExp(r'period_start \(([^)]+)\)').firstMatch(errorMessage);
-          final contractStartMatch = RegExp(r'contract start date \(([^)]+)\)').firstMatch(errorMessage);
-          
+          final startDateMatch =
+              RegExp(r'period_start \(([^)]+)\)').firstMatch(errorMessage);
+          final contractStartMatch = RegExp(r'contract start date \(([^)]+)\)')
+              .firstMatch(errorMessage);
+
           if (startDateMatch != null && contractStartMatch != null) {
-            userFriendlyMessage = 'Период начала (${startDateMatch.group(1)}) раньше даты начала контракта (${contractStartMatch.group(1)}).\n\n'
+            userFriendlyMessage =
+                'Период начала (${startDateMatch.group(1)}) раньше даты начала контракта (${contractStartMatch.group(1)}).\n\n'
                 'Пожалуйста, выберите период в пределах действия контракта.';
           } else {
-            userFriendlyMessage = 'Выбранный период выходит за пределы действия контракта.\n\n'
+            userFriendlyMessage =
+                'Выбранный период выходит за пределы действия контракта.\n\n'
                 'Пожалуйста, выберите период в пределах дат контракта.';
           }
-        } else if (errorMessage.contains('period_end') && errorMessage.contains('contract end date')) {
-          final endDateMatch = RegExp(r'period_end \(([^)]+)\)').firstMatch(errorMessage);
-          final contractEndMatch = RegExp(r'contract end date \(([^)]+)\)').firstMatch(errorMessage);
-          
+        } else if (errorMessage.contains('period_end') &&
+            errorMessage.contains('contract end date')) {
+          final endDateMatch =
+              RegExp(r'period_end \(([^)]+)\)').firstMatch(errorMessage);
+          final contractEndMatch =
+              RegExp(r'contract end date \(([^)]+)\)').firstMatch(errorMessage);
+
           if (endDateMatch != null && contractEndMatch != null) {
-            userFriendlyMessage = 'Период окончания (${endDateMatch.group(1)}) позже даты окончания контракта (${contractEndMatch.group(1)}).\n\n'
+            userFriendlyMessage =
+                'Период окончания (${endDateMatch.group(1)}) позже даты окончания контракта (${contractEndMatch.group(1)}).\n\n'
                 'Пожалуйста, выберите период в пределах действия контракта.';
           } else {
-            userFriendlyMessage = 'Выбранный период выходит за пределы действия контракта.\n\n'
+            userFriendlyMessage =
+                'Выбранный период выходит за пределы действия контракта.\n\n'
                 'Пожалуйста, выберите период в пределах дат контракта.';
           }
-        } else if (errorMessage.contains('invalid input') || errorMessage.contains('period')) {
+        } else if (errorMessage.contains('invalid input') ||
+            errorMessage.contains('period')) {
           userFriendlyMessage = 'Некорректный период для генерации акта.\n\n'
               'Убедитесь, что выбранный период находится в пределах действия контракта.';
         }
-        
+
         // Для ошибки 422 (нет рейсов) показываем AlertDialog с подробным объяснением
-        if (errorMessage.contains('no trips') || errorMessage.contains('422') || errorMessage.contains('Unprocessable')) {
+        if (errorMessage.contains('no trips') ||
+            errorMessage.contains('422') ||
+            errorMessage.contains('Unprocessable')) {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -1971,114 +2078,123 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
 
   Widget _buildMapSection(DashboardMap mapData) {
     final center = const LatLng(51.1694, 71.4491); // Алматы
-    
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeOutCubic,
       builder: (context, value, child) {
         return Opacity(
-          opacity: value,
-          child: Transform.scale(
-            scale: 0.95 + (value * 0.05),
-            child: Container(
-              height: 400,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08 * value),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                    spreadRadius: 0,
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                child: FlutterMap(
-              options: MapOptions(
-                initialCenter: center,
-                initialZoom: 11.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.akimat.project',
+            opacity: value,
+            child: Transform.scale(
+              scale: 0.95 + (value * 0.05),
+              child: Container(
+                height: 400,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08 * value),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 0,
+                    ),
+                  ],
                 ),
-                // Участки
-                if (mapData.areas.isNotEmpty)
-                  PolygonLayer(
-                    polygons: mapData.areas.map((area) {
-                      final color = area.hasTrips 
-                          ? (area.intensity != null && area.intensity! > 0.5 
-                              ? Colors.green 
-                              : Colors.blue)
-                          : Colors.grey;
-                      // TODO: Парсить GeoJSON из area.id или использовать координаты
-                      // Пока используем заглушку
-                      return Polygon(
-                        points: [
-                          center,
-                          LatLng(center.latitude + 0.01, center.longitude),
-                          LatLng(center.latitude + 0.01, center.longitude + 0.01),
-                          LatLng(center.latitude, center.longitude + 0.01),
-                        ],
-                        color: color.withOpacity(0.3),
-                        borderColor: color,
-                        borderStrokeWidth: 2,
-                        // isFilled: true,
-                        
-                      );
-                    }).toList(),
-                  ),
-                // Полигоны
-                if (mapData.polygons.isNotEmpty)
-                  PolygonLayer(
-                    polygons: mapData.polygons.map((polygon) {
-                      // TODO: Парсить GeoJSON
-                      return Polygon(
-                        points: [
-                          LatLng(center.latitude + 0.02, center.longitude + 0.02),
-                          LatLng(center.latitude + 0.02, center.longitude + 0.03),
-                          LatLng(center.latitude + 0.03, center.longitude + 0.03),
-                          LatLng(center.latitude + 0.03, center.longitude + 0.02),
-                        ],
-                        color: Colors.orange.withOpacity(0.3),
-                        borderColor: Colors.orange,
-                        borderStrokeWidth: 2,
-                        // isFilled: true,
-                      );
-                    }).toList(),
-                  ),
-                // Камеры с ошибками
-                if (mapData.cameras.isNotEmpty)
-                  MarkerLayer(
-                    markers: mapData.cameras.where((c) => (c.errorEvents ?? 0) > 0).map((camera) {
-                      return Marker(
-                        point: LatLng(
-                          center.latitude + (mapData.cameras.indexOf(camera) * 0.005),
-                          center.longitude + (mapData.cameras.indexOf(camera) * 0.005),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: center,
+                      initialZoom: 11.0,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.akimat.project',
+                      ),
+                      // Участки
+                      if (mapData.areas.isNotEmpty)
+                        PolygonLayer(
+                          polygons: mapData.areas.map((area) {
+                            final color = area.hasTrips
+                                ? (area.intensity != null &&
+                                        area.intensity! > 0.5
+                                    ? Colors.green
+                                    : Colors.blue)
+                                : Colors.grey;
+                            // TODO: Парсить GeoJSON из area.id или использовать координаты
+                            // Пока используем заглушку
+                            return Polygon(
+                              points: [
+                                center,
+                                LatLng(
+                                    center.latitude + 0.01, center.longitude),
+                                LatLng(center.latitude + 0.01,
+                                    center.longitude + 0.01),
+                                LatLng(
+                                    center.latitude, center.longitude + 0.01),
+                              ],
+                              color: color.withOpacity(0.3),
+                              borderColor: color,
+                              borderStrokeWidth: 2,
+                              // isFilled: true,
+                            );
+                          }).toList(),
                         ),
-                        width: 30,
-                        height: 30,
-                        child: const Icon(
-                          Icons.videocam,
-                          color: Colors.red,
-                          size: 30,
+                      // Полигоны
+                      if (mapData.polygons.isNotEmpty)
+                        PolygonLayer(
+                          polygons: mapData.polygons.map((polygon) {
+                            // TODO: Парсить GeoJSON
+                            return Polygon(
+                              points: [
+                                LatLng(center.latitude + 0.02,
+                                    center.longitude + 0.02),
+                                LatLng(center.latitude + 0.02,
+                                    center.longitude + 0.03),
+                                LatLng(center.latitude + 0.03,
+                                    center.longitude + 0.03),
+                                LatLng(center.latitude + 0.03,
+                                    center.longitude + 0.02),
+                              ],
+                              color: Colors.orange.withOpacity(0.3),
+                              borderColor: Colors.orange,
+                              borderStrokeWidth: 2,
+                              // isFilled: true,
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }).toList(),
+                      // Камеры с ошибками
+                      if (mapData.cameras.isNotEmpty)
+                        MarkerLayer(
+                          markers: mapData.cameras
+                              .where((c) => (c.errorEvents ?? 0) > 0)
+                              .map((camera) {
+                            return Marker(
+                              point: LatLng(
+                                center.latitude +
+                                    (mapData.cameras.indexOf(camera) * 0.005),
+                                center.longitude +
+                                    (mapData.cameras.indexOf(camera) * 0.005),
+                              ),
+                              width: 30,
+                              height: 30,
+                              child: const Icon(
+                                Icons.videocam,
+                                color: Colors.red,
+                                size: 30,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-          )
-        );
+            ));
       },
     );
   }
-
 }
-

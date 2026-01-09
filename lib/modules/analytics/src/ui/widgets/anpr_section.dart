@@ -7,8 +7,10 @@ import 'package:akimat_project/modules/analytics/src/controller/analytics_provid
 import 'package:akimat_project/modules/analytics/src/controller/anpr_controller.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_kpi_card.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_section.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 import 'package:flutter/foundation.dart';
@@ -82,6 +84,7 @@ class AnprSection extends ConsumerStatefulWidget {
 
 class _AnprSectionState extends ConsumerState<AnprSection> {
   bool _hasLoaded = false;
+  String? _selectedContractorIdForReports; // Фильтр по подрядчикам для отчетов
 
   @override
   void initState() {
@@ -263,29 +266,30 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         const SizedBox(height: AppPadding.normal),
         Row(
           children: [
-            Expanded(
-              child: AnimatedKPICard(
-                title: 'Въездов',
-                value: stats.enterEvents.toString(),
-                icon: Icons.arrow_downward,
-                color: Colors.orange,
-                onTap: () {
-                  // Можно показать только события въезда
-                },
-              ),
-            ),
+            // Expanded(
+            //   child:
+            //    AnimatedKPICard(
+            //     title: 'Въездов',
+            //     value: stats.enterEvents.toString(),
+            //     icon: Icons.arrow_downward,
+            //     color: Colors.orange,
+            //     onTap: () {
+            //       // Можно показать только события въезда
+            //     },
+            //   ),
+            // ),
             const SizedBox(width: AppPadding.normal),
-            Expanded(
-              child: AnimatedKPICard(
-                title: 'Выездов',
-                value: stats.exitEvents.toString(),
-                icon: Icons.arrow_upward,
-                color: Colors.purple,
-                onTap: () {
-                  // Можно показать только события выезда
-                },
-              ),
-            ),
+            // Expanded(
+            //   child: AnimatedKPICard(
+            //     title: 'Выездов',
+            //     value: stats.exitEvents.toString(),
+            //     icon: Icons.arrow_upward,
+            //     color: Colors.purple,
+            //     onTap: () {
+            //       // Можно показать только события выезда
+            //     },
+            //   ),
+            // ),
           ],
         ),
         const SizedBox(height: AppPadding.normal),
@@ -1461,6 +1465,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             // Пока оставляем null, чтобы не показывать неверные данные
             
             return DataRow(
+              onSelectChanged: (_) {
+                controller.loadEventById(event.id);
+                _showEventDetails(context, event, controller);
+              },
               cells: [
                 DataCell(
                   Center(
@@ -1736,14 +1744,38 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     AnprReportData reportData,
     AnprController controller,
   ) {
+    final organizationsState = ref.watch(organizationsControllerProvider);
+    final organizationsData = organizationsState.data.valueOrNull;
+    final contractors = organizationsData?.organizations
+            .where((org) => org.type == OrganizationType.contractor && org.isActive)
+            .toList() ??
+        [];
+    
+    // Фильтруем события по выбранному подрядчику
+    List<AnprReportEvent> filteredEvents = reportData.events;
+    if (_selectedContractorIdForReports != null) {
+      filteredEvents = reportData.events.where((event) {
+        if (event.contractorId != null) {
+          return event.contractorId == _selectedContractorIdForReports;
+        }
+        // Если contractorId не указан, пытаемся найти по номеру
+        final vehicle = organizationsData?.vehicles.firstWhere(
+          (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
+                 (event.plateNumber?.replaceAll(' ', '').toUpperCase() ?? ''),
+          orElse: () => organizationsData!.vehicles.first,
+        );
+        return vehicle?.contractorId == _selectedContractorIdForReports;
+      }).toList();
+    }
+    
     // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-    // Вычисляем общий объем и количество поездок на основе событий с моком
+    // Вычисляем общий объем и количество поездок на основе отфильтрованных событий с моком
     double mockTotalVolume = 0.0;
     int mockTripCount = 0;
     
-    // Применяем мок ко всем событиям и суммируем объем
-    if (reportData.events.isNotEmpty) {
-      for (final event in reportData.events) {
+    // Применяем мок к отфильтрованным событиям и суммируем объем
+    if (filteredEvents.isNotEmpty) {
+      for (final event in filteredEvents) {
         final mockVolume = _getMockSnowVolume(event.plateNumber);
         if (mockVolume != null && mockVolume > 0) {
           mockTotalVolume += mockVolume;
@@ -1769,6 +1801,58 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Фильтр по подрядчикам
+        if (contractors.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: AppPadding.large),
+            padding: const EdgeInsets.all(AppPadding.normal),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppSize.cardRadius),
+              border: Border.all(color: AppColors.divider, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.filter_list, size: 20, color: AppColors.primary),
+                const SizedBox(width: AppPadding.small),
+                Text('Фильтр:', style: AppTextStyles.title3),
+                const SizedBox(width: AppPadding.normal),
+                Expanded(
+                  child: SafeDropdownButtonFormField<String?>(
+                    value: _selectedContractorIdForReports,
+                    decoration: InputDecoration(
+                      labelText: 'Подрядчик',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      ),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Все подрядчики'),
+                      ),
+                      ...contractors.map((contractor) {
+                        return DropdownMenuItem<String?>(
+                          value: contractor.id,
+                          child: Text(contractor.name),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedContractorIdForReports = value;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         // Статистика отчетов
         Row(
           children: [
@@ -1799,7 +1883,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         ),
         const SizedBox(height: AppPadding.large),
         // Таблица событий из отчета
-        if (reportData.events.isEmpty)
+        if (filteredEvents.isEmpty)
           Container(
             padding: const EdgeInsets.all(AppPadding.large),
             decoration: BoxDecoration(
@@ -1832,7 +1916,19 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             builder: (context) {
               final organizationsState = ref.watch(organizationsControllerProvider);
               final organizationsData = organizationsState.data.valueOrNull;
-              return _buildReportsTable(context, reportData, controller, organizationsData);
+              // Пересчитываем totalVolume и tripCount на основе отфильтрованных событий
+              double filteredTotalVolume = 0.0;
+              for (final event in filteredEvents) {
+                final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3 ?? 0.0;
+                filteredTotalVolume += volume;
+              }
+              // Создаем новый AnprReportData с отфильтрованными событиями
+              final filteredReportData = AnprReportData(
+                totalVolume: filteredTotalVolume,
+                tripCount: filteredEvents.length,
+                events: filteredEvents,
+              );
+              return _buildReportsTable(context, filteredReportData, controller, organizationsData);
             },
           ),
       ],
@@ -2587,6 +2683,9 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
             
             return DataRow(
+              onSelectChanged: (_) {
+                _showReportEventDetails(context, event, controller);
+              },
               cells: [
                 DataCell(
                   Center(

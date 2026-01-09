@@ -272,14 +272,14 @@ class _AnprContractorsSectionState
         const SizedBox(height: AppPadding.normal),
         Row(
           children: [
-            Expanded(
-              child: AnimatedKPICard(
-                title: 'Въездов',
-                value: stats.enterEvents.toString(),
-                icon: Icons.arrow_downward,
-                color: Colors.orange,
-              ),
-            ),
+            // Expanded(
+            //   child: AnimatedKPICard(
+            //     title: 'Въездов',
+            //     value: stats.enterEvents.toString(),
+            //     icon: Icons.arrow_downward,
+            //     color: Colors.orange,
+            //   ),
+            // ),
             const SizedBox(width: AppPadding.normal),
             Expanded(
               child: AnimatedKPICard(
