@@ -710,25 +710,25 @@ class _AnalyticsDashboardPageState
 
     // Дополнительная фильтрация по выбранному подрядчику и контракту
     List<DashboardContract> filteredContracts = contractsToUse;
-    
+
     // Фильтрация по подрядчику (если выбран)
     if (_selectedContractorId != null) {
       final contractsState = ref.watch(contractsControllerProvider);
       final contractsData = contractsState.data.valueOrNull;
       final allContracts = contractsData?.contracts ?? <Contract>[];
-      
+
       // Получаем ID контрактов выбранного подрядчика
       final contractorContractIds = allContracts
           .where((contract) => contract.contractorId == _selectedContractorId)
           .map((contract) => contract.id)
           .toSet();
-      
+
       // Фильтруем контракты дашборда по ID контрактов подрядчика
-      filteredContracts = contractsToUse.where((contract) {
-        return contractorContractIds.contains(contract.contractId);
-      }).toList();
+      filteredContracts = contractsToUse
+          .where((contract) => contractorContractIds.contains(contract.contractId))
+          .toList();
     }
-    
+
     // Фильтрация по выбранному контракту (если выбран)
     if (_selectedContractId != null) {
       filteredContracts = filteredContracts
@@ -911,14 +911,14 @@ class _AnalyticsDashboardPageState
 
                       // Фильтруем контракты по выбранной дате и подрядчику
                       List<Contract> contractsToShow = allContracts;
-                      
+
                       // Фильтр по подрядчику
                       if (_selectedContractorId != null) {
                         contractsToShow = contractsToShow.where((contract) {
                           return contract.contractorId == _selectedContractorId;
                         }).toList();
                       }
-                      
+
                       // Фильтр по выбранной дате (если дата выбрана)
                       if (_dateFrom != null && _dateTo != null) {
                         contractsToShow = contractsToShow.where((contract) {
@@ -1329,12 +1329,11 @@ class _AnalyticsDashboardPageState
                   _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
 
               // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
-              // Если выбран подрядчик в фильтре, используем его, иначе используем organizationId для CONTRACTOR_ADMIN
-              final contractorId = _selectedContractorId != null
-                  ? _selectedContractorId
-                  : (userRole == UserRole.contractorAdmin
-                      ? authState.user?.organizationId
-                      : null);
+              // Для contractorAdmin всегда берем организацию пользователя.
+              // Для остальных ролей используем выбранного подрядчика (если выбран).
+              final contractorId = userRole == UserRole.contractorAdmin
+                  ? authState.user?.organizationId
+                  : _selectedContractorId;
 
               return AnprSection(
                 dateFrom: anprDateFrom,

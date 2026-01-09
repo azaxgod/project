@@ -1825,30 +1825,35 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             .where((org) => org.type == OrganizationType.contractor && org.isActive)
             .toList() ??
         [];
-    
-    // Фильтруем события по выбранному подрядчику из фильтра главной страницы
-    // Используем widget.contractorId, который передается из фильтра на странице аналитики
+
+    // Фильтруем события по подрядчику:
+    // - если contractorId пришел с главной страницы (widget.contractorId), используем его
+    // - иначе используем локальный фильтр в секции отчетов
     List<AnprReportEvent> filteredEvents = reportData.events;
     final contractorIdToFilter = widget.contractorId ?? _selectedContractorIdForReports;
-    
+
     if (contractorIdToFilter != null) {
       filteredEvents = reportData.events.where((event) {
-        // Проверяем contractorId в событии отчета
+        // Если API вернул contractorId прямо в событии
         if (event.contractorId != null) {
           return event.contractorId == contractorIdToFilter;
         }
-        // Если contractorId не указан, пытаемся найти по номеру через organizationsData
+
+        // Иначе пытаемся определить по номеру авто через organizationsData
         if (organizationsData != null) {
           try {
+            final normalizedPlate =
+                (event.plateNumber ?? '').replaceAll(' ', '').toUpperCase();
             final vehicle = organizationsData.vehicles.firstWhere(
-              (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
-                     (event.plateNumber?.replaceAll(' ', '').toUpperCase() ?? ''),
+              (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() ==
+                  normalizedPlate,
             );
             return vehicle.contractorId == contractorIdToFilter;
           } catch (e) {
             return false;
           }
         }
+
         return false;
       }).toList();
     }
