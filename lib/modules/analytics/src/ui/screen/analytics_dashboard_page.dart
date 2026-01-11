@@ -56,6 +56,7 @@ class _AnalyticsDashboardPageState
   DateTime? _dateFrom;
   DateTime? _dateTo;
   String? _selectedContractId;
+  String? _selectedContractorId;
   AsyncValue<Map<String, dynamic>>? _landfillJournalData;
   bool _hasInitialLoad = false;
   bool _isLoadingInitialData = false;
@@ -707,13 +708,33 @@ class _AnalyticsDashboardPageState
       contractsToUse = dashboardContracts;
     }
 
-    // Дополнительная фильтрация по выбранному контракту
-    // Если выбран контракт из списка созданных контрактов, показываем только его
-    final filteredContracts = _selectedContractId != null
-        ? contractsToUse
-            .where((contract) => contract.contractId == _selectedContractId)
-            .toList()
-        : contractsToUse;
+    // Дополнительная фильтрация по выбранному подрядчику и контракту
+    List<DashboardContract> filteredContracts = contractsToUse;
+    
+    // Фильтрация по подрядчику (если выбран)
+    if (_selectedContractorId != null) {
+      final contractsState = ref.watch(contractsControllerProvider);
+      final contractsData = contractsState.data.valueOrNull;
+      final allContracts = contractsData?.contracts ?? <Contract>[];
+      
+      // Получаем ID контрактов выбранного подрядчика
+      final contractorContractIds = allContracts
+          .where((contract) => contract.contractorId == _selectedContractorId)
+          .map((contract) => contract.id)
+          .toSet();
+      
+      // Фильтруем контракты дашборда по ID контрактов подрядчика
+      filteredContracts = contractsToUse.where((contract) {
+        return contractorContractIds.contains(contract.contractId);
+      }).toList();
+    }
+    
+    // Фильтрация по выбранному контракту (если выбран)
+    if (_selectedContractId != null) {
+      filteredContracts = filteredContracts
+          .where((contract) => contract.contractId == _selectedContractId)
+          .toList();
+    }
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(config.padding),
@@ -739,8 +760,147 @@ class _AnalyticsDashboardPageState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Выбор даты
+                Row(
+                  children: [
+                    Expanded(
+                      child: CustomDateRangePicker(
+                        label: 'Период аналитики',
+                        initialStartDate: _dateFrom,
+                        initialEndDate: _dateTo,
+                        onDateRangeSelected: (start, end) {
+                          if (start == null || end == null) return;
+
+                          setState(() {
+                            _dateFrom = start;
+                            _dateTo = end;
+                            // При изменении даты сбрасываем выбранный контракт, чтобы показать все контракты в новом периоде
+                            _selectedContractId = null;
+                            // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
+                            _hasInitialLoad = false;
+                          });
+
+                          // Обновляем диапазон дат в контроллере
+                          controller.updateDateRange(start, end);
+
+                          // Для LANDFILL_ADMIN загружаем техническую аналитику
+                          if (isLandfillAdmin) {
+                            controller.loadTechnicalAnalytics(
+                                from: start, to: end);
+                          } else {
+                            controller.loadDashboard(from: start, to: end);
+                            // Перезагружаем контракты с фильтром по дате
+                            controller.loadContractsAnalytics(
+                                from: start, to: end);
+                            // Перезагружаем данные журнала приёма снега
+                            _loadLandfillJournal();
+                          }
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(width: AppPadding.normal),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius:
+                            BorderRadius.circular(AppSize.smallRadius),
+                      ),
+                      child: IconButton(
+                        icon:
+                            const Icon(Icons.refresh, color: AppColors.primary),
+                        tooltip: 'Обновить данные',
+                        onPressed: () {
+                          // Для LANDFILL_ADMIN загружаем техническую аналитику
+                          if (isLandfillAdmin) {
+                            controller.loadTechnicalAnalytics(
+                                from: _dateFrom, to: _dateTo);
+                          } else {
+                            controller.loadDashboard(
+                                from: _dateFrom, to: _dateTo);
+                            // Всегда загружаем отфильтрованные контракты при обновлении
+                            if (_dateFrom != null && _dateTo != null) {
+                              controller.loadContractsAnalytics(
+                                  from: _dateFrom, to: _dateTo);
+                              // Перезагружаем данные журнала приёма снега
+                              _loadLandfillJournal();
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                // Фильтр по подрядчикам (скрыт для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
+                if (!isLandfillAdmin && !isContractorAdmin) ...[
+                  const SizedBox(height: AppPadding.normal),
+                  Builder(
+                    builder: (context) {
+                      // Получаем список всех подрядчиков из данных дашборда
+                      final allContractors = [
+                        ...contractors.active,
+                        ...contractors.idle,
+                      ];
+
+                      if (allContractors.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Выберите подрядчика',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppPadding.small),
+                          SizedBox(
+                            width: double.infinity,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedContractorId,
+                              decoration: InputDecoration(
+                                labelText: 'Подрядчик',
+                                hintText: 'Все подрядчики',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      AppSize.smallRadius),
+                                ),
+                                prefixIcon: const Icon(Icons.business),
+                                isDense: true,
+                              ),
+                              items: [
+                                const DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text('Все подрядчики'),
+                                ),
+                                ...allContractors.map((contractor) {
+                                  return DropdownMenuItem<String>(
+                                    value: contractor.id,
+                                    child: Text(contractor.name),
+                                  );
+                                }),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedContractorId = value;
+                                  // При изменении подрядчика сбрасываем выбранный контракт
+                                  _selectedContractId = null;
+                                });
+                                // Перезагружаем данные ANPR при изменении фильтра подрядчика
+                                // Это произойдет автоматически через didUpdateWidget в AnprSection
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
                 // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-                if (!isLandfillAdmin && !isContractorAdmin)
+                if (!isLandfillAdmin && !isContractorAdmin) ...[
+                  const SizedBox(height: AppPadding.normal),
                   Builder(
                     builder: (context) {
                       final contractsState =
@@ -749,10 +909,19 @@ class _AnalyticsDashboardPageState
                       final allContracts =
                           contractsData?.contracts ?? <Contract>[];
 
-                      // Фильтруем контракты по выбранной дате (если дата выбрана)
+                      // Фильтруем контракты по выбранной дате и подрядчику
                       List<Contract> contractsToShow = allContracts;
+                      
+                      // Фильтр по подрядчику
+                      if (_selectedContractorId != null) {
+                        contractsToShow = contractsToShow.where((contract) {
+                          return contract.contractorId == _selectedContractorId;
+                        }).toList();
+                      }
+                      
+                      // Фильтр по выбранной дате (если дата выбрана)
                       if (_dateFrom != null && _dateTo != null) {
-                        contractsToShow = allContracts.where((contract) {
+                        contractsToShow = contractsToShow.where((contract) {
                           final contractStart = DateTime(contract.startAt.year,
                               contract.startAt.month, contract.startAt.day);
                           final contractEnd = DateTime(contract.endAt.year,
@@ -851,84 +1020,11 @@ class _AnalyticsDashboardPageState
                               },
                             ),
                           ),
-                          const SizedBox(height: AppPadding.normal),
                         ],
                       );
                     },
                   ),
-                // Выбор даты
-                
-                Row(
-                  children: [
-                    
-                    Expanded(
-                      child: CustomDateRangePicker(
-                        label: 'Период аналитики',
-                        initialStartDate: _dateFrom,
-                        initialEndDate: _dateTo,
-                        onDateRangeSelected: (start, end) {
-                          if (start == null || end == null) return;
-
-                          setState(() {
-                            _dateFrom = start;
-                            _dateTo = end;
-                            // При изменении даты сбрасываем выбранный контракт, чтобы показать все контракты в новом периоде
-                            _selectedContractId = null;
-                            // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
-                            _hasInitialLoad = false;
-                          });
-
-                          // Обновляем диапазон дат в контроллере
-                          controller.updateDateRange(start, end);
-
-                          // Для LANDFILL_ADMIN загружаем техническую аналитику
-                          if (isLandfillAdmin) {
-                            controller.loadTechnicalAnalytics(
-                                from: start, to: end);
-                          } else {
-                            controller.loadDashboard(from: start, to: end);
-                            // Перезагружаем контракты с фильтром по дате
-                            controller.loadContractsAnalytics(
-                                from: start, to: end);
-                            // Перезагружаем данные журнала приёма снега
-                            _loadLandfillJournal();
-                          }
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(width: AppPadding.normal),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius:
-                            BorderRadius.circular(AppSize.smallRadius),
-                      ),
-                      child: IconButton(
-                        icon:
-                            const Icon(Icons.refresh, color: AppColors.primary),
-                        tooltip: 'Обновить данные',
-                        onPressed: () {
-                          // Для LANDFILL_ADMIN загружаем техническую аналитику
-                          if (isLandfillAdmin) {
-                            controller.loadTechnicalAnalytics(
-                                from: _dateFrom, to: _dateTo);
-                          } else {
-                            controller.loadDashboard(
-                                from: _dateFrom, to: _dateTo);
-                            // Всегда загружаем отфильтрованные контракты при обновлении
-                            if (_dateFrom != null && _dateTo != null) {
-                              controller.loadContractsAnalytics(
-                                  from: _dateFrom, to: _dateTo);
-                              // Перезагружаем данные журнала приёма снега
-                              _loadLandfillJournal();
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                ],
                 
                 // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
                 if (!isLandfillAdmin &&
@@ -1233,9 +1329,12 @@ class _AnalyticsDashboardPageState
                   _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
 
               // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
-              final contractorId = userRole == UserRole.contractorAdmin
-                  ? authState.user?.organizationId
-                  : null;
+              // Если выбран подрядчик в фильтре, используем его, иначе используем organizationId для CONTRACTOR_ADMIN
+              final contractorId = _selectedContractorId != null
+                  ? _selectedContractorId
+                  : (userRole == UserRole.contractorAdmin
+                      ? authState.user?.organizationId
+                      : null);
 
               return AnprSection(
                 dateFrom: anprDateFrom,

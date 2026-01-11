@@ -134,20 +134,18 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
     }
     
-    // Загружаем отчеты только если их нет и не загружается
+    // Загружаем отчеты с учетом фильтра по подрядчику
     // Согласно документации: отчеты показывают поездки и объем снега
-    final reportsIsLoading = anprState.reports?.isLoading ?? false;
-    if (anprState.reports == null && !reportsIsLoading) {
-      anprController.loadReports(
-        from: effectiveFrom,
-        to: effectiveTo,
-        contractorId: widget.contractorId,
-        polygonId: widget.polygonId,
-        vehicleId: widget.vehicleId,
-        plate: widget.plate,
-        limit: 100, // Согласно документации: по умолчанию 100, макс 1000
-      );
-    }
+    // Всегда перезагружаем отчеты при изменении фильтров, чтобы получить актуальные данные
+    anprController.loadReports(
+      from: effectiveFrom,
+      to: effectiveTo,
+      contractorId: widget.contractorId,
+      polygonId: widget.polygonId,
+      vehicleId: widget.vehicleId,
+      plate: widget.plate,
+      limit: 100, // Согласно документации: по умолчанию 100, макс 1000
+    );
     
     // Загружаем события только если их нет и не загружается
     // Согласно документации: по умолчанию 50, максимум 100
@@ -177,16 +175,70 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         AnimatedSection(
           title: 'ANPR - Распознавание номеров',
           icon: Icons.camera_alt,
-          child: anprState.statistics?.when(
-            data: (stats) => _buildStatistics(stats),
-            loading: () => const Center(
-              child: Padding( 
-                padding: EdgeInsets.all(AppPadding.large),
-                child: CircularProgressIndicator(),
-              ), 
-            ),
-            error: (error, stack) => _buildErrorState(error.toString()),
-          ) ?? const SizedBox.shrink(),
+          child: Builder(
+            builder: (context) {
+              // Если есть фильтр по подрядчику, пересчитываем статистику из событий
+              if (widget.contractorId != null && anprState.events?.hasValue == true) {
+                final allEvents = anprState.events!.value!;
+                final organizationsState = ref.watch(organizationsControllerProvider);
+                final organizationsData = organizationsState.data.valueOrNull;
+                
+                // Фильтруем события по подрядчику
+                final filteredEvents = allEvents.where((event) {
+                  if (event.contractorId != null) {
+                    return event.contractorId == widget.contractorId;
+                  }
+                  if (organizationsData != null) {
+                    try {
+                      final vehicle = organizationsData.vehicles.firstWhere(
+                        (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
+                               event.normalizedPlate.replaceAll(' ', '').toUpperCase(),
+                      );
+                      return vehicle.contractorId == widget.contractorId;
+                    } catch (e) {
+                      return false;
+                    }
+                  }
+                  return false;
+                }).toList();
+                
+                // Пересчитываем статистику из отфильтрованных событий
+                final totalEvents = filteredEvents.length;
+                final uniquePlates = filteredEvents.map((e) => e.normalizedPlate).toSet().length;
+                final enterEvents = filteredEvents.where((e) => e.direction == 'enter').length;
+                final exitEvents = filteredEvents.where((e) => e.direction == 'exit').length;
+                final avgConfidence = filteredEvents
+                        .where((e) => e.confidence != null)
+                        .map((e) => e.confidence!)
+                        .fold(0.0, (sum, conf) => sum + conf) /
+                    (filteredEvents.where((e) => e.confidence != null).length > 0
+                        ? filteredEvents.where((e) => e.confidence != null).length
+                        : 1);
+                
+                final filteredStats = AnprStatistics(
+                  totalEvents: totalEvents,
+                  uniquePlates: uniquePlates,
+                  enterEvents: enterEvents,
+                  exitEvents: exitEvents,
+                  avgConfidence: avgConfidence,
+                );
+                
+                return _buildStatistics(filteredStats);
+              }
+              
+              // Иначе используем стандартную статистику
+              return anprState.statistics?.when(
+                data: (stats) => _buildStatistics(stats),
+                loading: () => const Center(
+                  child: Padding( 
+                    padding: EdgeInsets.all(AppPadding.large),
+                    child: CircularProgressIndicator(),
+                  ), 
+                ),
+                error: (error, stack) => _buildErrorState(error.toString()),
+              ) ?? const SizedBox.shrink();
+            },
+          ),
         ),
         const SizedBox(height: AppPadding.large),
         // Отчеты по объему снега и поездкам
@@ -313,7 +365,28 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     AnprReportData? reportsData,
     OrganizationsData? organizationsData,
   ) {
-    if (events.isEmpty) {
+    // Фильтруем события по подрядчику, если указан
+    List<AnprEvent> filteredEvents = events;
+    if (widget.contractorId != null && organizationsData != null) {
+      filteredEvents = events.where((event) {
+        // Проверяем contractorId в событии
+        if (event.contractorId != null) {
+          return event.contractorId == widget.contractorId;
+        }
+        // Если contractorId не указан, пытаемся найти по номеру через organizationsData
+        try {
+          final vehicle = organizationsData.vehicles.firstWhere(
+            (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
+                   event.normalizedPlate.replaceAll(' ', '').toUpperCase(),
+          );
+          return vehicle.contractorId == widget.contractorId;
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+    }
+
+    if (filteredEvents.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(AppPadding.large),
         decoration: BoxDecoration(
@@ -332,7 +405,9 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               ),
               const SizedBox(height: AppPadding.normal),
               Text(
-                'Нет событий за выбранный период',
+                widget.contractorId != null
+                    ? 'Нет событий для выбранного подрядчика'
+                    : 'Нет событий за выбранный период',
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -343,8 +418,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       );
     }
 
-    // Вычисляем статистику по объему снега
-    final snowVolumeStats = _calculateSnowVolumeStats(events, reportsData);
+    // Вычисляем статистику по объему снега из отфильтрованных событий
+    final snowVolumeStats = _calculateSnowVolumeStats(filteredEvents, reportsData);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,7 +432,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
           builder: (context) {
             final organizationsState = ref.watch(organizationsControllerProvider);
             final organizationsData = organizationsState.data.valueOrNull;
-            return _buildEventsDataTable(context, events, controller, reportsData, organizationsData);
+            return _buildEventsDataTable(context, filteredEvents, controller, reportsData, organizationsData);
           },
         ),
       ],
@@ -1751,58 +1826,72 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             .toList() ??
         [];
     
-    // Фильтруем события по выбранному подрядчику
+    // Фильтруем события по выбранному подрядчику из фильтра главной страницы
+    // Используем widget.contractorId, который передается из фильтра на странице аналитики
     List<AnprReportEvent> filteredEvents = reportData.events;
-    if (_selectedContractorIdForReports != null) {
+    final contractorIdToFilter = widget.contractorId ?? _selectedContractorIdForReports;
+    
+    if (contractorIdToFilter != null) {
       filteredEvents = reportData.events.where((event) {
+        // Проверяем contractorId в событии отчета
         if (event.contractorId != null) {
-          return event.contractorId == _selectedContractorIdForReports;
+          return event.contractorId == contractorIdToFilter;
         }
-        // Если contractorId не указан, пытаемся найти по номеру
-        final vehicle = organizationsData?.vehicles.firstWhere(
-          (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
-                 (event.plateNumber?.replaceAll(' ', '').toUpperCase() ?? ''),
-          orElse: () => organizationsData!.vehicles.first,
-        );
-        return vehicle?.contractorId == _selectedContractorIdForReports;
+        // Если contractorId не указан, пытаемся найти по номеру через organizationsData
+        if (organizationsData != null) {
+          try {
+            final vehicle = organizationsData.vehicles.firstWhere(
+              (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
+                     (event.plateNumber?.replaceAll(' ', '').toUpperCase() ?? ''),
+            );
+            return vehicle.contractorId == contractorIdToFilter;
+          } catch (e) {
+            return false;
+          }
+        }
+        return false;
       }).toList();
     }
     
-    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-    // Вычисляем общий объем и количество поездок на основе отфильтрованных событий с моком
-    double mockTotalVolume = 0.0;
-    int mockTripCount = 0;
+    // Вычисляем общий объем и количество поездок на основе отфильтрованных событий
+    // Используем реальные данные из reportData, если доступны
+    double totalVolume = 0.0;
+    int tripCount = filteredEvents.length;
     
-    // Применяем мок к отфильтрованным событиям и суммируем объем
-    if (filteredEvents.isNotEmpty) {
-      for (final event in filteredEvents) {
-        final mockVolume = _getMockSnowVolume(event.plateNumber);
-        if (mockVolume != null && mockVolume > 0) {
-          mockTotalVolume += mockVolume;
-          mockTripCount++;
-        } else {
-          // Если мок не вернул значение, генерируем случайное от 14 до 19
-          final random = Random(event.plateNumber.hashCode);
-          final volume = 14.0 + random.nextDouble() * 5.0;
-          mockTotalVolume += volume;
-          mockTripCount++;
-        }
+    // Суммируем объем снега из отфильтрованных событий
+    for (final event in filteredEvents) {
+      if (event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
+        totalVolume += event.snowVolumeM3!;
       }
     }
     
     // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-    // Если после применения мока значения равны 0, используем фиксированные мок-значения
-    if (mockTripCount == 0 || mockTotalVolume == 0.0) {
-      // Используем фиксированные значения для скриншота
-      mockTripCount = 25; // Примерное количество поездок
-      mockTotalVolume = 425.5; // Примерный общий объем (25 * ~17 м³)
+    // Если реальных данных нет, используем мок
+    if (totalVolume == 0.0 && filteredEvents.isNotEmpty) {
+      for (final event in filteredEvents) {
+        final mockVolume = _getMockSnowVolume(event.plateNumber);
+        if (mockVolume != null && mockVolume > 0) {
+          totalVolume += mockVolume;
+        } else {
+          // Если мок не вернул значение, генерируем случайное от 14 до 19
+          final random = Random(event.plateNumber.hashCode);
+          final volume = 14.0 + random.nextDouble() * 5.0;
+          totalVolume += volume;
+        }
+      }
+    }
+    
+    // Если все еще нет данных, показываем 0
+    if (tripCount == 0) {
+      totalVolume = 0.0;
     }
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Фильтр по подрядчикам
-        if (contractors.isNotEmpty)
+        // Фильтр по подрядчикам (показываем только если не используется фильтр с главной страницы)
+        // Если widget.contractorId задан, значит используется фильтр с главной страницы - скрываем локальный фильтр
+        if (contractors.isNotEmpty && widget.contractorId == null)
           Container(
             margin: const EdgeInsets.only(bottom: AppPadding.large),
             padding: const EdgeInsets.all(AppPadding.normal),
@@ -1853,13 +1942,51 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               ],
             ),
           ),
+        // Информация о примененном фильтре, если используется фильтр с главной страницы
+        if (widget.contractorId != null && organizationsData != null)
+          Builder(
+            builder: (context) {
+              try {
+                final contractor = organizationsData.organizations.firstWhere(
+                  (org) => org.id == widget.contractorId,
+                );
+                return Container(
+                  margin: const EdgeInsets.only(bottom: AppPadding.large),
+                  padding: const EdgeInsets.all(AppPadding.normal),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.filter_alt, size: 20, color: AppColors.primary),
+                      const SizedBox(width: AppPadding.small),
+                      Text(
+                        'Фильтр: ${contractor.name}',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                return const SizedBox.shrink();
+              }
+            },
+          ),
         // Статистика отчетов
         Row(
           children: [
             Expanded(
               child: AnimatedKPICard(
                 title: 'Всего поездок',
-                value: mockTripCount.toString(),
+                value: tripCount.toString(),
                 icon: Icons.directions_car,
                 color: Colors.blue,
                 onTap: () {
@@ -1871,7 +1998,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             Expanded(
               child: AnimatedKPICard(
                 title: 'Общий объем снега',
-                value: '${mockTotalVolume.toStringAsFixed(1)} м³',
+                value: '${totalVolume.toStringAsFixed(1)} м³',
                 icon: Icons.snowing,
                 color: Colors.cyan,
                 onTap: () {
