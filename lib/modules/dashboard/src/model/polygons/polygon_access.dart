@@ -21,3 +21,4 @@ class PolygonAccess extends Equatable {
   List<Object?> get props => [id, polygonId, contractorId, source, isActive, createdAt];
 }
 
+

@@ -16,8 +16,6 @@ import 'package:akimat_project/modules/analytics/src/controller/analytics_state.
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_kpi_card.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/animated_section.dart';
 import 'package:akimat_project/modules/analytics/src/ui/widgets/shimmer_loading.dart';
-import 'package:akimat_project/modules/analytics/src/ui/widgets/anpr_section.dart';
-import 'package:akimat_project/modules/analytics/src/controller/anpr_controller.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
@@ -55,8 +53,6 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
   DateTime? _dateTo;
   String? _selectedContractId;
   AsyncValue<Map<String, dynamic>>? _landfillJournalData;
-  bool _hasInitialLoad = false;
-  bool _isLoadingInitialData = false;
 
   @override
   void initState() {
@@ -67,66 +63,35 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final now = DateTime.now();
     _dateTo = now;
     _dateFrom = DateTime(now.year, now.month, 1); // Первый день текущего месяца
-  }
-
-  void _loadInitialData() {
-    if (!mounted || _isLoadingInitialData) return;
     
-    _isLoadingInitialData = true;
-    
-    final controller = ref.read(analyticsControllerProvider.notifier);
-    final state = ref.read(analyticsControllerProvider);
-    
-    // Проверяем роль пользователя
-    final authState = ref.read(authNotifierProvider);
-    if (authState.user == null) {
-      _isLoadingInitialData = false;
-      return;
-    }
-    
-    final userRole = userRoleFromString(authState.user?.role);
-    final isLandfillAdmin = userRole == UserRole.landfillAdmin;
-    
-    // Упрощенная логика: загружаем если данных нет или есть ошибка
-    if (isLandfillAdmin) {
-      // Для LANDFILL_ADMIN загружаем техническую аналитику
-      if (state.technicalAnalytics == null || 
-          (!state.technicalAnalytics!.isLoading && !state.technicalAnalytics!.hasValue) ||
-          (state.technicalAnalytics!.hasError && !state.technicalAnalytics!.isLoading)) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = ref.read(analyticsControllerProvider.notifier);
+      
+      // Проверяем роль пользователя
+      final authState = ref.read(authNotifierProvider);
+      final userRole = userRoleFromString(authState.user?.role);
+      final isLandfillAdmin = userRole == UserRole.landfillAdmin;
+      
+      if (isLandfillAdmin) {
+        // Для LANDFILL_ADMIN загружаем техническую аналитику
         controller.loadTechnicalAnalytics(
           from: _dateFrom,
           to: _dateTo,
         );
-      }
-      _hasInitialLoad = true;
-    } else {
-      // Для других ролей загружаем обычный дашборд
-      if (state.dashboard == null || 
-          (!state.dashboard!.isLoading && !state.dashboard!.hasValue) ||
-          (state.dashboard!.hasError && !state.dashboard!.isLoading)) {
+      } else {
+        // Для других ролей загружаем обычный дашборд
         controller.loadDashboard(
           from: _dateFrom,
           to: _dateTo,
         );
-      }
-      _hasInitialLoad = true;
-      
-      // Также загружаем отфильтрованные контракты при инициализации
-      if (_dateFrom != null && _dateTo != null) {
-        if (state.contractsAnalytics == null || 
-            (!state.contractsAnalytics!.isLoading && !state.contractsAnalytics!.hasValue) ||
-            (state.contractsAnalytics!.hasError && !state.contractsAnalytics!.isLoading)) {
-          // Загружаем контракты асинхронно, не блокируя основной UI
-          Future.microtask(() {
-            if (mounted) {
-              controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
-            }
-          });
+        // Также загружаем отфильтрованные контракты при инициализации
+        if (_dateFrom != null && _dateTo != null) {
+          controller.loadContractsAnalytics(from: _dateFrom, to: _dateTo);
+          // Загружаем данные журнала приёма снега для LANDFILL_ADMIN
+          _loadLandfillJournal();
         }
       }
-    }
-    
-    _isLoadingInitialData = false;
+    });
   }
 
   Future<void> _loadLandfillJournal() async {
@@ -177,18 +142,6 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final userRole = userRoleFromString(authState.user?.role);
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
 
-    // Загружаем данные при первой загрузке
-    // Используем addPostFrameCallback для гарантированной загрузки после построения виджета
-    if (authState.user != null && _dateFrom != null && _dateTo != null) {
-      if (!_hasInitialLoad && !_isLoadingInitialData) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_hasInitialLoad) {
-            _loadInitialData();
-          }
-        });
-      }
-    }
-
     return Scaffold(
       key: widget.scaffoldKey,
       drawer: !kIsWeb ? const DrawerMobile() : null,
@@ -216,9 +169,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           Expanded(
             child: isLandfillAdmin
                 ? _buildTechnicalAnalytics(state, controller)
-                : state.dashboard == null
-                    ? _buildLoadingState()
-                    : state.dashboard!.when(
+                : state.dashboard?.when(
                     data: (data) => _buildDashboardContent(data, controller),
                     loading: () => _buildLoadingState(),
                     error: (error, stack) => Center(
@@ -318,7 +269,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                   ),
                 ),
               ),
-                    ),
+                    ) ?? const Center(child: CircularProgressIndicator()),
           ),
         ],
       ),
@@ -330,11 +281,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     AnalyticsState state,
     AnalyticsController controller,
   ) {
-    if (state.technicalAnalytics == null) {
-      return _buildLoadingState();
-    }
-
-    return state.technicalAnalytics!.when(
+    return state.technicalAnalytics?.when(
       data: (data) => _buildTechnicalContent(data, controller),
       loading: () => _buildLoadingState(),
       error: (error, stack) => Center(
@@ -381,7 +328,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
           ),
         ),
       ),
-    );
+    ) ?? const Center(child: CircularProgressIndicator());
   }
 
   /// Построить контент технической аналитики
@@ -425,19 +372,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         initialStartDate: _dateFrom,
                         initialEndDate: _dateTo,
                         onDateRangeSelected: (start, end) {
-                          if (start == null || end == null) return;
-                          
                           setState(() {
                             _dateFrom = start;
                             _dateTo = end;
-                            // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
-                            _hasInitialLoad = false;
                           });
-                          
-                          // Обновляем диапазон дат в контроллере
-                          controller.updateDateRange(start, end);
-                          // Загружаем техническую аналитику
-                          controller.loadTechnicalAnalytics(from: start, to: end);
+                          if (start != null && end != null) {
+                            controller.loadTechnicalAnalytics(from: start, to: end);
+                          }
                         },
                       ),
                     ),
@@ -638,7 +579,6 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
     final authState = ref.watch(authNotifierProvider);
     final userRole = userRoleFromString(authState.user?.role);
     final isLandfillAdmin = userRole == UserRole.landfillAdmin;
-    final isContractorAdmin = userRole == UserRole.contractorAdmin;
     
     // Получаем отфильтрованные контракты из contractsAnalytics (если доступны)
     final state = ref.watch(analyticsControllerProvider);
@@ -697,8 +637,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-                if (!isLandfillAdmin && !isContractorAdmin)
+                // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN)
+                if (!isLandfillAdmin)
                   Builder(
                     builder: (context) {
                       final contractsState = ref.watch(contractsControllerProvider);
@@ -808,29 +748,31 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                         initialStartDate: _dateFrom,
                         initialEndDate: _dateTo,
                         onDateRangeSelected: (start, end) {
-                          if (start == null || end == null) return;
-                          
                           setState(() {
                             _dateFrom = start;
                             _dateTo = end;
                             // При изменении даты сбрасываем выбранный контракт, чтобы показать все контракты в новом периоде
-                            _selectedContractId = null;
-                            // Сбрасываем флаг начальной загрузки, чтобы данные загрузились заново
-                            _hasInitialLoad = false;
+                            if (start != null && end != null) {
+                              _selectedContractId = null;
+                            }
                           });
-                          
-                          // Обновляем диапазон дат в контроллере
-                          controller.updateDateRange(start, end);
-                          
-                          // Для LANDFILL_ADMIN загружаем техническую аналитику
-                          if (isLandfillAdmin) {
-                            controller.loadTechnicalAnalytics(from: start, to: end);
-                          } else {
-                            controller.loadDashboard(from: start, to: end);
-                            // Перезагружаем контракты с фильтром по дате
-                            controller.loadContractsAnalytics(from: start, to: end);
-                            // Перезагружаем данные журнала приёма снега
-                            _loadLandfillJournal();
+                          if (start != null && end != null) {
+                            setState(() {
+                              _dateFrom = start;
+                              _dateTo = end;
+                            });
+                            controller.updateDateRange(start, end);
+                            
+                            // Для LANDFILL_ADMIN загружаем техническую аналитику
+                            if (isLandfillAdmin) {
+                              controller.loadTechnicalAnalytics(from: start, to: end);
+                            } else {
+                              controller.loadDashboard(from: start, to: end);
+                              // Перезагружаем контракты с фильтром по дате
+                              controller.loadContractsAnalytics(from: start, to: end);
+                              // Перезагружаем данные журнала приёма снега
+                              _loadLandfillJournal();
+                            }
                           }
                         },
                       ),
@@ -862,8 +804,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
                   ],
                 ),
-                // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-                if (!isLandfillAdmin && !isContractorAdmin && _selectedContractId != null) ...[
+                // Информация о выбранном контракте (скрыта для LANDFILL_ADMIN)
+                if (!isLandfillAdmin && _selectedContractId != null) ...[
                   const SizedBox(height: AppPadding.normal),
                   Container(
                     padding: const EdgeInsets.all(AppPadding.small),
@@ -952,7 +894,7 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                 ],
               ),
             ),
-          // KPI Cards (скрыты для LANDFILL_ADMIN, но показываются для CONTRACTOR_ADMIN)
+          // KPI Cards (скрыты для LANDFILL_ADMIN)
           if (!isLandfillAdmin) ...[
             Row(
               children: [
@@ -1000,8 +942,8 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
             const SizedBox(height: AppPadding.large),
           ],
           
-          // Карта (скрыта для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-          if (!isLandfillAdmin && !isContractorAdmin && 
+          // Карта (скрыта для LANDFILL_ADMIN)
+          if (!isLandfillAdmin && 
               (dashboardData.data.map.areas.isNotEmpty || 
                dashboardData.data.map.polygons.isNotEmpty))
             AnimatedSection(
@@ -1010,13 +952,13 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               child: _buildMapSection(dashboardData.data.map),
             ),
           
-          if (!isLandfillAdmin && !isContractorAdmin && 
+          if (!isLandfillAdmin && 
               (dashboardData.data.map.areas.isNotEmpty || 
                dashboardData.data.map.polygons.isNotEmpty))
           const SizedBox(height: AppPadding.large),
           
-          // Подрядчики (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-          if (!isLandfillAdmin && !isContractorAdmin)
+          // Подрядчики (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin)
             AnimatedSection(
               title: 'Подрядчики',
               icon: Icons.business,
@@ -1060,11 +1002,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               ),
             ),
           
-          if (!isLandfillAdmin && !isContractorAdmin)
+          if (!isLandfillAdmin)
           const SizedBox(height: AppPadding.large),
           
-          // Контракты (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-          if (!isLandfillAdmin && !isContractorAdmin)
+          // Контракты (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin)
             AnimatedSection(
               title: 'Контракты${_dateFrom != null && _dateTo != null ? ' (Акт выполненных работ)' : ''}',
               icon: Icons.description,
@@ -1086,11 +1028,11 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
                     ),
             ),
           
-          if (!isLandfillAdmin && !isContractorAdmin)
+          if (!isLandfillAdmin)
           const SizedBox(height: AppPadding.large),
           
-          // Камеры (скрыты для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
-          if (!isLandfillAdmin && !isContractorAdmin)
+          // Камеры (скрыты для LANDFILL_ADMIN)
+          if (!isLandfillAdmin)
             AnimatedSection(
               title: 'Камеры',
               icon: Icons.videocam,
@@ -1121,49 +1063,6 @@ class _AnalyticsDashboardPageState extends ConsumerState<AnalyticsDashboardPage>
               }
               
               return _buildLandfillActSection();
-            },
-          ),
-          
-          // Секция ANPR (для KGU_ZKH_ADMIN, AKIMAT_ADMIN и CONTRACTOR_ADMIN)
-          Builder(
-            builder: (context) {
-              final authState = ref.watch(authNotifierProvider);
-              final userRole = userRoleFromString(authState.user?.role);
-              
-              if (userRole != UserRole.kguZkhAdmin && 
-                  userRole != UserRole.akimatAdmin &&
-                  userRole != UserRole.contractorAdmin) {
-                return const SizedBox.shrink();
-              }
-              
-              return const SizedBox(height: AppPadding.large);
-            },
-          ),
-          Builder(
-            builder: (context) {
-              final authState = ref.watch(authNotifierProvider);
-              final userRole = userRoleFromString(authState.user?.role);
-              
-              if (userRole != UserRole.kguZkhAdmin && 
-                  userRole != UserRole.akimatAdmin &&
-                  userRole != UserRole.contractorAdmin) {
-                return const SizedBox.shrink();
-              }
-              
-              // Согласно документации: период по умолчанию для ANPR - последние 24 часа
-              final anprDateTo = _dateTo ?? DateTime.now();
-              final anprDateFrom = _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
-              
-              // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
-              final contractorId = userRole == UserRole.contractorAdmin 
-                  ? authState.user?.organizationId 
-                  : null;
-              
-              return AnprSection(
-                dateFrom: anprDateFrom,
-                dateTo: anprDateTo,
-                contractorId: contractorId,
-              );
             },
           ),
         ],

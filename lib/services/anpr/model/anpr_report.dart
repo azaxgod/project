@@ -142,3 +142,4 @@ class AnprReportResponse extends Equatable {
   List<Object?> get props => [data];
 }
 
+

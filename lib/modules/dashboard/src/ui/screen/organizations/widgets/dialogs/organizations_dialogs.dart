@@ -438,10 +438,6 @@ class OrganizationsDialogs {
     String? photoUrl = vehicle?.photoUrl; // Сохраняем существующий URL
     // Если у транспортного средства нет фото, показываем дефолтную иконку
     bool useDefaultIcon = vehicle?.photoUrl == null || vehicle!.photoUrl!.isEmpty;
-    
-    // Переменная для хранения информации о найденном транспорте в другой организации
-    Vehicle? duplicateVehicle;
-    String? duplicateOrganizationName;
 
     final years = List<int>.generate(
       DateTime.now().year - 1980 + 1,
@@ -469,17 +465,10 @@ class OrganizationsDialogs {
                           if (value == null || value.isEmpty) {
                             return 'Введите гос. номер';
                           }
-                          // Проверяем только дубликаты в текущей организации
-                          final normalizedValue = value.trim().replaceAll(' ', '').toUpperCase();
-                          final existsInCurrentOrg = data.vehicles.any(
-                            (item) {
-                              final normalizedPlate = item.plateNumber.replaceAll(' ', '').toUpperCase();
-                              return normalizedPlate == normalizedValue && 
-                                     item.id != vehicle?.id &&
-                                     item.contractorId == contractorId;
-                            },
+                          final exists = data.vehicles.any(
+                            (item) => item.plateNumber == value && item.id != vehicle?.id,
                           );
-                          if (existsInCurrentOrg) {
+                          if (exists) {
                             return 'Транспорт с таким номером уже существует';
                           }
                           return null;
@@ -585,142 +574,6 @@ class OrganizationsDialogs {
               FilledButton(
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
-                  
-                  // Проверяем дубликаты во всех организациях перед сохранением
-                  final plateValue = plateController.text.trim();
-                  final normalizedValue = plateValue.replaceAll(' ', '').toUpperCase();
-                  
-                  duplicateVehicle = null;
-                  duplicateOrganizationName = null;
-                  
-                  final existingVehicle = data.vehicles.firstWhere(
-                    (item) {
-                      final normalizedPlate = item.plateNumber.replaceAll(' ', '').toUpperCase();
-                      return normalizedPlate == normalizedValue && 
-                             item.id != vehicle?.id &&
-                             item.contractorId != contractorId; // Ищем только в других организациях
-                    },
-                    orElse: () => Vehicle(
-                      id: '',
-                      contractorId: '',
-                      driverId: null,
-                      plateNumber: '',
-                      brand: '',
-                      model: '',
-                      color: '',
-                      year: 0,
-                      bodyVolumeM3: 0,
-                      isActive: true,
-                    ),
-                  );
-                  
-                  if (existingVehicle.id.isNotEmpty) {
-                    // Транспорт найден в другой организации
-                    duplicateVehicle = existingVehicle;
-                    // Находим название организации
-                    final org = data.organizations.firstWhere(
-                      (o) => o.id == existingVehicle.contractorId,
-                      orElse: () => Organization(
-                        id: '',
-                        name: 'Неизвестная организация',
-                        type: OrganizationType.contractor,
-                        bin: '',
-                        head: '',
-                        address: '',
-                        phone: '',
-                        parentOrganizationId: null,
-                        isActive: true,
-                      ),
-                    );
-                    duplicateOrganizationName = org.name;
-                  }
-                  
-                  // Показываем диалоговое окно подтверждения, если найден дубликат
-                  if (duplicateVehicle != null && duplicateOrganizationName != null) {
-                    // Показываем диалоговое окно подтверждения
-                    final shouldTransfer = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Row(
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: Colors.orange.shade700,
-                              size: 28,
-                            ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Text(
-                                'Транспорт уже существует',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Транспорт с номером "${plateController.text.trim()}" принадлежит организации:',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.orange.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.business,
-                                    color: Colors.orange.shade700,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      duplicateOrganizationName!,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.orange.shade900,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Действительно хотите перенести транспорт в вашу организацию?',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Нет'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.orange.shade700,
-                            ),
-                            child: const Text('Да'),
-                          ),
-                        ],
-                      ),
-                    );
-                    
-                    if (shouldTransfer != true) {
-                      return; // Пользователь отменил операцию
-                    }
-                  }
                   
                   String? finalPhotoUrl = photoUrl;
                   
@@ -841,47 +694,34 @@ class OrganizationsDialogs {
                   }
                   
                   final parsedVolume = double.parse(volumeController.text.replaceAll(',', '.'));
-                  
-                  // Если найден дубликат в другой организации, обновляем его вместо создания нового
-                  final isTransferring = duplicateVehicle != null && duplicateVehicle!.id.isNotEmpty;
-                  final vehicleToUpdate = isTransferring ? duplicateVehicle! : vehicle;
-                  
                   final updated = Vehicle(
-                    id: vehicleToUpdate?.id ?? '',
-                    contractorId: contractorId, // Переносим в новую организацию
-                    driverId: vehicleToUpdate?.driverId, // Сохраняем водителя, если был
+                    id: vehicle?.id ?? '',
+                    contractorId: contractorId,
+                    driverId: vehicle?.driverId,
                     plateNumber: plateController.text.trim(),
                     brand: brandController.text.trim(),
                     model: modelController.text.trim(),
                     color: colorController.text.trim(),
                     year: selectedYear!,
                     bodyVolumeM3: parsedVolume,
-                    photoUrl: finalPhotoUrl ?? vehicleToUpdate?.photoUrl, // Сохраняем фото, если новое не загружено
-                    isActive: vehicleToUpdate?.isActive ?? true,
+                    photoUrl: finalPhotoUrl, // null означает использовать дефолтную иконку
+                    isActive: vehicle?.isActive ?? true,
                   );
                   
                   try {
-                    if (vehicleToUpdate == null) {
-                      // Создаем новый транспорт
+                    if (vehicle == null) {
                       await controller.createVehicle(updated, skipReload: true);
                     } else {
-                      // Обновляем существующий транспорт (включая перенос между организациями)
                       await controller.updateVehicle(updated, skipReload: true);
                     }
                     if (context.mounted) {
                       Navigator.of(context).pop();
                       // Показываем уведомление об успехе
-                      if (isTransferring) {
-                        context.showSuccessNotification(
-                          'Транспорт успешно перенесен в вашу организацию',
-                        );
-                      } else {
-                        context.showSuccessNotification(
-                          vehicle == null 
-                              ? 'Транспорт успешно добавлен'
-                              : 'Данные транспорта успешно обновлены',
-                        );
-                      }
+                      context.showSuccessNotification(
+                        vehicle == null 
+                            ? 'Транспорт успешно добавлен'
+                            : 'Данные транспорта успешно обновлены',
+                      );
                       // Сразу перезагружаем данные
                       await controller.refresh();
                     }
