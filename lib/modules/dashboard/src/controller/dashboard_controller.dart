@@ -106,64 +106,64 @@ class AkimatHomeController extends StateNotifier<AkimatHomeState> {
     ];
 
     // ------------------ Последние рейсы ------------------
-    final trips = [
-      TripModel(
-        time: '08:00',
-        contractor: 'Подрядчик А',
-        plate: 'KZ1234AB',
-        area: 'Участок 1',
-        polygon: 'Полигон 1',
-        volume: 5.2,
-        status: 'CONFIRMED',
-      ),
-      TripModel(
-        time: '09:15',
-        contractor: 'Подрядчик B',
-        plate: 'KZ5678CD',
-        area: 'Участок 2',
-        polygon: 'Полигон 2',
-        volume: 3.7,
-        status: 'ROUTE_VIOLATION',
-      ),
-      TripModel(
-        time: '10:30',
-        contractor: 'Подрядчик C',
-        plate: 'KZ9012EF',
-        area: 'Участок 3',
-        polygon: 'Полигон 3',
-        volume: 4.1,
-        status: 'MISMATCH_PLATE',
-      ),
-    ];
+    // final trips = [
+    //   TripModel(
+    //     time: '08:00',
+    //     contractor: 'Подрядчик А',
+    //     plate: 'KZ1234AB',
+    //     area: 'Участок 1',
+    //     polygon: 'Полигон 1',
+    //     volume: 5.2,
+    //     status: 'CONFIRMED',
+    //   ),
+    //   TripModel(
+    //     time: '09:15',
+    //     contractor: 'Подрядчик B',
+    //     plate: 'KZ5678CD',
+    //     area: 'Участок 2',
+    //     polygon: 'Полигон 2',
+    //     volume: 3.7,
+    //     status: 'ROUTE_VIOLATION',
+    //   ),
+    //   TripModel(
+    //     time: '10:30',
+    //     contractor: 'Подрядчик C',
+    //     plate: 'KZ9012EF',
+    //     area: 'Участок 3',
+    //     polygon: 'Полигон 3',
+    //     volume: 4.1,
+    //     status: 'MISMATCH_PLATE',
+    //   ),
+    // ];
 
     // ------------------ Полигоны ------------------
-    final polygons = [
-      PolygonModel(
-        name: 'Полигон 1',
-        contractor: 'Подрядчик А',
-        status: 'ACTIVE',
-        color: Colors.green,
-      ),
-      PolygonModel(
-        name: 'Полигон 2',
-        contractor: 'Подрядчик B',
-        status: 'WARNING',
-        color: Colors.orange,
-      ),
-      PolygonModel(
-        name: 'Полигон 3',
-        contractor: 'Подрядчик C',
-        status: 'VIOLATION',
-        color: Colors.red,
-      ),
-    ];
+    // final polygons = [
+    //   PolygonModel(
+    //     name: 'Полигон 1',
+    //     contractor: 'Подрядчик А',
+    //     status: 'ACTIVE',
+    //     color: Colors.green,
+    //   ),
+    //   PolygonModel(
+    //     name: 'Полигон 2',
+    //     contractor: 'Подрядчик B',
+    //     status: 'WARNING',
+    //     color: Colors.orange,
+    //   ),
+    //   PolygonModel(
+    //     name: 'Полигон 3',
+    //     contractor: 'Подрядчик C',
+    //     status: 'VIOLATION',
+    //     color: Colors.red,
+    //   ),
+    // ];
 
 
-    state = state.copyWith(
-      kpiCards: kpi,
-      lastTrips: trips,
-      polygons: polygons,
-    );
+    // state = state.copyWith(
+    //   kpiCards: kpi,
+    //   lastTrips: trips,
+    //   polygons: polygons,
+    // );
   }
 }
 

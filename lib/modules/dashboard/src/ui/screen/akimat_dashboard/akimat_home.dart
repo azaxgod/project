@@ -175,178 +175,178 @@ class AkimatHome extends ConsumerWidget {
 const SizedBox(height: 16),
 
                         // ---------------- Последние рейсы ----------------
-                        Container(
-                          padding: const EdgeInsets.all(AppPadding.large),
-                          decoration: BoxDecoration(
-                            color: AppColors.cardBackground,
-                            borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                            border: Border.all(
-                              color: AppColors.divider,
-                              width: 0.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(10),
-                                blurRadius: AppSize.shadowBlur,
-                                offset: const Offset(0, 2),
-                                spreadRadius: 0,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(AppPadding.small),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withAlpha(26),
-                                      borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                                    ),
-                                    child: Icon(
-                                      Icons.directions_car,
-                                      color: AppColors.primary,
-                                      size: AppSize.iconSize,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppPadding.normal),
-                                  Text(
-                                    s.last_trips,
-                                    style: AppTextStyles.title2,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppPadding.normal),
-                              Builder(
-                                builder: (context) {
-                                  final reports = anprState.reports;
-                                  if (reports == null) {
-                                    return const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(32),
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
+                        // Container(
+                        //   padding: const EdgeInsets.all(AppPadding.large),
+                        //   decoration: BoxDecoration(
+                        //     color: AppColors.cardBackground,
+                        //     borderRadius: BorderRadius.circular(AppSize.cardRadius),
+                        //     border: Border.all(
+                        //       color: AppColors.divider,
+                        //       width: 0.5,
+                        //     ),
+                        //     boxShadow: [
+                        //       BoxShadow(
+                        //         color: Colors.black.withAlpha(10),
+                        //         blurRadius: AppSize.shadowBlur,
+                        //         offset: const Offset(0, 2),
+                        //         spreadRadius: 0,
+                        //       ),
+                        //     ],
+                        //   ),
+                        //   child: Column(
+                        //     crossAxisAlignment: CrossAxisAlignment.start,
+                        //     children: [
+                        //       Row(
+                        //         children: [
+                        //           Container(
+                        //             padding: const EdgeInsets.all(AppPadding.small),
+                        //             decoration: BoxDecoration(
+                        //               color: AppColors.primary.withAlpha(26),
+                        //               borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                        //             ),
+                        //             child: Icon(
+                        //               Icons.directions_car,
+                        //               color: AppColors.primary,
+                        //               size: AppSize.iconSize,
+                        //             ),
+                        //           ),
+                        //           const SizedBox(width: AppPadding.normal),
+                        //           Text(
+                        //             s.last_trips,
+                        //             style: AppTextStyles.title2,
+                        //           ),
+                        //         ],
+                        //       ),
+                        //       const SizedBox(height: AppPadding.normal),
+                        //       Builder(
+                        //         builder: (context) {
+                        //           final reports = anprState.reports;
+                        //           if (reports == null) {
+                        //             return const Center(
+                        //               child: Padding(
+                        //                 padding: EdgeInsets.all(32),
+                        //                 child: CircularProgressIndicator(),
+                        //               ),
+                        //             );
+                        //           }
 
-                                  return reports.when(
-                                    data: (reportData) {
-                                      final events = reportData.events.take(5).toList();
-                                      if (events.isEmpty) {
-                                        return Center(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(32),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.inbox_outlined,
-                                                  size: 64,
-                                                  color: AppColors.textSecondary.withAlpha(77),
-                                                ),
-                                                const SizedBox(height: AppPadding.normal),
-                                                Text(
-                                                  'Нет данных о рейсах',
-                                                  style: AppTextStyles.body.copyWith(
-                                                    color: AppColors.textSecondary,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }
+                        //           return reports.when(
+                        //             data: (reportData) {
+                        //               final events = reportData.events.take(5).toList();
+                        //               if (events.isEmpty) {
+                        //                 return Center(
+                        //                   child: Padding(
+                        //                     padding: const EdgeInsets.all(32),
+                        //                     child: Column(
+                        //                       mainAxisSize: MainAxisSize.min,
+                        //                       children: [
+                        //                         Icon(
+                        //                           Icons.inbox_outlined,
+                        //                           size: 64,
+                        //                           color: AppColors.textSecondary.withAlpha(77),
+                        //                         ),
+                        //                         const SizedBox(height: AppPadding.normal),
+                        //                         Text(
+                        //                           'Нет данных о рейсах',
+                        //                           style: AppTextStyles.body.copyWith(
+                        //                             color: AppColors.textSecondary,
+                        //                           ),
+                        //                         ),
+                        //                       ],
+                        //                     ),
+                        //                   ),
+                        //                 );
+                        //               }
 
-                                      return Column(
-                                        children: [
-                                          for (final e in events)
-                                            Padding(
-                                              padding: const EdgeInsets.only(bottom: AppPadding.small),
-                                              child: Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          e.plateNumber,
-                                                          style: AppTextStyles.body.copyWith(
-                                                            fontWeight: FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(height: 2),
-                                                        Text(
-                                                          DateFormat('dd.MM.yyyy HH:mm').format(e.eventTime.toLocal()),
-                                                          style: AppTextStyles.caption.copyWith(
-                                                            color: AppColors.textSecondary,
-                                                          ),
-                                                        ),
-                                                        if ((e.vehicleBrand != null && e.vehicleBrand!.trim().isNotEmpty) ||
-                                                            (e.vehicleModel != null && e.vehicleModel!.trim().isNotEmpty))
-                                                          Text(
-                                                            '${e.vehicleBrand ?? ''} ${e.vehicleModel ?? ''}'.trim(),
-                                                            style: AppTextStyles.caption.copyWith(
-                                                              color: AppColors.textSecondary,
-                                                            ),
-                                                          ),
-                                                        if (e.contractorName != null && e.contractorName!.trim().isNotEmpty)
-                                                          Text(
-                                                            e.contractorName!,
-                                                            style: AppTextStyles.caption.copyWith(
-                                                              color: AppColors.textSecondary,
-                                                            ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (e.snowVolumeM3 != null)
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(
-                                                        horizontal: AppPadding.small,
-                                                        vertical: AppPadding.xs,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.cyan.withAlpha(26),
-                                                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                                                      ),
-                                                      child: Text(
-                                                        '${e.snowVolumeM3!.toStringAsFixed(1)} м³',
-                                                        style: AppTextStyles.body.copyWith(
-                                                          color: Colors.cyan,
-                                                          fontWeight: FontWeight.w600,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                        ],
-                                      );
-                                    },
-                                    loading: () => const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(32),
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    ),
-                                    error: (error, stack) => Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(32),
-                                        child: Text(
-                                          error.toString(),
-                                          style: AppTextStyles.body.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                        //               return Column(
+                        //                 children: [
+                        //                   for (final e in events)
+                        //                     Padding(
+                        //                       padding: const EdgeInsets.only(bottom: AppPadding.small),
+                        //                       child: Row(
+                        //                         children: [
+                        //                           Expanded(
+                        //                             child: Column(
+                        //                               crossAxisAlignment: CrossAxisAlignment.start,
+                        //                               children: [
+                        //                                 Text(
+                        //                                   e.plateNumber,
+                        //                                   style: AppTextStyles.body.copyWith(
+                        //                                     fontWeight: FontWeight.w600,
+                        //                                   ),
+                        //                                 ),
+                        //                                 const SizedBox(height: 2),
+                        //                                 Text(
+                        //                                   DateFormat('dd.MM.yyyy HH:mm').format(e.eventTime.toLocal()),
+                        //                                   style: AppTextStyles.caption.copyWith(
+                        //                                     color: AppColors.textSecondary,
+                        //                                   ),
+                        //                                 ),
+                        //                                 if ((e.vehicleBrand != null && e.vehicleBrand!.trim().isNotEmpty) ||
+                        //                                     (e.vehicleModel != null && e.vehicleModel!.trim().isNotEmpty))
+                        //                                   Text(
+                        //                                     '${e.vehicleBrand ?? ''} ${e.vehicleModel ?? ''}'.trim(),
+                        //                                     style: AppTextStyles.caption.copyWith(
+                        //                                       color: AppColors.textSecondary,
+                        //                                     ),
+                        //                                   ),
+                        //                                 if (e.contractorName != null && e.contractorName!.trim().isNotEmpty)
+                        //                                   Text(
+                        //                                     e.contractorName!,
+                        //                                     style: AppTextStyles.caption.copyWith(
+                        //                                       color: AppColors.textSecondary,
+                        //                                     ),
+                        //                                   ),
+                        //                               ],
+                        //                             ),
+                        //                           ),
+                        //                           if (e.snowVolumeM3 != null)
+                        //                             Container(
+                        //                               padding: const EdgeInsets.symmetric(
+                        //                                 horizontal: AppPadding.small,
+                        //                                 vertical: AppPadding.xs,
+                        //                               ),
+                        //                               decoration: BoxDecoration(
+                        //                                 color: Colors.cyan.withAlpha(26),
+                        //                                 borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                        //                               ),
+                        //                               child: Text(
+                        //                                 '${e.snowVolumeM3!.toStringAsFixed(1)} м³',
+                        //                                 style: AppTextStyles.body.copyWith(
+                        //                                   color: Colors.cyan,
+                        //                                   fontWeight: FontWeight.w600,
+                        //                                 ),
+                        //                               ),
+                        //                             ),
+                        //                         ],
+                        //                       ),
+                        //                     ),
+                        //                 ],
+                        //               );
+                        //             },
+                        //             loading: () => const Center(
+                        //               child: Padding(
+                        //                 padding: EdgeInsets.all(32),
+                        //                 child: CircularProgressIndicator(),
+                        //               ),
+                        //             ),
+                        //             error: (error, stack) => Center(
+                        //               child: Padding(
+                        //                 padding: const EdgeInsets.all(32),
+                        //                 child: Text(
+                        //                   error.toString(),
+                        //                   style: AppTextStyles.body.copyWith(
+                        //                     color: AppColors.textSecondary,
+                        //                   ),
+                        //                 ),
+                        //               ),
+                        //             ),
+                        //           );
+                        //         },
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),
