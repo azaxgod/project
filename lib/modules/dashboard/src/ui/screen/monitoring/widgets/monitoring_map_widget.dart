@@ -92,6 +92,35 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
     return HSVColor.fromAHSV(1.0, hue, 0.7, 0.8).toColor();
   }
 
+  String? _getContractorName(String? contractorId) {
+    if (contractorId == null) return null;
+    try {
+      final contractor = widget.contractors.firstWhere((c) => c.id == contractorId);
+      return contractor.name;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  LatLng _calculatePolygonCentroid(List<LatLng> points) {
+    if (points.isEmpty) return const LatLng(0, 0);
+
+    final pts = List<LatLng>.from(points);
+    if (pts.length > 1 && pts.first == pts.last) {
+      pts.removeLast();
+    }
+
+    if (pts.isEmpty) return const LatLng(0, 0);
+
+    double sumLat = 0;
+    double sumLng = 0;
+    for (final p in pts) {
+      sumLat += p.latitude;
+      sumLng += p.longitude;
+    }
+    return LatLng(sumLat / pts.length, sumLng / pts.length);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -140,6 +169,22 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.akimat.project',
         ),
+               if (widget.areas.isNotEmpty && widget.selectedAreaId != null)
+                 PolygonLayer(
+                   polygons: widget.areas
+                       .where((a) => a.id == widget.selectedAreaId && a.geometry.isNotEmpty && a.geometry.length >= 3)
+                       .map((area) {
+                         final contractorColor = _getContractorColor(area.defaultContractorId);
+                         return Polygon(
+                           points: area.geometry
+                               .map((coord) => LatLng(coord[1], coord[0]))
+                               .toList(),
+                           color: contractorColor.withOpacity(0.12),
+                           borderColor: Colors.transparent,
+                           borderStrokeWidth: 0,
+                         );
+                       }).toList(),
+                 ),
                // Участки уборки (отображаем линиями, фильтруем участки с пустой геометрией)
                if (widget.areas.isNotEmpty)
                  PolylineLayer(
@@ -147,23 +192,103 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                        .where((area) => area.geometry.isNotEmpty && area.geometry.length >= 2)
                        .map((area) {
                          final isSelected = area.id == widget.selectedAreaId;
-                         // Получаем цвет подрядчика
                          final contractorColor = _getContractorColor(area.defaultContractorId);
-                         
-                         // Преобразуем геометрию в точки LatLng
+
                          final points = area.geometry
                              .map((coord) => LatLng(coord[1], coord[0]))
                              .toList();
-                         // Замыкаем полилинию (добавляем первую точку в конец для замкнутого контура)
+
                          if (points.isNotEmpty && points.first != points.last) {
                            points.add(points.first);
                          }
-                         return Polyline(
-                           points: points,
-                           strokeWidth: isSelected ? 3.0 : 2.0,
-                           color: isSelected ? contractorColor : contractorColor.withOpacity(0.8),
+
+                         if (!isSelected) {
+                           return <Polyline>[
+                             Polyline(
+                               points: points,
+                               strokeWidth: 2.0,
+                               color: contractorColor.withOpacity(0.8),
+                             ),
+                           ];
+                         }
+
+                         return <Polyline>[
+                           Polyline(
+                             points: points,
+                             strokeWidth: 6.0,
+                             color: Colors.white,
+                           ),
+                           Polyline(
+                             points: points,
+                             strokeWidth: 4.0,
+                             color: contractorColor,
+                           ),
+                         ];
+                       })
+                       .expand((p) => p)
+                       .toList(),
+                 ),
+               if (widget.areas.isNotEmpty)
+                 MarkerLayer(
+                   markers: widget.areas
+                       .where((a) => a.defaultContractorId != null)
+                       .map((area) {
+                         final contractorName = _getContractorName(area.defaultContractorId);
+                         if (contractorName == null) return null;
+
+                         final points = area.geometry
+                             .map((coord) => LatLng(coord[1], coord[0]))
+                             .toList();
+
+                         if (points.isEmpty) return null;
+                         if (points.length > 1 && points.first != points.last) {
+                           points.add(points.first);
+                         }
+
+                         final centroid = _calculatePolygonCentroid(points);
+                         final isSelected = area.id == widget.selectedAreaId;
+                         final contractorColor = _getContractorColor(area.defaultContractorId);
+
+                         return Marker(
+                           point: centroid,
+                           width: isSelected ? 190 : 160,
+                           height: isSelected ? 54 : 46,
+                           child: IgnorePointer(
+                             child: Container(
+                               alignment: Alignment.center,
+                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                               decoration: BoxDecoration(
+                                 color: Colors.white.withOpacity(0.92),
+                                 borderRadius: BorderRadius.circular(10),
+                                 border: Border.all(
+                                   color: contractorColor,
+                                   width: isSelected ? 3 : 2,
+                                 ),
+                                 boxShadow: [
+                                   BoxShadow(
+                                     color: Colors.black.withOpacity(0.12),
+                                     blurRadius: 8,
+                                     offset: const Offset(0, 2),
+                                   ),
+                                 ],
+                               ),
+                               child: Text(
+                                 contractorName,
+                                 textAlign: TextAlign.center,
+                                 maxLines: 2,
+                                 overflow: TextOverflow.ellipsis,
+                                 style: TextStyle(
+                                   color: Colors.black87,
+                                   fontSize: isSelected ? 13 : 12,
+                                   fontWeight: FontWeight.w700,
+                                 ),
+                               ),
+                             ),
+                           ),
                          );
-                       }).toList(),
+                       })
+                       .whereType<Marker>()
+                       .toList(),
                  ),
                // Полигоны вывоза (фильтруем полигоны с пустой геометрией)
                if (widget.polygons.isNotEmpty)
