@@ -393,9 +393,7 @@ class MonitoringController extends StateNotifier<MonitoringState> {
         
         // Загружаем доступы только для KGU и Akimat (им нужно видеть все доступы)
         // Для подрядчика API /polygons уже фильтрует по доступам
-        // TODO: Временно закомментировано для AKIMAT_ADMIN
-        // if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
-        if (state.role == UserRole.kguZkhAdmin) {
+        if (state.role == UserRole.kguZkhAdmin || state.role == UserRole.akimatAdmin) {
           for (final polygon in polygons) {
             try {
               final accesses = await _operationsRepository.getPolygonAccess(polygon.id);
@@ -448,12 +446,15 @@ class MonitoringController extends StateNotifier<MonitoringState> {
           }
           debugPrint('MonitoringController._loadData: Loaded accesses for ${polygonAccesses.length} polygons');
         } else if (state.role == UserRole.akimatAdmin) {
-          // TODO: Временно закомментирован запрос к /polygons/.../access для AKIMAT_ADMIN
-          // Инициализируем пустые списки для всех полигонов
           for (final polygon in filteredPolygons) {
-            polygonAccesses[polygon.id] = [];
+            try {
+              final accesses = polygonAccessesBeforeFilter[polygon.id] ?? [];
+              polygonAccesses[polygon.id] = accesses;
+            } catch (e) {
+              polygonAccesses[polygon.id] = [];
+            }
           }
-          debugPrint('MonitoringController._loadData: Skipping polygon access loading for AKIMAT_ADMIN (temporarily disabled)');
+          debugPrint('MonitoringController._loadData: Using polygon accesses for AKIMAT_ADMIN');
         } else {
           // Для подрядчика и других ролей не загружаем доступы
           debugPrint('MonitoringController._loadData: Skipping polygon access loading for role ${state.role}');

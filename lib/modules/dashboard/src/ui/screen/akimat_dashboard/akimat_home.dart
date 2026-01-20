@@ -10,6 +10,7 @@ import 'package:akimat_project/modules/analytics/src/controller/analytics_provid
 import 'package:akimat_project/modules/dashboard/src/controller/dashboard_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/kpi_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/map_widget.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_contractors_snow_dashboard_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/snow_reports_home_card.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -147,6 +148,12 @@ class AkimatHome extends ConsumerWidget {
                         const SizedBox(height: 16),
 
                         // ---------------- Дополнительные платформенные виджеты ----------------
+                        const HomeContractorsSnowDashboardCard(
+                          hours: 24,
+                          maxItems: 10,
+                        ),
+                        const SizedBox(height: AppPadding.large),
+
                         SnowReportsHomeCard(compact: !config.showExtraWidget),
                         const SizedBox(height: AppPadding.large),
 
