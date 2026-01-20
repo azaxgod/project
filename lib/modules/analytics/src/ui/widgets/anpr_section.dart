@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
@@ -17,20 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
-// ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-double? _getMockSnowVolume(String? plateNumber) {
-  if (plateNumber == null) return null;
-  
-  // Для номера 723 возвращаем 18
-  if (plateNumber.contains('723')) {
-    return 18.0;
-  }
-  
-  // Для остальных номеров - случайное значение от 14 до 19
-  final random = Random(plateNumber.hashCode); // Детерминированный рандом на основе номера
-  return 14.0 + random.nextDouble() * 5.0; // От 14 до 19
-}
 
 // Функция для определения подрядчика по номеру машины
 String? _getContractorNameByPlate(String? plateNumber, OrganizationsData? organizationsData) {
@@ -85,6 +70,9 @@ class AnprSection extends ConsumerStatefulWidget {
 class _AnprSectionState extends ConsumerState<AnprSection> {
   bool _hasLoaded = false;
   String? _selectedContractorIdForReports; // Фильтр по подрядчикам для отчетов
+  int _reportsPage = 0;
+
+  static const int _reportsPageSize = 30;
 
   @override
   void initState() {
@@ -110,12 +98,64 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     
     if (paramsChanged) {
       _hasLoaded = false;
+      _reportsPage = 0;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_hasLoaded) {
           _loadData();
         }
       });
     }
+  }
+
+  void _loadReportsPage({
+    required DateTime from,
+    required DateTime to,
+    required int page,
+  }) {
+    final anprController = ref.read(anprControllerProvider.notifier);
+    anprController.loadReports(
+      from: from,
+      to: to,
+      contractorId: widget.contractorId ?? _selectedContractorIdForReports,
+      polygonId: widget.polygonId,
+      vehicleId: widget.vehicleId,
+      plate: widget.plate,
+      limit: _reportsPageSize,
+      offset: page * _reportsPageSize,
+    );
+  }
+
+  void _goToReportsPage(int page) {
+    if (page < 0) return;
+
+    final now = DateTime.now();
+    final effectiveFrom =
+        widget.dateFrom ?? now.subtract(const Duration(hours: 24));
+    final effectiveTo = widget.dateTo ?? now;
+
+    setState(() {
+      _reportsPage = page;
+    });
+    _loadReportsPage(from: effectiveFrom, to: effectiveTo, page: page);
+  }
+
+  List<int> _buildReportsPageButtons({
+    required int totalPages,
+    required int currentPage,
+  }) {
+    if (totalPages <= 0) return const [];
+    if (totalPages <= 7) {
+      return List<int>.generate(totalPages, (i) => i);
+    }
+
+    final pages = <int>{0, 1, 2, totalPages - 1};
+
+    pages.add(currentPage);
+    pages.add(currentPage - 1);
+    pages.add(currentPage + 1);
+
+    final clamped = pages.where((p) => p >= 0 && p < totalPages).toList()..sort();
+    return clamped;
   }
 
   void _loadData() {
@@ -137,26 +177,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     // Загружаем отчеты с учетом фильтра по подрядчику
     // Согласно документации: отчеты показывают поездки и объем снега
     // Всегда перезагружаем отчеты при изменении фильтров, чтобы получить актуальные данные
-    anprController.loadReports(
-      from: effectiveFrom,
-      to: effectiveTo,
-      contractorId: widget.contractorId,
-      polygonId: widget.polygonId,
-      vehicleId: widget.vehicleId,
-      plate: widget.plate,
-      limit: 100, // Согласно документации: по умолчанию 100, макс 1000
-    );
-    
-    // Загружаем события только если их нет и не загружается
-    // Согласно документации: по умолчанию 50, максимум 100
-    final eventsIsLoading = anprState.events?.isLoading ?? false;
-    if (anprState.events == null && !eventsIsLoading) {
-      anprController.loadEvents(
-        from: effectiveFrom, 
-        to: effectiveTo,
-        limit: 50, // Согласно документации: по умолчанию 50
-      );
-    }
+    _loadReportsPage(from: effectiveFrom, to: effectiveTo, page: _reportsPage);
     
     _hasLoaded = true;
   }
@@ -262,25 +283,25 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         ),
         const SizedBox(height: AppPadding.large),
         // События ANPR
-        AnimatedSection(
-          title: 'События распознавания',
-          icon: Icons.event,
-          child: anprState.events?.when(
-            data: (events) {
-              final organizationsState = ref.watch(organizationsControllerProvider);
-              final organizationsData = organizationsState.data.valueOrNull;
-              final anprController = ref.read(anprControllerProvider.notifier);
-              return _buildEventsTable(context, events, anprController, reportsData, organizationsData);
-            },
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppPadding.large),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            error: (error, stack) => _buildErrorState(error.toString()),
-          ) ?? const SizedBox.shrink(),
-        ),
+        // AnimatedSection(
+        //   title: 'События распознавания',
+        //   icon: Icons.event,
+        //   child: anprState.events?.when(
+        //     data: (events) {
+        //       final organizationsState = ref.watch(organizationsControllerProvider);
+        //       final organizationsData = organizationsState.data.valueOrNull;
+        //       final anprController = ref.read(anprControllerProvider.notifier);
+        //       return _buildEventsTable(context, events, anprController, reportsData, organizationsData);
+        //     },
+        //     loading: () => const Center(
+        //       child: Padding(
+        //         padding: EdgeInsets.all(AppPadding.large),
+        //         child: CircularProgressIndicator(),
+        //       ),
+        //     ),
+        //     error: (error, stack) => _buildErrorState(error.toString()),
+        //   ) ?? const SizedBox.shrink(),
+        // ),
       ],
     );
   }
@@ -477,9 +498,6 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       if (volume == null && event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
         volume = event.snowVolumeM3;
       }
-
-      // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-      volume = _getMockSnowVolume(event.normalizedPlate) ?? volume;
 
       if (volume != null && volume > 0) {
         totalVolume += volume;
@@ -772,9 +790,6 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     if (volume == null && event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
       volume = event.snowVolumeM3;
     }
-
-    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-    volume = _getMockSnowVolume(event.normalizedPlate) ?? volume;
 
     final directionColor = event.direction == 'enter' ? Colors.green : Colors.orange;
     final directionIcon = event.direction == 'enter' ? Icons.arrow_downward : Icons.arrow_upward;
@@ -1382,13 +1397,13 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             ],
           ),
           child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            AppColors.primary.withOpacity(0.08),
-          ),
-          headingRowHeight: 56,
-          dataRowMinHeight: 64,
-          dataRowMaxHeight: 80,
-          columns: [
+            headingRowColor: WidgetStateProperty.all(
+              AppColors.primary.withOpacity(0.08),
+            ),
+            headingRowHeight: 56,
+            dataRowMinHeight: 64,
+            dataRowMaxHeight: 80,
+            columns: [
             DataColumn(
               label: Row(
                 children: [
@@ -1494,7 +1509,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               ),
             ),
           ],
-          rows: events.take(50).toList().asMap().entries.map((entry) {
+            rows: events.take(50).toList().asMap().entries.map((entry) {
             final index = entry.key;
             final event = entry.value;
             
@@ -1531,9 +1546,6 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             if (volume == null && event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
               volume = event.snowVolumeM3;
             }
-            
-            // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-            volume = _getMockSnowVolume(event.normalizedPlate) ?? volume;
             
             // Если есть confidence, но нет bodyVolumeM3 и нет объема в отчетах,
             // пытаемся вычислить хотя бы приблизительно (но это не рекомендуется)
@@ -1807,7 +1819,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                 ),
               ],
             );
-          }).toList(),
+            }).toList(),
           ),
         ),
       ),
@@ -1826,70 +1838,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             .toList() ??
         [];
 
-    // Фильтруем события по подрядчику:
-    // - если contractorId пришел с главной страницы (widget.contractorId), используем его
-    // - иначе используем локальный фильтр в секции отчетов
-    List<AnprReportEvent> filteredEvents = reportData.events;
-    final contractorIdToFilter = widget.contractorId ?? _selectedContractorIdForReports;
-
-    if (contractorIdToFilter != null) {
-      filteredEvents = reportData.events.where((event) {
-        // Если API вернул contractorId прямо в событии
-        if (event.contractorId != null) {
-          return event.contractorId == contractorIdToFilter;
-        }
-
-        // Иначе пытаемся определить по номеру авто через organizationsData
-        if (organizationsData != null) {
-          try {
-            final normalizedPlate =
-                (event.plateNumber ?? '').replaceAll(' ', '').toUpperCase();
-            final vehicle = organizationsData.vehicles.firstWhere(
-              (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() ==
-                  normalizedPlate,
-            );
-            return vehicle.contractorId == contractorIdToFilter;
-          } catch (e) {
-            return false;
-          }
-        }
-
-        return false;
-      }).toList();
-    }
-    
-    // Вычисляем общий объем и количество поездок на основе отфильтрованных событий
-    // Используем реальные данные из reportData, если доступны
-    double totalVolume = 0.0;
-    int tripCount = filteredEvents.length;
-    
-    // Суммируем объем снега из отфильтрованных событий
-    for (final event in filteredEvents) {
-      if (event.snowVolumeM3 != null && event.snowVolumeM3! > 0) {
-        totalVolume += event.snowVolumeM3!;
-      }
-    }
-    
-    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-    // Если реальных данных нет, используем мок
-    if (totalVolume == 0.0 && filteredEvents.isNotEmpty) {
-      for (final event in filteredEvents) {
-        final mockVolume = _getMockSnowVolume(event.plateNumber);
-        if (mockVolume != null && mockVolume > 0) {
-          totalVolume += mockVolume;
-        } else {
-          // Если мок не вернул значение, генерируем случайное от 14 до 19
-          final random = Random(event.plateNumber.hashCode);
-          final volume = 14.0 + random.nextDouble() * 5.0;
-          totalVolume += volume;
-        }
-      }
-    }
-    
-    // Если все еще нет данных, показываем 0
-    if (tripCount == 0) {
-      totalVolume = 0.0;
-    }
+    // ВАЖНО: totals (tripCount/totalVolume) показываем полностью с бэкенда,
+    // а таблица ниже отображает только текущую страницу (reportData.events).
+    final tripCount = reportData.tripCount;
+    final totalVolume = reportData.totalVolume;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1940,7 +1892,9 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                     onChanged: (value) {
                       setState(() {
                         _selectedContractorIdForReports = value;
+                        _reportsPage = 0;
                       });
+                      _goToReportsPage(0);
                     },
                   ),
                 ),
@@ -2015,7 +1969,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         ),
         const SizedBox(height: AppPadding.large),
         // Таблица событий из отчета
-        if (filteredEvents.isEmpty)
+        if (reportData.events.isEmpty)
           Container(
             padding: const EdgeInsets.all(AppPadding.large),
             decoration: BoxDecoration(
@@ -2048,19 +2002,60 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             builder: (context) {
               final organizationsState = ref.watch(organizationsControllerProvider);
               final organizationsData = organizationsState.data.valueOrNull;
-              // Пересчитываем totalVolume и tripCount на основе отфильтрованных событий
-              double filteredTotalVolume = 0.0;
-              for (final event in filteredEvents) {
-                final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3 ?? 0.0;
-                filteredTotalVolume += volume;
-              }
-              // Создаем новый AnprReportData с отфильтрованными событиями
-              final filteredReportData = AnprReportData(
-                totalVolume: filteredTotalVolume,
-                tripCount: filteredEvents.length,
-                events: filteredEvents,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildReportsTable(context, reportData, controller, organizationsData),
+                  const SizedBox(height: AppPadding.normal),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Builder(
+                      builder: (context) {
+                        final totalPages = (tripCount / _reportsPageSize).ceil();
+                        final pages = _buildReportsPageButtons(
+                          totalPages: totalPages,
+                          currentPage: _reportsPage,
+                        );
+
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            IconButton(
+                              tooltip: 'Предыдущая страница',
+                              onPressed: _reportsPage > 0
+                                  ? () => _goToReportsPage(_reportsPage - 1)
+                                  : null,
+                              icon: const Icon(Icons.chevron_left),
+                            ),
+                            for (int i = 0; i < pages.length; i++) ...[
+                              if (i > 0 && pages[i] - pages[i - 1] > 1)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4),
+                                  child: Text('...'),
+                                ),
+                              OutlinedButton(
+                                onPressed: pages[i] == _reportsPage
+                                    ? null
+                                    : () => _goToReportsPage(pages[i]),
+                                child: Text('${pages[i] + 1}'),
+                              ),
+                            ],
+                            IconButton(
+                              tooltip: 'Следующая страница',
+                              onPressed: (_reportsPage + 1) < totalPages
+                                  ? () => _goToReportsPage(_reportsPage + 1)
+                                  : null,
+                              icon: const Icon(Icons.chevron_right),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
-              return _buildReportsTable(context, filteredReportData, controller, organizationsData);
             },
           ),
       ],
@@ -2073,8 +2068,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     AnprController controller,
     OrganizationsData? organizationsData,
   ) {
-    // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-    final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
+    final volume = event.snowVolumeM3;
     
     return GestureDetector(
       onTap: () {
@@ -2430,11 +2424,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                     ),
                                   ),
                                   // Правая часть - объем (обернута в контейнер для четкости)
-                                  // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
                                   Builder(
                                     builder: (context) {
-                                      final mockVolume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
-                                      if (mockVolume != null && mockVolume > 0) {
+                                      final volume = event.snowVolumeM3;
+                                      if (volume != null && volume > 0) {
                                         return Container(
                                           padding: EdgeInsets.all(isWeb ? 16 : 12),
                                           decoration: BoxDecoration(
@@ -2504,7 +2497,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                                           ),
                                                           SizedBox(width: isWeb ? 12 : 8),
                                                           Text(
-                                                            '${mockVolume.toStringAsFixed(1)}',
+                                                            '${volume.toStringAsFixed(1)}',
                                                             style: AppTextStyles.title2.copyWith(
                                                               fontWeight: FontWeight.w800,
                                                               color: Colors.cyan.shade700,
@@ -2656,163 +2649,161 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     AnprController controller,
     OrganizationsData? organizationsData,
   ) {
-    return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSize.cardRadius),
-            border: Border.all(
-              color: Colors.cyan.withOpacity(0.25),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-                spreadRadius: 0,
-              ),
-            ],
+    final rowIndexOffset = _reportsPage * _reportsPageSize;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSize.cardRadius),
+        border: Border.all(
+          color: Colors.cyan.withOpacity(0.25),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
           ),
-          child: DataTable(
-            headingRowColor: WidgetStateProperty.all(
-              Colors.cyan.withOpacity(0.1),
-            ),
-            headingRowHeight: 56,
-            dataRowMinHeight: 64,
-            dataRowMaxHeight: 80,
-            columns: [
-              DataColumn(
-                label: Row(
-                  children: [
-                    Icon(
-                      Icons.numbers,
-                      size: 18,
-                      color: Colors.cyan.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '#',
-                      style: AppTextStyles.title3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.cyan.shade700,
-                      ),
-                    ),
-                  ],
+        ],
+      ),
+      child: DataTable(
+        headingRowColor: WidgetStateProperty.all(
+          Colors.cyan.withOpacity(0.1),
+        ),
+        headingRowHeight: 56,
+        dataRowMinHeight: 64,
+        dataRowMaxHeight: 80,
+        columns: [
+          DataColumn(
+            label: Row(
+              children: [
+                Icon(
+                  Icons.numbers,
+                  size: 18,
+                  color: Colors.cyan.shade700,
                 ),
-              ),
-              DataColumn(
-                label: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 18,
-                      color: Colors.cyan.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Время',
-                      style: AppTextStyles.title3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.cyan.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              DataColumn(
-                label: Row(
-                  children: [
-                    Icon(
-                      Icons.confirmation_number,
-                      size: 18,
-                      color: Colors.cyan.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Номер',
-                      style: AppTextStyles.title3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.cyan.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              DataColumn(
-                label: Row(
-                  children: [
-                    Icon(
-                      Icons.directions_car,
-                      size: 18,
-                      color: Colors.cyan.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Транспорт',
-                      style: AppTextStyles.title3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.cyan.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              DataColumn(
-                label: Row(
-                  children: [
-                    Icon(
-                      Icons.business,
-                      size: 18,
-                      color: Colors.cyan.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Подрядчик',
-                      style: AppTextStyles.title3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.cyan.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              DataColumn(
-                label: Row(
-                  children: [
-                    Icon(
-                      Icons.ac_unit,
-                      size: 18,
-                      color: Colors.cyan.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Объем снега (м³)',
-                      style: AppTextStyles.title3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.cyan.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Действия',
+                const SizedBox(width: 8),
+                Text(
+                  '#',
                   style: AppTextStyles.title3.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Colors.cyan.shade700,
                   ),
                 ),
+              ],
+            ),
+          ),
+          DataColumn(
+            label: Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 18,
+                  color: Colors.cyan.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Время',
+                  style: AppTextStyles.title3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.cyan.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DataColumn(
+            label: Row(
+              children: [
+                Icon(
+                  Icons.confirmation_number,
+                  size: 18,
+                  color: Colors.cyan.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Номер',
+                  style: AppTextStyles.title3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.cyan.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DataColumn(
+            label: Row(
+              children: [
+                Icon(
+                  Icons.directions_car,
+                  size: 18,
+                  color: Colors.cyan.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Транспорт',
+                  style: AppTextStyles.title3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.cyan.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DataColumn(
+            label: Row(
+              children: [
+                Icon(
+                  Icons.business,
+                  size: 18,
+                  color: Colors.cyan.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Подрядчик',
+                  style: AppTextStyles.title3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.cyan.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DataColumn(
+            label: Row(
+              children: [
+                Icon(
+                  Icons.ac_unit,
+                  size: 18,
+                  color: Colors.cyan.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Объем снега (м³)',
+                  style: AppTextStyles.title3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.cyan.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Действия',
+              style: AppTextStyles.title3.copyWith(
+                fontWeight: FontWeight.w700,
+                color: Colors.cyan.shade700,
               ),
-            ],
-          rows: reportData.events.asMap().entries.map((entry) {
+            ),
+          ),
+        ],
+        rows: reportData.events.asMap().entries.map((entry) {
             final index = entry.key;
             final event = entry.value;
-            // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-            final volume = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
+            final volume = event.snowVolumeM3;
             
             return DataRow(
               onSelectChanged: (_) {
@@ -2835,7 +2826,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                         ),
                       ),
                       child: Text(
-                        '${index + 1}',
+                        '${rowIndexOffset + index + 1}',
                         style: AppTextStyles.title3.copyWith(
                           fontWeight: FontWeight.w800,
                           color: Colors.cyan.shade700,
@@ -2992,7 +2983,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                   ),
                 ),
                 DataCell(
-                  volume != null && volume > 0
+                  (volume != null && volume > 0)
                       ? Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
@@ -3026,7 +3017,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '${volume.toStringAsFixed(1)} м³',
+                                '${volume!.toStringAsFixed(1)} м³',
                                 style: AppTextStyles.title3.copyWith(
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
@@ -3087,12 +3078,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                     ),
                   ),
                 ),
-                    ],
-                  );
-                }).toList(),
-          ),
+              ],
+            );
+          }).toList(),
         ),
-      ),
     );
   }
 
@@ -3223,11 +3212,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                           ),
                         ),
                       ],
-                      // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-                      Builder(
-                        builder: (context) {
-                          final mockVolume1 = _getMockSnowVolume(event.plateNumber) ?? event.snowVolumeM3;
-                          if (mockVolume1 != null && mockVolume1 > 0) {
+                      if (event.snowVolumeM3 != null && event.snowVolumeM3! > 0)
+                        Builder(
+                          builder: (context) {
+                            final volume = event.snowVolumeM3!;
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -3241,7 +3229,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                         Colors.cyan.withOpacity(0.1),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                    borderRadius:
+                                        BorderRadius.circular(AppSize.smallRadius),
                                   ),
                                   child: Row(
                                     children: [
@@ -3252,7 +3241,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Объем снега: ${mockVolume1.toStringAsFixed(2)} м³',
+                                        'Объем снега: ${volume.toStringAsFixed(2)} м³',
                                         style: AppTextStyles.title2.copyWith(
                                           color: Colors.cyan.shade700,
                                           fontWeight: FontWeight.bold,
@@ -3263,10 +3252,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                 ),
                               ],
                             );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
+                          },
+                        ),
                       if (event.platePhotoUrl != null || event.bodyPhotoUrl != null) ...[
                         const SizedBox(height: AppPadding.large),
                         Container(
@@ -3560,11 +3547,10 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                           ),
                         ),
                       ],
-                      // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
                       Builder(
                         builder: (context) {
-                          final mockCalculatedVolume = _getMockSnowVolume(event.normalizedPlate) ?? event.calculatedSnowVolume;
-                          if (mockCalculatedVolume != null) {
+                          final calculated = event.calculatedSnowVolume;
+                          if (calculated != null && calculated > 0) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -3578,7 +3564,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                         Colors.cyan.withOpacity(0.1),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                    borderRadius:
+                                        BorderRadius.circular(AppSize.smallRadius),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -3592,7 +3579,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            'Объем снега: ${mockCalculatedVolume.toStringAsFixed(2)} м³',
+                                            'Объем снега: ${calculated.toStringAsFixed(2)} м³',
                                             style: AppTextStyles.title2.copyWith(
                                               color: Colors.cyan.shade700,
                                               fontWeight: FontWeight.bold,
@@ -3600,10 +3587,11 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                           ),
                                         ],
                                       ),
-                                      if (event.confidence != null && event.bodyVolumeM3 != null) ...[
+                                      if (event.confidence != null &&
+                                          event.bodyVolumeM3 != null) ...[
                                         const SizedBox(height: AppPadding.small),
                                         Text(
-                                          'Расчет: ${(event.confidence! * 100).toStringAsFixed(1)}% × ${event.bodyVolumeM3!.toStringAsFixed(2)} м³ = ${mockCalculatedVolume.toStringAsFixed(2)} м³',
+                                          'Расчет: ${(event.confidence! * 100).toStringAsFixed(1)}% × ${event.bodyVolumeM3!.toStringAsFixed(2)} м³ = ${calculated.toStringAsFixed(2)} м³',
                                           style: AppTextStyles.caption.copyWith(
                                             color: AppColors.textSecondary,
                                           ),
@@ -3615,9 +3603,9 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                               ],
                             );
                           }
-                          // ВРЕМЕННЫЙ МОК ДЛЯ СКРИНШОТА - УДАЛИТЬ ПОСЛЕ
-                          final mockVolume2 = _getMockSnowVolume(event.normalizedPlate) ?? event.snowVolumeM3;
-                          if (mockVolume2 != null && mockVolume2 > 0) {
+
+                          final volume = event.snowVolumeM3;
+                          if (volume != null && volume > 0) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -3631,7 +3619,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                         Colors.cyan.withOpacity(0.1),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                                    borderRadius:
+                                        BorderRadius.circular(AppSize.smallRadius),
                                   ),
                                   child: Row(
                                     children: [
@@ -3642,7 +3631,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Объем снега: ${mockVolume2.toStringAsFixed(2)} м³',
+                                        'Объем снега: ${volume.toStringAsFixed(2)} м³',
                                         style: AppTextStyles.title2.copyWith(
                                           color: Colors.cyan.shade700,
                                           fontWeight: FontWeight.bold,
@@ -3654,6 +3643,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                               ],
                             );
                           }
+
                           return const SizedBox.shrink();
                         },
                       ),

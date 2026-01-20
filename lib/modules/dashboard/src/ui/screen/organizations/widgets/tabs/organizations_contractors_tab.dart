@@ -25,8 +25,6 @@ class OrganizationsContractorsTab extends StatelessWidget {
   final String? parentOrganizationId;
   final bool canManage;
 
-  bool get _shouldShowParentColumn => parentOrganizationId == null;
-
   @override
   Widget build(BuildContext context) {
     final contractors = data.organizations.where((organization) {
@@ -72,7 +70,6 @@ class OrganizationsContractorsTab extends StatelessWidget {
             columns: [
               const DataColumn(label: Text('Название')),
               const DataColumn(label: Text('БИН')),
-              if (_shouldShowParentColumn) const DataColumn(label: Text('Родительская организация KGU ZKH')),
               const DataColumn(label: Text('Руководитель')),
               const DataColumn(label: Text('Адрес')),
               const DataColumn(label: Text('Телефон')),
@@ -80,21 +77,10 @@ class OrganizationsContractorsTab extends StatelessWidget {
               const DataColumn(label: Text('Действия')),
             ],
             rows: contractors.map((contractor) {
-              final parentName = contractor.parentOrgId == null
-                  ? '—'
-                  : data.organizations
-                          .firstWhere(
-                            (org) =>
-                                org.id == contractor.parentOrgId &&
-                                (org.type == OrganizationType.kguZkh || org.type == OrganizationType.too),
-                            orElse: () => contractor,
-                          )
-                          .name;
               return DataRow(
                 cells: [
                   DataCell(Text(contractor.name, overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.bin, overflow: TextOverflow.ellipsis)),
-                  if (_shouldShowParentColumn) DataCell(Text(parentName, overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.HeadFullName ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.address ?? '—', overflow: TextOverflow.ellipsis)),
                   DataCell(Text(contractor.phone ?? '—', overflow: TextOverflow.ellipsis)),

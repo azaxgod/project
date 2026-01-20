@@ -131,18 +131,18 @@ class NavbarWidgetsProvider {
         isActive: currentRoute == '/monitoring' || currentRoute == '/areas' || currentRoute == '/polygons',
         route: '/monitoring',
       ),
-      _NavbarButton(
-        label: S.of(context)!.tickets,
-        icon: Icons.assignment,
-        isActive: currentRoute == '/tickets',
-        route: '/tickets',
-      ),
-      _NavbarButton(
-        label: S.of(context)!.contracts,
-        icon: Icons.receipt_long,
-        isActive: currentRoute == '/kgu/contracts',
-        route: '/kgu/contracts',
-      ),
+      // _NavbarButton(
+      //   label: S.of(context)!.tickets,
+      //   icon: Icons.assignment,
+      //   isActive: currentRoute == '/tickets',
+      //   route: '/tickets',
+      // ),
+      // _NavbarButton(
+      //   label: S.of(context)!.contracts,
+      //   icon: Icons.receipt_long,
+      //   isActive: currentRoute == '/kgu/contracts',
+      //   route: '/kgu/contracts',
+      // ),
       _NavbarButton(
         label: S.of(context)!.analytics,
         icon: Icons.analytics,
