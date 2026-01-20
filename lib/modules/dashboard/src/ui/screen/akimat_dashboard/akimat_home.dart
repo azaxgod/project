@@ -6,17 +6,16 @@ import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/l10n/l10n.dart';
-import 'package:akimat_project/modules/analytics/src/controller/analytics_providers.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/dashboard_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/kpi_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/map_widget.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_contractors_snow_dashboard_card.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_snow_charts_section.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/snow_reports_home_card.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 class AkimatHome extends ConsumerWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -38,7 +37,6 @@ class AkimatHome extends ConsumerWidget {
     final config = PlatformConfig.instance;
 
     final state = ref.watch(akimatHomeControllerProvider);
-    final anprState = ref.watch(anprControllerProvider);
 
     return Scaffold(
       key: scaffoldKey,
@@ -347,6 +345,8 @@ const SizedBox(height: 16),
                         //     ],
                         //   ),
                         // ),
+                        const SizedBox(height: AppPadding.large),
+                        const HomeSnowChartsSection(days: 7),
                       ],
                     ),
                   ),

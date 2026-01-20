@@ -4,6 +4,7 @@ import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_contractors_snow_dashboard_card.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_snow_charts_section.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/snow_reports_home_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_areas_contractors_card.dart';
 import 'package:flutter/material.dart';
@@ -86,6 +87,9 @@ class KguHomePage extends StatelessWidget {
             const SizedBox(height: AppPadding.large),
 
             const HomeAreasContractorsCard(),
+            const SizedBox(height: AppPadding.large),
+
+            const HomeSnowChartsSection(days: 7),
             const SizedBox(height: AppPadding.large),
             // Напоминания
             Text(
