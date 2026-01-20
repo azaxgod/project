@@ -3,6 +3,7 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/widgets/snow_reports_home_card.dart';
 import 'package:flutter/material.dart';
 
 class KguHomePage extends StatelessWidget {
@@ -36,7 +37,7 @@ class KguHomePage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(AppPadding.normal),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withAlpha(26),
                       borderRadius: BorderRadius.circular(AppSize.smallRadius),
                     ),
                     child: Icon(
@@ -74,21 +75,7 @@ class KguHomePage extends StatelessWidget {
               style: AppTextStyles.title2,
             ),
             const SizedBox(height: AppPadding.normal),
-            // TODO: Добавить KPI карточки с данными
-            Container(
-              padding: const EdgeInsets.all(AppPadding.large),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                border: Border.all(color: AppColors.divider, width: 0.5),
-              ),
-              child: Text(
-                'Здесь будут отображаться: количество активных подрядчиков, полигонов, объёмы снега',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
+            SnowReportsHomeCard(),
             const SizedBox(height: AppPadding.large),
             // Напоминания
             Text(
