@@ -3,6 +3,7 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
@@ -252,10 +253,8 @@ class _MonitoringAreasTabState extends ConsumerState<MonitoringAreasTab> {
                 ],
               ),
               // Подрядчик по умолчанию
-              if (area.defaultContractorId != null) ...[
-                const SizedBox(height: AppPadding.small),
-                _buildContractorChip(area.defaultContractorId!),
-              ],
+              const SizedBox(height: AppPadding.small),
+              _buildContractorSelector(area),
             ],
           ),
         ),
@@ -283,6 +282,104 @@ class _MonitoringAreasTabState extends ConsumerState<MonitoringAreasTab> {
       label: Text(label),
       labelStyle: AppTextStyles.caption.copyWith(color: color),
       backgroundColor: color.withOpacity(0.1),
+    );
+  }
+
+  Widget _buildContractorSelector(CleaningArea area) {
+    // Только для роли KGU_ZKH_ADMIN показываем селектор подрядчика
+    final isKGU = widget.state.role == UserRole.kguZkhAdmin;
+    
+    if (!isKGU) {
+      // Для других ролей просто показываем подрядчика, если он есть
+      if (area.defaultContractorId != null) {
+        return _buildContractorChip(area.defaultContractorId!);
+      }
+      return const SizedBox.shrink();
+    }
+
+    // Для KGU показываем dropdown для выбора подрядчика
+    final contractors = widget.data.contractors;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.business,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Подрядчик:',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        SafeDropdownButtonFormField<String>(
+          value: area.defaultContractorId,
+          onChanged: (contractorId) async {
+            try {
+              await widget.controller.updateAreaContractor(area.id, contractorId);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      contractorId != null 
+                          ? 'Подрядчик успешно привязан к участку'
+                          : 'Подрядчик отвязан от участка',
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Ошибка при обновлении подрядчика: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+          decoration: InputDecoration(
+            hintText: 'Выберите подрядчика',
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+          ),
+          items: contractors.map((contractor) {
+            return DropdownMenuItem<String>(
+              value: contractor.id,
+              child: Text(
+                contractor.name,
+                style: AppTextStyles.caption,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

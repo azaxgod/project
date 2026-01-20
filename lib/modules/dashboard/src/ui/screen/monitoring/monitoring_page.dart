@@ -11,7 +11,6 @@ import 'package:akimat_project/core/widgets/app_footer.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/monitoring_state.dart';
-import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/monitoring_create_panel.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/monitoring_map_widget.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/monitoring_sidebar.dart';
@@ -233,6 +232,7 @@ class _MonitoringContent extends ConsumerWidget {
                         showPolygons: currentState.showPolygons,
                         showCameras: currentState.showCameras,
                         showVehicles: currentState.showVehicles,
+                        contractors: data.contractors,
                         onAreaTap: (areaId) => controller.selectArea(areaId),
                         onPolygonTap: (polygonId) => controller.selectPolygon(polygonId),
                         onVehicleTap: (vehicleId) => controller.selectVehicle(vehicleId),

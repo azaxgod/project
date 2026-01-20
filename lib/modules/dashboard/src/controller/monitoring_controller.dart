@@ -1016,5 +1016,19 @@ class MonitoringController extends StateNotifier<MonitoringState> {
     // Выключаем режим редактирования, форма сама отправит данные
     state = state.copyWith(isEditingGeometry: false);
   }
+
+  /// Обновить подрядчика по умолчанию для участка
+  Future<void> updateAreaContractor(String areaId, String? contractorId) async {
+    try {
+      await _operationsRepository.updateCleaningArea(
+        areaId,
+        defaultContractorId: contractorId,
+      );
+      await _loadData();
+    } catch (e) {
+      debugPrint('Error updating area contractor: $e');
+      rethrow;
+    }
+  }
 }
 

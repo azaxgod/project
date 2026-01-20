@@ -1,5 +1,6 @@
 import 'package:akimat_project/modules/dashboard/src/model/areas/cleaning_area.dart';
 import 'package:akimat_project/modules/dashboard/src/model/monitoring/vehicle_monitoring.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/camera.dart';
 import 'package:akimat_project/modules/dashboard/src/model/polygons/polygon.dart' as model;
 import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widgets/driver_marker.dart';
@@ -8,7 +9,6 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/monitoring/widget
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class MonitoringMapWidget extends StatefulWidget {
   final List<CleaningArea> areas;
@@ -36,6 +36,8 @@ class MonitoringMapWidget extends StatefulWidget {
   final VoidCallback? onToggleCameras;
   final VoidCallback? onToggleVehicles;
   final VoidCallback? onRefresh;
+  // Добавляем список подрядчиков для определения цвета участков
+  final List<Organization> contractors;
 
   const MonitoringMapWidget({
     super.key,
@@ -64,6 +66,7 @@ class MonitoringMapWidget extends StatefulWidget {
     this.onToggleCameras,
     this.onToggleVehicles,
     this.onRefresh,
+    this.contractors = const [],
   });
 
   @override
@@ -72,6 +75,22 @@ class MonitoringMapWidget extends StatefulWidget {
 
 class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
   late final MapController _mapController;
+
+  /// Получает цвет подрядчика по ID
+  Color _getContractorColor(String? contractorId) {
+    if (contractorId == null) return Colors.blue.shade700;
+
+    try {
+      widget.contractors.firstWhere((c) => c.id == contractorId);
+    } catch (_) {
+      return Colors.blue.shade700;
+    }
+    
+    // Генерируем цвет на основе ID подрядчика
+    final hash = contractorId.hashCode;
+    final hue = (hash.abs() % 360).toDouble();
+    return HSVColor.fromAHSV(1.0, hue, 0.7, 0.8).toColor();
+  }
 
   @override
   void initState() {
@@ -128,6 +147,9 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                        .where((area) => area.geometry.isNotEmpty && area.geometry.length >= 2)
                        .map((area) {
                          final isSelected = area.id == widget.selectedAreaId;
+                         // Получаем цвет подрядчика
+                         final contractorColor = _getContractorColor(area.defaultContractorId);
+                         
                          // Преобразуем геометрию в точки LatLng
                          final points = area.geometry
                              .map((coord) => LatLng(coord[1], coord[0]))
@@ -139,7 +161,7 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                          return Polyline(
                            points: points,
                            strokeWidth: isSelected ? 3.0 : 2.0,
-                           color: isSelected ? Colors.blue : Colors.blue.shade700,
+                           color: isSelected ? contractorColor : contractorColor.withOpacity(0.8),
                          );
                        }).toList(),
                  ),
