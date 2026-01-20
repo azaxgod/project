@@ -17,6 +17,8 @@ import 'package:akimat_project/modules/analytics/src/ui/widgets/shimmer_loading.
 import 'package:akimat_project/modules/analytics/src/ui/widgets/time_series_chart.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
+import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/services/analytics/model/analytics_response.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -202,6 +204,13 @@ class _AnalyticsTripsPageState extends ConsumerState<AnalyticsTripsPage> {
   }
 
   Widget _buildFilters(AnalyticsController controller) {
+    final organizationsState = ref.watch(organizationsControllerProvider);
+    final organizationsData = organizationsState.data.valueOrNull;
+    final contractors = organizationsData?.organizations
+            .where((org) => org.type == OrganizationType.contractor && org.isActive)
+            .toList() ??
+        [];
+
     return Container(
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
@@ -259,6 +268,39 @@ class _AnalyticsTripsPageState extends ConsumerState<AnalyticsTripsPage> {
                   },
                 ),
               ),
+              // Фильтр по подрядчикам
+              if (contractors.isNotEmpty)
+                SizedBox(
+                  width: kIsWeb ? 250 : double.infinity,
+                  child: SafeDropdownButtonFormField<String?>(
+                    value: _selectedContractorId,
+                    decoration: InputDecoration(
+                      labelText: 'Подрядчик',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                      ),
+                      isDense: true,
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Все подрядчики'),
+                      ),
+                      ...contractors.map((contractor) {
+                        return DropdownMenuItem<String?>(
+                          value: contractor.id,
+                          child: Text(contractor.name),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedContractorId = value;
+                      });
+                      _loadData();
+                    },
+                  ),
+                ),
             ],
           ),
         ],

@@ -575,6 +575,142 @@ class OrganizationsDialogs {
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
                   
+                  // Проверяем дубликаты во всех организациях перед сохранением
+                  final plateValue = plateController.text.trim();
+                  final normalizedValue = plateValue.replaceAll(' ', '').toUpperCase();
+                  
+                  Vehicle? duplicateVehicle;
+                  String? duplicateOrganizationName;
+                  
+                  final existingVehicle = data.vehicles.firstWhere(
+                    (item) {
+                      final normalizedPlate = item.plateNumber.replaceAll(' ', '').toUpperCase();
+                      return normalizedPlate == normalizedValue && 
+                             item.id != vehicle?.id &&
+                             item.contractorId != contractorId; // Ищем только в других организациях
+                    },
+                    orElse: () => Vehicle(
+                      id: '',
+                      contractorId: '',
+                      driverId: null,
+                      plateNumber: '',
+                      brand: '',
+                      model: '',
+                      color: '',
+                      year: 0,
+                      bodyVolumeM3: 0,
+                      isActive: true,
+                    ),
+                  );
+                  
+                  if (existingVehicle.id.isNotEmpty) {
+                    // Транспорт найден в другой организации
+                    duplicateVehicle = existingVehicle;
+                    // Находим название организации
+                    final org = data.organizations.firstWhere(
+                      (o) => o.id == existingVehicle.contractorId,
+                      orElse: () => Organization(
+                        id: '',
+                        name: 'Неизвестная организация',
+                        type: OrganizationType.contractor,
+                        bin: '',
+                        HeadFullName: null,
+                        address: null,
+                        phone: null,
+                        parentOrgId: null,
+                        isActive: true,
+                      ),
+                    );
+                    duplicateOrganizationName = org.name;
+                  }
+                  
+                  // Показываем диалоговое окно подтверждения, если найден дубликат
+                  if (duplicateVehicle != null && duplicateOrganizationName != null) {
+                    // Показываем диалоговое окно подтверждения
+                    final shouldTransfer = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange.shade700,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Транспорт уже существует',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Транспорт с номером "${plateController.text.trim()}" принадлежит организации:',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.business,
+                                    color: Colors.orange.shade700,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      duplicateOrganizationName!,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.orange.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Действительно хотите перенести транспорт в вашу организацию?',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Нет'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.orange.shade700,
+                            ),
+                            child: const Text('Да'),
+                          ),
+                        ],
+                      ),
+                    );
+                    
+                    if (shouldTransfer != true) {
+                      return; // Пользователь отменил операцию
+                    }
+                  }
+                  
                   String? finalPhotoUrl = photoUrl;
                   
                   // Если выбран новый файл, конвертируем в base64 data URL
