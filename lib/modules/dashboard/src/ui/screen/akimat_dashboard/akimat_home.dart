@@ -107,10 +107,10 @@ class AkimatHome extends ConsumerWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      s.main_panel,
-                                      style: AppTextStyles.title1,
-                                    ),
+                                    // Text(
+                                    //   s.main_panel,
+                                    //   style: AppTextStyles.title1,
+                                    // ),
                                     const SizedBox(height: AppPadding.xs),
                                     Text(
                                       'SnowOps Control System',
@@ -121,6 +121,17 @@ class AkimatHome extends ConsumerWidget {
                               ),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: AppPadding.large),
+
+                        // ---------------- Графики (самый верхний блок) ----------------
+                        const HomeSnowChartsSection(days: 7),
+                        const SizedBox(height: AppPadding.large),
+
+                        // ---------------- Подрядчики (самый верхний блок) ----------------
+                        const HomeContractorsSnowDashboardCard(
+                          hours: 24,
+                          maxItems: 10,
                         ),
                         const SizedBox(height: AppPadding.large),
 
@@ -146,12 +157,6 @@ class AkimatHome extends ConsumerWidget {
                         const SizedBox(height: 16),
 
                         // ---------------- Дополнительные платформенные виджеты ----------------
-                        const HomeContractorsSnowDashboardCard(
-                          hours: 24,
-                          maxItems: 10,
-                        ),
-                        const SizedBox(height: AppPadding.large),
-
                         SnowReportsHomeCard(compact: !config.showExtraWidget),
                         const SizedBox(height: AppPadding.large),
 
@@ -346,7 +351,6 @@ const SizedBox(height: 16),
                         //   ),
                         // ),
                         const SizedBox(height: AppPadding.large),
-                        const HomeSnowChartsSection(days: 7),
                       ],
                     ),
                   ),

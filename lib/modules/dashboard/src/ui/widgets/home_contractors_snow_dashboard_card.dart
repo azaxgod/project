@@ -27,6 +27,7 @@ class HomeContractorsSnowDashboardCard extends ConsumerStatefulWidget {
 class _HomeContractorsSnowDashboardCardState
     extends ConsumerState<HomeContractorsSnowDashboardCard> {
   AsyncValue<_ContractorsSnowData> _data = const AsyncLoading();
+  final Map<String, double> _previousVolumesByContractorId = {};
 
   @override
   void initState() {
@@ -65,18 +66,24 @@ class _HomeContractorsSnowDashboardCardState
             limit: 1,
             offset: 0,
           );
+
+          final previous = _previousVolumesByContractorId[c.id] ?? report.data.totalVolume;
+          final delta = report.data.totalVolume - previous;
           items.add(
             _ContractorSnowRow(
               contractor: c,
               totalVolume: report.data.totalVolume,
+              deltaVolume: delta,
               tripCount: report.data.tripCount,
             ),
           );
         } catch (_) {
+          final previous = _previousVolumesByContractorId[c.id] ?? 0;
           items.add(
             _ContractorSnowRow(
               contractor: c,
               totalVolume: 0,
+              deltaVolume: 0 - previous,
               tripCount: 0,
             ),
           );
@@ -88,6 +95,10 @@ class _HomeContractorsSnowDashboardCardState
       final limited = widget.maxItems == null
           ? items
           : items.take(widget.maxItems!).toList();
+
+      for (final item in items) {
+        _previousVolumesByContractorId[item.contractor.id] = item.totalVolume;
+      }
 
       setState(() {
         _data = AsyncValue.data(
@@ -154,81 +165,250 @@ class _HomeContractorsSnowDashboardCardState
             .map((e) => e.totalVolume)
             .fold<double>(0.0, (prev, v) => v > prev ? v : prev);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppPadding.small),
-              decoration: BoxDecoration(
-                color: Colors.cyan.withAlpha(26),
-                borderRadius: BorderRadius.circular(AppSize.smallRadius),
-              ),
-              child: const Icon(
-                Icons.groups_outlined,
-                color: Colors.cyan,
-                size: AppSize.iconSize,
-              ),
-            ),
-            const SizedBox(width: AppPadding.normal),
-            Expanded(
-              child: Text(
-                'Подрядчики',
-                style: AppTextStyles.title2,
-              ),
-            ),
-            IconButton(
-              onPressed: _load,
-              tooltip: 'Обновить',
-              icon: const Icon(Icons.refresh),
-            ),
+    return Container(
+      padding: const EdgeInsets.all(AppPadding.large),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.cyan.shade50,
+            Colors.blue.shade50,
           ],
         ),
-        const SizedBox(height: AppPadding.normal),
-        Center(
-          child: Column(
-            children: [
-              Text(
-                data.contractorsCount.toString(),
-                style: AppTextStyles.title1.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'количество подрядчиков',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
+        borderRadius: BorderRadius.circular(AppSize.cardRadius),
+        border: Border.all(
+          color: Colors.cyan.shade200,
+          width: 1.5,
         ),
-        const SizedBox(height: AppPadding.large),
-        if (data.rows.isEmpty)
-          Text(
-            'Нет данных',
-            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-          )
-        else
-          Column(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.cyan.withAlpha(20),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Заголовок с иконкой и количеством
+          Row(
             children: [
-              for (final row in data.rows)
-                _ContractorSnowTile(
-                  row: row,
-                  maxVolume: maxVolume,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.cyan.shade400,
+                      Colors.cyan.shade600,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyan.withAlpha(40),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              if (data.totalRows > data.rows.length)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppPadding.small),
-                  child: Text(
-                    'Показано: ${data.rows.length} из ${data.totalRows}',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                child: const Icon(
+                  Icons.groups_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppPadding.normal),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Топ подрядчиков',
+                      style: AppTextStyles.title1.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.cyan.shade900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.cyan.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${data.contractorsCount} активных',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.cyan.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppPadding.small),
+                        if (data.totalRows > data.rows.length)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Топ ${data.rows.length}',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.orange.shade800,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _load,
+                tooltip: 'Обновить данные',
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    color: Colors.cyan.shade700,
+                    size: 20,
                   ),
                 ),
+              ),
             ],
           ),
-      ],
+          const SizedBox(height: AppPadding.large),
+          
+          // Большой индикатор общего количества
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppPadding.large),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(180),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.cyan.shade200.withAlpha(100),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  data.contractorsCount.toString(),
+                  style: AppTextStyles.title1.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.cyan.shade900,
+                    fontSize: 48,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'ПОДРЯДЧИКОВ В СИСТЕМЕ',
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.cyan.shade700,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppPadding.large),
+          
+          // Список подрядчиков с объемом снега
+          if (data.rows.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppPadding.large),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: AppPadding.normal),
+                  Text(
+                    'Нет данных о вывозе снега',
+                    style: AppTextStyles.body.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...data.rows.asMap().entries.map((entry) {
+              final index = entry.key;
+              final row = entry.value;
+              return _ContractorSnowTile(
+                row: row,
+                maxVolume: maxVolume,
+                position: index + 1, // Передаем позицию для топ-бейджа
+              );
+            }),
+          
+          if (data.totalRows > data.rows.length)
+            Padding(
+              padding: const EdgeInsets.only(top: AppPadding.normal),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppPadding.normal,
+                  vertical: AppPadding.small,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Показаны топ-${data.rows.length} из ${data.totalRows} подрядчиков',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -249,11 +429,13 @@ class _ContractorSnowRow {
   const _ContractorSnowRow({
     required this.contractor,
     required this.totalVolume,
+    required this.deltaVolume,
     required this.tripCount,
   });
 
   final Organization contractor;
   final double totalVolume;
+  final double deltaVolume;
   final int tripCount;
 }
 
@@ -261,10 +443,12 @@ class _ContractorSnowTile extends StatelessWidget {
   const _ContractorSnowTile({
     required this.row,
     required this.maxVolume,
+    required this.position, // Позиция в топе (1, 2, 3...)
   });
 
   final _ContractorSnowRow row;
   final double maxVolume;
+  final int position;
 
   @override
   Widget build(BuildContext context) {
@@ -272,47 +456,317 @@ class _ContractorSnowTile extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppPadding.small),
-      padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        color: AppColors.secondaryBackground,
-        borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.cyan.shade100,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.cyan.withAlpha(10),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  row.contractor.name,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+      child: Padding(
+        padding: const EdgeInsets.all(AppPadding.normal),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Верхняя строка с топ-бейджем, названием и объемом
+            Row(
+              children: [
+                // Топ-бейдж (1, 2, 3 место)
+                _buildTopBadge(position),
+                const SizedBox(width: AppPadding.small),
+                Expanded(
+                  child: Text(
+                    row.contractor.name,
+                    style: AppTextStyles.title3.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.cyan.shade900,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+                const SizedBox(width: AppPadding.small),
+                _buildDeltaBadge(row.deltaVolume),
+                const SizedBox(width: AppPadding.small),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.cyan.shade400,
+                        Colors.cyan.shade600,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.cyan.withAlpha(30),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '${row.totalVolume.toStringAsFixed(1)} м³',
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppPadding.small),
+            
+            // Прогресс-бар объема снега
+            Container(
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.cyan.shade50,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.cyan.shade500,
+                  ),
                 ),
               ),
-              const SizedBox(width: AppPadding.small),
-              Text(
-                '${row.totalVolume.toStringAsFixed(1)} м³',
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.cyan,
+            ),
+            const SizedBox(height: AppPadding.small),
+            
+            // Нижняя строка с количеством поездок
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.directions_car_rounded,
+                        size: 14,
+                        color: Colors.blue.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${row.tripCount}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const Spacer(),
+                Text(
+                  'рейсов',
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBadge(int position) {
+    switch (position) {
+      case 1:
+        return Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.amber.shade300,
+                Colors.amber.shade600,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.amber.withAlpha(40),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(height: AppPadding.xs),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: Colors.cyan.withAlpha(13),
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan.withAlpha(179)),
-            ),
+          child: const Icon(
+            Icons.emoji_events,
+            color: Colors.white,
+            size: 18,
           ),
-          const SizedBox(height: AppPadding.xs),
+        );
+      case 2:
+        return Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.grey.shade300,
+                Colors.grey.shade500,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withAlpha(30),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.looks_two,
+            color: Colors.white,
+            size: 18,
+          ),
+        );
+      case 3:
+        return Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.brown.shade300,
+                Colors.brown.shade500,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.brown.withAlpha(30),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.looks_3,
+            color: Colors.white,
+            size: 18,
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildDeltaBadge(double delta) {
+    final rounded = double.parse(delta.toStringAsFixed(1));
+
+    if (rounded > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.green.shade200, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.add,
+              size: 16,
+              color: Colors.green.shade700,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              rounded.toStringAsFixed(1),
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.green.shade700,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (rounded < 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.red.shade200, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.remove,
+              size: 16,
+              color: Colors.red.shade700,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              rounded.abs().toStringAsFixed(1),
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.red.shade700,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.remove,
+            size: 16,
+            color: Colors.grey.shade700,
+          ),
+          const SizedBox(width: 4),
           Text(
-            'Поездок: ${row.tripCount}',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+            '0',
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),

@@ -72,25 +72,30 @@ class KguHomePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppPadding.large),
+
+            // ---------------- Графики (самый верхний блок) ----------------
+            const HomeSnowChartsSection(days: 7),
+            const SizedBox(height: AppPadding.large),
+
+            // ---------------- Подрядчики (самый верхний блок) ----------------
+            const HomeContractorsSnowDashboardCard(
+              hours: 24,
+              maxItems: 10,
+            ),
+            const SizedBox(height: AppPadding.large),
+            
             // KPI карточки
             Text(
               'Метрики',
               style: AppTextStyles.title2,
             ),
             const SizedBox(height: AppPadding.normal),
-            const HomeContractorsSnowDashboardCard(
-              hours: 24,
-              maxItems: 10,
-            ),
-            const SizedBox(height: AppPadding.large),
             SnowReportsHomeCard(),
             const SizedBox(height: AppPadding.large),
 
             const HomeAreasContractorsCard(),
             const SizedBox(height: AppPadding.large),
 
-            const HomeSnowChartsSection(days: 7),
-            const SizedBox(height: AppPadding.large),
             // Напоминания
             Text(
               'Напоминания',

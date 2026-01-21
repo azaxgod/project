@@ -110,56 +110,145 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
   @override
   Widget build(BuildContext context) {
     return _data.when(
-      data: (data) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppPadding.small),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(26),
-                  borderRadius: BorderRadius.circular(AppSize.smallRadius),
-                ),
-                child: Icon(
-                  Icons.show_chart,
-                  color: AppColors.primary,
-                  size: AppSize.iconSize,
-                ),
-              ),
-              const SizedBox(width: AppPadding.normal),
-              Expanded(
-                child: Text(
-                  'Графики',
-                  style: AppTextStyles.title2,
-                ),
-              ),
-              IconButton(
-                onPressed: _load,
-                tooltip: 'Обновить',
-                icon: const Icon(Icons.refresh),
-              ),
+      data: (data) => Container(
+        padding: const EdgeInsets.all(AppPadding.large),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.indigo.shade50,
+              Colors.cyan.shade50,
             ],
           ),
-          const SizedBox(height: AppPadding.normal),
-          _VolumeLineChartCard(
-            title: 'Объём снега (м³)',
-            series: data.volume,
-            height: 220,
+          borderRadius: BorderRadius.circular(AppSize.cardRadius),
+          border: Border.all(
+            color: Colors.indigo.shade200.withAlpha(90),
+            width: 1.5,
           ),
-          const SizedBox(height: AppPadding.large),
-          BarChartWidget(
-            title: 'Рейсы',
-            series: data.trips,
-            height: 220,
-          ),
-          const SizedBox(height: AppPadding.large),
-          BarChartWidget(
-            title: 'События',
-            series: data.events,
-            height: 220,
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.indigo.withAlpha(14),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withAlpha(8),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.indigo.shade400,
+                        Colors.indigo.shade600,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.indigo.withAlpha(40),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.show_chart_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: AppPadding.normal),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Графики',
+                        style: AppTextStyles.title1.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.indigo.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(180),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.indigo.shade200.withAlpha(90),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          'За ${widget.days} дней',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.indigo.shade800,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _load,
+                  tooltip: 'Обновить',
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(180),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.indigo.shade200.withAlpha(90),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.indigo.shade700,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppPadding.large),
+            _VolumeLineChartCard(
+              title: 'Объём снега (м³)',
+              series: data.volume,
+              height: 220,
+            ),
+            const SizedBox(height: AppPadding.large),
+            BarChartWidget(
+              title: 'Рейсы',
+              series: data.trips,
+              height: 220,
+            ),
+            const SizedBox(height: AppPadding.large),
+            BarChartWidget(
+              title: 'События',
+              series: data.events,
+              height: 220,
+            ),
+          ],
+        ),
       ),
       loading: () => const Center(
         child: Padding(
@@ -170,9 +259,19 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
       error: (e, _) => Container(
         padding: const EdgeInsets.all(AppPadding.large),
         decoration: BoxDecoration(
-          color: AppColors.cardBackground,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.indigo.shade50,
+              Colors.cyan.shade50,
+            ],
+          ),
           borderRadius: BorderRadius.circular(AppSize.cardRadius),
-          border: Border.all(color: AppColors.divider, width: 0.5),
+          border: Border.all(
+            color: Colors.indigo.shade200.withAlpha(90),
+            width: 1.5,
+          ),
         ),
         child: Row(
           children: [
@@ -233,9 +332,12 @@ class _VolumeLineChartCard extends StatelessWidget {
         height: height,
         padding: const EdgeInsets.all(AppPadding.large),
         decoration: BoxDecoration(
-          color: AppColors.cardBackground,
+          color: Colors.white.withAlpha(200),
           borderRadius: BorderRadius.circular(AppSize.cardRadius),
-          border: Border.all(color: AppColors.divider, width: 0.5),
+          border: Border.all(
+            color: Colors.indigo.shade200.withAlpha(90),
+            width: 1,
+          ),
         ),
         child: Center(
           child: Text(
@@ -254,14 +356,30 @@ class _VolumeLineChartCard extends StatelessWidget {
       height: height,
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: Colors.white.withAlpha(200),
         borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
+        border: Border.all(
+          color: Colors.indigo.shade200.withAlpha(90),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withAlpha(10),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.title2),
+          Text(
+            title,
+            style: AppTextStyles.title2.copyWith(
+              fontWeight: FontWeight.w800,
+              color: Colors.indigo.shade900,
+            ),
+          ),
           const SizedBox(height: AppPadding.normal),
           Expanded(
             child: LineChart(
@@ -339,13 +457,13 @@ class _VolumeLineChartCard extends StatelessWidget {
                       );
                     }).toList(),
                     isCurved: true,
-                    color: Colors.cyan,
+                    color: Colors.indigo.shade500,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Colors.cyan.withAlpha(26),
+                      color: Colors.indigo.withAlpha(20),
                     ),
                   ),
                 ],
