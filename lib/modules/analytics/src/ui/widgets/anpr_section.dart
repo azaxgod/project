@@ -3365,7 +3365,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () {
-            // Можно открыть в полноэкранном режиме
+            _showFullScreenImage(context, url, label);
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -3726,7 +3726,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                 children: event.photos.map((photoUrl) {
                                   return GestureDetector(
                                     onTap: () {
-                                      // Можно открыть в полноэкранном режиме
+                                      _showFullScreenImage(context, photoUrl, 'Фото');
                                     },
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
@@ -3784,6 +3784,70 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl, String title) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Stack(
+            children: [
+              // Dark background
+              Container(color: Colors.black.withAlpha(200)),
+              // Image
+              Center(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.black54,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error, color: Colors.white, size: 48),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Не удалось загрузить изображение',
+                            style: const TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Close button
+              Positioned(
+                top: 40,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(180),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
