@@ -363,8 +363,132 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      // Dark theme colors would go here
-      scaffoldBackgroundColor: const Color(0xFF0F172A),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF60A5FA),
+        primaryContainer: Color(0xFF1E3A8A),
+        secondary: Color(0xFFA78BFA),
+        secondaryContainer: Color(0xFF4C1D95),
+        surface: Color(0xFF0F172A),
+        surfaceContainerHighest: Color(0xFF111C33),
+        background: Color(0xFF0B1220),
+        error: Color(0xFFF87171),
+        errorContainer: Color(0xFF7F1D1D),
+        onPrimary: Color(0xFF0B1220),
+        onSecondary: Color(0xFF0B1220),
+        onSurface: Color(0xFFE5E7EB),
+        onBackground: Color(0xFFE5E7EB),
+        onError: Color(0xFF0B1220),
+      ),
+
+      scaffoldBackgroundColor: const Color(0xFF0B1220),
+
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: const Color(0xFFE5E7EB),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        titleTextStyle: AppTextStyles.title2.copyWith(
+          color: const Color(0xFFE5E7EB),
+        ),
+        iconTheme: const IconThemeData(
+          color: Color(0xFFE5E7EB),
+          size: AppSize.iconSize,
+        ),
+        centerTitle: false,
+      ),
+
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSize.cardRadius),
+          side: const BorderSide(
+            color: Color(0xFF22314F),
+            width: 1.5,
+          ),
+        ),
+        color: const Color(0xFF0F172A),
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        shadowColor: Colors.black.withOpacity(0.3),
+      ),
+
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFF22314F),
+        thickness: 1,
+        space: 1,
+      ),
+
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF111C33),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppPadding.inputHorizontal,
+          vertical: AppPadding.inputVertical,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+          borderSide: const BorderSide(
+            color: Color(0xFF22314F),
+            width: 1,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+          borderSide: const BorderSide(
+            color: Color(0xFF22314F),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+          borderSide: const BorderSide(
+            color: Color(0xFF60A5FA),
+            width: 2,
+          ),
+        ),
+        labelStyle: AppTextStyles.label.copyWith(
+          color: const Color(0xFFCBD5E1),
+        ),
+        hintStyle: AppTextStyles.body.copyWith(
+          color: const Color(0xFF94A3B8),
+        ),
+      ),
+
+      textTheme: TextTheme(
+        displayLarge: AppTextStyles.hero.copyWith(color: const Color(0xFFE5E7EB)),
+        displayMedium: AppTextStyles.display.copyWith(color: const Color(0xFFE5E7EB)),
+        displaySmall: AppTextStyles.largeTitle.copyWith(color: const Color(0xFFE5E7EB)),
+        headlineLarge: AppTextStyles.title1.copyWith(color: const Color(0xFFE5E7EB)),
+        headlineMedium: AppTextStyles.title2.copyWith(color: const Color(0xFFE5E7EB)),
+        headlineSmall: AppTextStyles.title3.copyWith(color: const Color(0xFFE5E7EB)),
+        titleLarge: AppTextStyles.headline.copyWith(color: const Color(0xFFE5E7EB)),
+        titleMedium: AppTextStyles.bodyLarge.copyWith(color: const Color(0xFFE5E7EB)),
+        titleSmall: AppTextStyles.body.copyWith(color: const Color(0xFFE5E7EB)),
+        bodyLarge: AppTextStyles.bodyLarge.copyWith(color: const Color(0xFFE5E7EB)),
+        bodyMedium: AppTextStyles.body.copyWith(color: const Color(0xFFE5E7EB)),
+        bodySmall: AppTextStyles.subheadline.copyWith(color: const Color(0xFFCBD5E1)),
+        labelLarge: AppTextStyles.button.copyWith(color: const Color(0xFF0B1220)),
+        labelMedium: AppTextStyles.callout.copyWith(color: const Color(0xFFE5E7EB)),
+        labelSmall: AppTextStyles.footnote.copyWith(color: const Color(0xFFCBD5E1)),
+      ),
+
+      iconTheme: const IconThemeData(
+        color: Color(0xFFE5E7EB),
+        size: AppSize.iconSize,
+      ),
+
+      snackBarTheme: SnackBarThemeData(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+        ),
+        backgroundColor: const Color(0xFFE5E7EB),
+        contentTextStyle: AppTextStyles.body.copyWith(
+          color: const Color(0xFF0B1220),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

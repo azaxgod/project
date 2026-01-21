@@ -3,11 +3,15 @@ import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
 import 'package:akimat_project/core/ui/app_textstyle.dart';
+import 'package:akimat_project/modules/analytics/src/ui/widgets/anpr_section.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_contractors_snow_dashboard_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_snow_charts_section.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/widgets/snow_reports_home_card.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/widgets/last_trips_home_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_areas_contractors_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 
 class KguHomePage extends StatelessWidget {
   const KguHomePage({
@@ -77,6 +81,41 @@ class KguHomePage extends StatelessWidget {
             const HomeSnowChartsSection(days: 7),
             const SizedBox(height: AppPadding.large),
 
+            // ---------------- ANPR — Распознавание номеров (самый верхний блок) ----------------
+            Consumer(
+              builder: (context, ref, _) {
+                final authState = ref.watch(authNotifierProvider);
+                final userRole = userRoleFromString(authState.user?.role);
+
+                if (userRole != UserRole.kguZkhAdmin &&
+                    userRole != UserRole.akimatAdmin &&
+                    userRole != UserRole.contractorAdmin) {
+                  return const SizedBox.shrink();
+                }
+
+                final now = DateTime.now();
+                final anprDateFrom = now.subtract(const Duration(hours: 24));
+
+                final contractorId = userRole == UserRole.contractorAdmin
+                    ? authState.user?.organizationId
+                    : null;
+
+                return Column(
+                  children: [
+                    AnprSection(
+                      dateFrom: anprDateFrom,
+                      dateTo: now,
+                      contractorId: contractorId,
+                      showReports: false,
+                      showEvents: false,
+                    ),
+                    const LastTripsHomeCard(limit: 5),
+                    const SizedBox(height: AppPadding.large),
+                  ],
+                );
+              },
+            ),
+
             // ---------------- Подрядчики (самый верхний блок) ----------------
             const HomeContractorsSnowDashboardCard(
               hours: 24,
@@ -90,9 +129,6 @@ class KguHomePage extends StatelessWidget {
               style: AppTextStyles.title2,
             ),
             const SizedBox(height: AppPadding.normal),
-            SnowReportsHomeCard(),
-            const SizedBox(height: AppPadding.large),
-
             const HomeAreasContractorsCard(),
             const SizedBox(height: AppPadding.large),
 

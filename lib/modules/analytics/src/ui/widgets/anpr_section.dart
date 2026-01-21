@@ -54,6 +54,9 @@ class AnprSection extends ConsumerStatefulWidget {
     this.polygonId,
     this.vehicleId,
     this.plate,
+    this.showReports = true,
+    this.showEvents = true,
+    this.showStatistics = true,
   });
 
   final DateTime? dateFrom;
@@ -62,6 +65,9 @@ class AnprSection extends ConsumerStatefulWidget {
   final String? polygonId; // Фильтр по полигону
   final String? vehicleId; // Фильтр по машине
   final String? plate; // Поиск по номеру
+  final bool showReports;
+  final bool showEvents;
+  final bool showStatistics;
 
   @override
   ConsumerState<AnprSection> createState() => _AnprSectionState();
@@ -169,15 +175,32 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     final effectiveTo = widget.dateTo ?? DateTime.now();
 
     // Загружаем статистику только если её нет и не загружается
-    final statsIsLoading = anprState.statistics?.isLoading ?? false;
-    if (anprState.statistics == null && !statsIsLoading) {
-      anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
+    if (widget.showStatistics) {
+      final statsIsLoading = anprState.statistics?.isLoading ?? false;
+      if (anprState.statistics == null && !statsIsLoading) {
+        anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
+      }
     }
-    
-    // Загружаем отчеты с учетом фильтра по подрядчику
-    // Согласно документации: отчеты показывают поездки и объем снега
-    // Всегда перезагружаем отчеты при изменении фильтров, чтобы получить актуальные данные
-    _loadReportsPage(from: effectiveFrom, to: effectiveTo, page: _reportsPage);
+
+    final shouldLoadEvents = widget.showEvents ||
+        (widget.showStatistics && widget.contractorId != null);
+
+    if (shouldLoadEvents) {
+      anprController.loadEvents(
+        plate: widget.plate,
+        from: effectiveFrom,
+        to: effectiveTo,
+        limit: 100,
+        offset: 0,
+      );
+    }
+
+    if (widget.showReports) {
+      // Загружаем отчеты с учетом фильтра по подрядчику
+      // Согласно документации: отчеты показывают поездки и объем снега
+      // Всегда перезагружаем отчеты при изменении фильтров, чтобы получить актуальные данные
+      _loadReportsPage(from: effectiveFrom, to: effectiveTo, page: _reportsPage);
+    }
     
     _hasLoaded = true;
   }
@@ -192,116 +215,140 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Статистика ANPR
-        AnimatedSection(
-          title: 'ANPR - Распознавание номеров',
-          icon: Icons.camera_alt,
-          child: Builder(
-            builder: (context) {
-              // Если есть фильтр по подрядчику, пересчитываем статистику из событий
-              if (widget.contractorId != null && anprState.events?.hasValue == true) {
-                final allEvents = anprState.events!.value!;
-                final organizationsState = ref.watch(organizationsControllerProvider);
-                final organizationsData = organizationsState.data.valueOrNull;
-                
-                // Фильтруем события по подрядчику
-                final filteredEvents = allEvents.where((event) {
-                  if (event.contractorId != null) {
-                    return event.contractorId == widget.contractorId;
-                  }
-                  if (organizationsData != null) {
-                    try {
-                      final vehicle = organizationsData.vehicles.firstWhere(
-                        (v) => v.plateNumber.replaceAll(' ', '').toUpperCase() == 
-                               event.normalizedPlate.replaceAll(' ', '').toUpperCase(),
-                      );
-                      return vehicle.contractorId == widget.contractorId;
-                    } catch (e) {
-                      return false;
+        if (widget.showStatistics)
+          AnimatedSection(
+            title: 'ANPR - Распознавание номеров',
+            icon: Icons.camera_alt,
+            child: Builder(
+              builder: (context) {
+                // Если есть фильтр по подрядчику, пересчитываем статистику из событий
+                if (widget.contractorId != null &&
+                    anprState.events?.hasValue == true) {
+                  final allEvents = anprState.events!.value!;
+                  final organizationsState =
+                      ref.watch(organizationsControllerProvider);
+                  final organizationsData = organizationsState.data.valueOrNull;
+
+                  // Фильтруем события по подрядчику
+                  final filteredEvents = allEvents.where((event) {
+                    if (event.contractorId != null) {
+                      return event.contractorId == widget.contractorId;
                     }
-                  }
-                  return false;
-                }).toList();
-                
-                // Пересчитываем статистику из отфильтрованных событий
-                final totalEvents = filteredEvents.length;
-                final uniquePlates = filteredEvents.map((e) => e.normalizedPlate).toSet().length;
-                final enterEvents = filteredEvents.where((e) => e.direction == 'enter').length;
-                final exitEvents = filteredEvents.where((e) => e.direction == 'exit').length;
-                final avgConfidence = filteredEvents
-                        .where((e) => e.confidence != null)
-                        .map((e) => e.confidence!)
-                        .fold(0.0, (sum, conf) => sum + conf) /
-                    (filteredEvents.where((e) => e.confidence != null).length > 0
-                        ? filteredEvents.where((e) => e.confidence != null).length
-                        : 1);
-                
-                final filteredStats = AnprStatistics(
-                  totalEvents: totalEvents,
-                  uniquePlates: uniquePlates,
-                  enterEvents: enterEvents,
-                  exitEvents: exitEvents,
-                  avgConfidence: avgConfidence,
-                );
-                
-                return _buildStatistics(filteredStats);
-              }
-              
-              // Иначе используем стандартную статистику
-              return anprState.statistics?.when(
-                data: (stats) => _buildStatistics(stats),
-                loading: () => const Center(
-                  child: Padding( 
-                    padding: EdgeInsets.all(AppPadding.large),
-                    child: CircularProgressIndicator(),
-                  ), 
-                ),
-                error: (error, stack) => _buildErrorState(error.toString()),
-              ) ?? const SizedBox.shrink();
-            },
-          ),
-        ),
-        const SizedBox(height: AppPadding.large),
-        // Отчеты по объему снега и поездкам
-        // Согласно документации: показывает total_volume, trip_count и список событий
-        AnimatedSection(
-          title: 'Отчеты по объему снега и поездкам',
-          icon: Icons.assessment,
-          child: anprState.reports?.when(
-            data: (reportData) {
-              final anprController = ref.read(anprControllerProvider.notifier);
-              return _buildReportsSection(context, reportData, anprController);
-            },
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppPadding.large),
-                child: CircularProgressIndicator(),
-              ),
+                    if (organizationsData != null) {
+                      try {
+                        final vehicle = organizationsData.vehicles.firstWhere(
+                          (v) =>
+                              v.plateNumber.replaceAll(' ', '').toUpperCase() ==
+                              event.normalizedPlate
+                                  .replaceAll(' ', '')
+                                  .toUpperCase(),
+                        );
+                        return vehicle.contractorId == widget.contractorId;
+                      } catch (e) {
+                        return false;
+                      }
+                    }
+                    return false;
+                  }).toList();
+
+                  // Пересчитываем статистику из отфильтрованных событий
+                  final totalEvents = filteredEvents.length;
+                  final uniquePlates =
+                      filteredEvents.map((e) => e.normalizedPlate).toSet().length;
+                  final enterEvents =
+                      filteredEvents.where((e) => e.direction == 'enter').length;
+                  final exitEvents =
+                      filteredEvents.where((e) => e.direction == 'exit').length;
+                  final avgConfidence = filteredEvents
+                          .where((e) => e.confidence != null)
+                          .map((e) => e.confidence!)
+                          .fold(0.0, (sum, conf) => sum + conf) /
+                      (filteredEvents.where((e) => e.confidence != null).length >
+                              0
+                          ? filteredEvents
+                              .where((e) => e.confidence != null)
+                              .length
+                          : 1);
+
+                  final filteredStats = AnprStatistics(
+                    totalEvents: totalEvents,
+                    uniquePlates: uniquePlates,
+                    enterEvents: enterEvents,
+                    exitEvents: exitEvents,
+                    avgConfidence: avgConfidence,
+                  );
+
+                  return _buildStatistics(filteredStats);
+                }
+
+                // Иначе используем стандартную статистику
+                return anprState.statistics?.when(
+                      data: (stats) => _buildStatistics(stats),
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppPadding.large),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (error, stack) =>
+                          _buildErrorState(error.toString()),
+                    ) ??
+                    const SizedBox.shrink();
+              },
             ),
-            error: (error, stack) => _buildErrorState(error.toString()),
-          ) ?? const SizedBox.shrink(),
-        ),
-        const SizedBox(height: AppPadding.large),
-        // События ANPR
-        // AnimatedSection(
-        //   title: 'События распознавания',
-        //   icon: Icons.event,
-        //   child: anprState.events?.when(
-        //     data: (events) {
-        //       final organizationsState = ref.watch(organizationsControllerProvider);
-        //       final organizationsData = organizationsState.data.valueOrNull;
-        //       final anprController = ref.read(anprControllerProvider.notifier);
-        //       return _buildEventsTable(context, events, anprController, reportsData, organizationsData);
-        //     },
-        //     loading: () => const Center(
-        //       child: Padding(
-        //         padding: EdgeInsets.all(AppPadding.large),
-        //         child: CircularProgressIndicator(),
-        //       ),
-        //     ),
-        //     error: (error, stack) => _buildErrorState(error.toString()),
-        //   ) ?? const SizedBox.shrink(),
-        // ),
+          ),
+        if (widget.showReports) ...[
+          const SizedBox(height: AppPadding.large),
+          // Отчеты по объему снега и поездкам
+          // Согласно документации: показывает total_volume, trip_count и список событий
+          AnimatedSection(
+            title: 'Отчеты по объему снега и поездкам',
+            icon: Icons.assessment,
+            child: anprState.reports?.when(
+              data: (reportData) {
+                final anprController = ref.read(anprControllerProvider.notifier);
+                return _buildReportsSection(context, reportData, anprController);
+              },
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppPadding.large),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (error, stack) => _buildErrorState(error.toString()),
+            ) ?? const SizedBox.shrink(),
+          ),
+        ],
+        if (widget.showEvents) ...[
+          const SizedBox(height: AppPadding.large),
+          AnimatedSection(
+            title: 'События распознавания',
+            icon: Icons.event,
+            child: anprState.events?.when(
+              data: (events) {
+                final organizationsState =
+                    ref.watch(organizationsControllerProvider);
+                final organizationsData = organizationsState.data.valueOrNull;
+                final anprController =
+                    ref.read(anprControllerProvider.notifier);
+                return _buildEventsTable(
+                  context,
+                  events,
+                  anprController,
+                  reportsData,
+                  organizationsData,
+                );
+              },
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppPadding.large),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (error, stack) => _buildErrorState(error.toString()),
+            ) ?? const SizedBox.shrink(),
+          ),
+        ],
       ],
     );
   }

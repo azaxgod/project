@@ -8,19 +8,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-class SnowReportsHomeCard extends ConsumerStatefulWidget {
-  const SnowReportsHomeCard({
+class LastTripsHomeCard extends ConsumerStatefulWidget {
+  const LastTripsHomeCard({
     super.key,
-    this.compact = false,
+    this.limit = 5,
   });
 
-  final bool compact;
+  final int limit;
 
   @override
-  ConsumerState<SnowReportsHomeCard> createState() => _SnowReportsHomeCardState();
+  ConsumerState<LastTripsHomeCard> createState() => _LastTripsHomeCardState();
 }
 
-class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
+class _LastTripsHomeCardState extends ConsumerState<LastTripsHomeCard> {
   bool _hasLoaded = false;
 
   @override
@@ -35,7 +35,7 @@ class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
       ref.read(anprControllerProvider.notifier).loadReports(
             from: from,
             to: now,
-            limit: 5,
+            limit: 50,
             offset: 0,
           );
     });
@@ -43,22 +43,21 @@ class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     final state = ref.watch(anprControllerProvider);
     final reports = state.reports;
 
     return Container(
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.cyan.withAlpha(38),
-            Colors.cyan.withAlpha(13),
-          ],
-        ),
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(color: Colors.cyan.withAlpha(77), width: 0.5),
+        border: Border.all(
+          color: scheme.outlineVariant.withAlpha(140),
+          width: 0.8,
+        ),
       ),
       child: reports == null
           ? _buildLoading()
@@ -90,7 +89,7 @@ class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Отчеты по объему снега и поездкам',
+            'Последние рейсы',
             style: AppTextStyles.title3.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppPadding.small),
@@ -104,94 +103,62 @@ class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
   }
 
   Widget _buildData(BuildContext context, AnprReportData reportData) {
-    final tripCount = reportData.tripCount;
-    final totalVolume = reportData.totalVolume;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final events = reportData.events.take(widget.limit).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Отчеты по объему снега и поездкам',
-          style: AppTextStyles.title3.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: AppPadding.normal),
         Row(
           children: [
             Expanded(
-              child: _kpi(
-                title: 'Поездок (24ч)',
-                value: tripCount.toString(),
-                valueColor: Colors.blue,
+              child: Text(
+                'Последние рейсы (24ч)',
+                style: AppTextStyles.title3.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
+                ),
               ),
             ),
-            const SizedBox(width: AppPadding.normal),
-            Expanded(
-              child: _kpi(
-                title: 'Объем снега (24ч)',
-                value: '${totalVolume.toStringAsFixed(1)} м³',
-                valueColor: Colors.cyan,
+            IconButton(
+              tooltip: 'Обновить',
+              onPressed: () {
+                final now = DateTime.now();
+                final from = now.subtract(const Duration(hours: 24));
+                ref.read(anprControllerProvider.notifier).loadReports(
+                      from: from,
+                      to: now,
+                      limit: 50,
+                      offset: 0,
+                    );
+              },
+              icon: Icon(
+                Icons.refresh,
+                color: scheme.onSurface.withAlpha(220),
               ),
             ),
           ],
         ),
-        if (!widget.compact) ...[
-          const SizedBox(height: AppPadding.normal),
-          const Divider(height: 1),
-          const SizedBox(height: AppPadding.normal),
+        const SizedBox(height: AppPadding.normal),
+        const Divider(height: 1),
+        const SizedBox(height: AppPadding.normal),
+        if (events.isEmpty)
           Text(
-            'Последние рейсы',
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: AppPadding.small),
-          if (reportData.events.isEmpty)
-            Text(
-              'Нет данных за период',
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-            )
-          else
-            ...reportData.events.take(5).map((event) => _eventRow(event)),
-        ] else ...[
-          const SizedBox(height: AppPadding.small),
-          if (reportData.events.isNotEmpty)
-            _eventRow(reportData.events.first),
-        ],
+            'Нет данных за период',
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          )
+        else
+          ...events.map((event) => _eventRow(context, event)),
       ],
     );
   }
 
-  Widget _kpi({
-    required String title,
-    required String value,
-    required Color valueColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.normal),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppSize.smallRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTextStyles.title2.copyWith(
-              fontWeight: FontWeight.bold,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _eventRow(BuildContext context, AnprReportEvent event) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-  Widget _eventRow(AnprReportEvent event) {
     final dateStr = DateFormat('dd.MM.yyyy HH:mm').format(event.eventTime.toLocal());
     final vehicle = [event.vehicleBrand, event.vehicleModel]
         .where((e) => e != null && e.trim().isNotEmpty)
@@ -202,9 +169,9 @@ class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
       margin: const EdgeInsets.only(bottom: AppPadding.small),
       padding: const EdgeInsets.all(AppPadding.small),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: scheme.surfaceContainerHighest.withAlpha(200),
         borderRadius: BorderRadius.circular(AppSize.smallRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
+        border: Border.all(color: scheme.outlineVariant.withAlpha(140), width: 0.5),
       ),
       child: Row(
         children: [
@@ -214,7 +181,10 @@ class _SnowReportsHomeCardState extends ConsumerState<SnowReportsHomeCard> {
               children: [
                 Text(
                   event.plateNumber,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(

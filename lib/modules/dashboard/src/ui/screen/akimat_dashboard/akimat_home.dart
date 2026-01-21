@@ -11,7 +11,10 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/map_widget.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_contractors_snow_dashboard_card.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/widgets/home_snow_charts_section.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/widgets/snow_reports_home_card.dart';
+import 'package:akimat_project/modules/dashboard/src/ui/widgets/last_trips_home_card.dart';
+import 'package:akimat_project/modules/analytics/src/ui/widgets/anpr_section.dart';
+import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
+import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:akimat_project/core/platform/platform_utils.dart';
@@ -128,6 +131,41 @@ class AkimatHome extends ConsumerWidget {
                         const HomeSnowChartsSection(days: 7),
                         const SizedBox(height: AppPadding.large),
 
+                        // ---------------- ANPR — Распознавание номеров (самый верхний блок) ----------------
+                        Builder(
+                          builder: (context) {
+                            final authState = ref.watch(authNotifierProvider);
+                            final userRole = userRoleFromString(authState.user?.role);
+
+                            if (userRole != UserRole.kguZkhAdmin &&
+                                userRole != UserRole.akimatAdmin &&
+                                userRole != UserRole.contractorAdmin) {
+                              return const SizedBox.shrink();
+                            }
+
+                            final now = DateTime.now();
+                            final anprDateFrom = now.subtract(const Duration(hours: 24));
+
+                            final contractorId = userRole == UserRole.contractorAdmin
+                                ? authState.user?.organizationId
+                                : null;
+
+                            return Column(
+                              children: [
+                                AnprSection(
+                                  dateFrom: anprDateFrom,
+                                  dateTo: now,
+                                  contractorId: contractorId,
+                                  showReports: false,
+                                  showEvents: false,
+                                ),
+                                const LastTripsHomeCard(limit: 5),
+                                const SizedBox(height: AppPadding.large),
+                              ],
+                            );
+                          },
+                        ),
+
                         // ---------------- Подрядчики (самый верхний блок) ----------------
                         const HomeContractorsSnowDashboardCard(
                           hours: 24,
@@ -155,10 +193,6 @@ class AkimatHome extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // ---------------- Дополнительные платформенные виджеты ----------------
-                        SnowReportsHomeCard(compact: !config.showExtraWidget),
-                        const SizedBox(height: AppPadding.large),
 
                         // ---------------- Карта ----------------
               if (state.polygons.isNotEmpty)

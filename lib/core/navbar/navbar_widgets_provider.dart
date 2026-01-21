@@ -4,6 +4,7 @@ import 'package:akimat_project/core/navbar/user_role_badge.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
+import 'package:akimat_project/core/ui/widgets/theme_toggle_button.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/l10n/l10n.dart';
@@ -104,6 +105,8 @@ class NavbarWidgetsProvider {
           route: '/analytics',
         ),
         const SizedBox(width: AppPadding.small),
+        const ThemeToggleButton(compact: true),
+        const SizedBox(width: AppPadding.small),
         const UserRoleBadge(),
         const SizedBox(width: AppPadding.small),
         const LanguageSwitcher(),
@@ -169,6 +172,8 @@ class NavbarWidgetsProvider {
       //   onPressed: () {},
       // ),
       const SizedBox(width: AppPadding.small),
+      const ThemeToggleButton(compact: true),
+      const SizedBox(width: AppPadding.small),
       const UserRoleBadge(), // Отображение роли пользователя
       const SizedBox(width: AppPadding.small),
       const LanguageSwitcher(),
@@ -195,6 +200,8 @@ class NavbarWidgetsProvider {
       //   tooltip: S.of(context)!.areas,
       //   onPressed: () {},
       // ),
+      const ThemeToggleButton(compact: true),
+      const SizedBox(width: AppPadding.small),
       const LanguageSwitcher(),
     ];
   }
@@ -241,29 +248,24 @@ class _NavbarButton extends StatelessWidget {
   final IconData icon;
   final bool isActive;
   final String? route;
-  final VoidCallback? onPressed;
 
   const _NavbarButton({
     required this.label,
     required this.icon,
     required this.isActive,
     this.route,
-    this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     void handleTap() {
-      if (onPressed != null) {
-        onPressed!();
-      } else if (route != null) {
+      if (route == null) return;
+      try {
+        context.go(route!);
+      } catch (e) {
         try {
-          context.go(route!);
-        } catch (e) {
-          try {
-            context.push(route!);
-          } catch (_) {}
-        }
+          context.push(route!);
+        } catch (_) {}
       }
     }
 

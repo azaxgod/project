@@ -109,26 +109,43 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final sectionGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isDark
+          ? [
+              const Color(0xFF0F172A),
+              const Color(0xFF111C33),
+            ]
+          : [
+              Colors.indigo.shade50,
+              Colors.cyan.shade50,
+            ],
+    );
+
+    final borderColor = isDark
+        ? const Color(0xFF22314F)
+        : Colors.indigo.shade200.withAlpha(90);
+
+    final titleColor = scheme.onSurface;
+
     return _data.when(
       data: (data) => Container(
         padding: const EdgeInsets.all(AppPadding.large),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.indigo.shade50,
-              Colors.cyan.shade50,
-            ],
-          ),
+          gradient: sectionGradient,
           borderRadius: BorderRadius.circular(AppSize.cardRadius),
           border: Border.all(
-            color: Colors.indigo.shade200.withAlpha(90),
+            color: borderColor,
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.indigo.withAlpha(14),
+              color: (isDark ? Colors.black : Colors.indigo).withAlpha(14),
               blurRadius: 18,
               offset: const Offset(0, 8),
             ),
@@ -151,14 +168,14 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.indigo.shade400,
-                        Colors.indigo.shade600,
+                        isDark ? scheme.primary : Colors.indigo.shade400,
+                        isDark ? scheme.primaryContainer : Colors.indigo.shade600,
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.withAlpha(40),
+                        color: (isDark ? Colors.black : Colors.indigo).withAlpha(40),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -179,7 +196,7 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
                         'Графики',
                         style: AppTextStyles.title1.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: Colors.indigo.shade900,
+                          color: titleColor,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -189,17 +206,17 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(180),
+                          color: scheme.surfaceContainerHighest.withAlpha(200),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.indigo.shade200.withAlpha(90),
+                            color: borderColor,
                             width: 1,
                           ),
                         ),
                         child: Text(
                           'За ${widget.days} дней',
                           style: AppTextStyles.caption.copyWith(
-                            color: Colors.indigo.shade800,
+                            color: scheme.onSurface.withAlpha(220),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -213,16 +230,16 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(180),
+                      color: scheme.surfaceContainerHighest.withAlpha(200),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.indigo.shade200.withAlpha(90),
+                        color: borderColor,
                         width: 1,
                       ),
                     ),
                     child: Icon(
                       Icons.refresh_rounded,
-                      color: Colors.indigo.shade700,
+                      color: scheme.onSurface.withAlpha(220),
                       size: 20,
                     ),
                   ),
@@ -259,17 +276,10 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
       error: (e, _) => Container(
         padding: const EdgeInsets.all(AppPadding.large),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.indigo.shade50,
-              Colors.cyan.shade50,
-            ],
-          ),
+          gradient: sectionGradient,
           borderRadius: BorderRadius.circular(AppSize.cardRadius),
           border: Border.all(
-            color: Colors.indigo.shade200.withAlpha(90),
+            color: borderColor,
             width: 1.5,
           ),
         ),
@@ -327,15 +337,22 @@ class _VolumeLineChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final borderColor = isDark
+        ? const Color(0xFF22314F)
+        : Colors.indigo.shade200.withAlpha(90);
+
     if (series.isEmpty) {
       return Container(
         height: height,
         padding: const EdgeInsets.all(AppPadding.large),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(200),
+          color: scheme.surfaceContainerHighest.withAlpha(200),
           borderRadius: BorderRadius.circular(AppSize.cardRadius),
           border: Border.all(
-            color: Colors.indigo.shade200.withAlpha(90),
+            color: borderColor,
             width: 1,
           ),
         ),
@@ -356,15 +373,15 @@ class _VolumeLineChartCard extends StatelessWidget {
       height: height,
       padding: const EdgeInsets.all(AppPadding.normal),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(200),
+        color: scheme.surfaceContainerHighest.withAlpha(200),
         borderRadius: BorderRadius.circular(AppSize.cardRadius),
         border: Border.all(
-          color: Colors.indigo.shade200.withAlpha(90),
+          color: borderColor,
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.indigo.withAlpha(10),
+            color: (isDark ? Colors.black : Colors.indigo).withAlpha(10),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -377,7 +394,7 @@ class _VolumeLineChartCard extends StatelessWidget {
             title,
             style: AppTextStyles.title2.copyWith(
               fontWeight: FontWeight.w800,
-              color: Colors.indigo.shade900,
+              color: scheme.onSurface,
             ),
           ),
           const SizedBox(height: AppPadding.normal),
@@ -457,13 +474,13 @@ class _VolumeLineChartCard extends StatelessWidget {
                       );
                     }).toList(),
                     isCurved: true,
-                    color: Colors.indigo.shade500,
+                    color: isDark ? Colors.cyan.shade300 : Colors.indigo.shade500,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Colors.indigo.withAlpha(20),
+                      color: (isDark ? Colors.cyan : Colors.indigo).withAlpha(20),
                     ),
                   ),
                 ],

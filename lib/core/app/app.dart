@@ -1,8 +1,8 @@
 import 'package:akimat_project/core/locale/custom_localization_delegate.dart';
 import 'package:akimat_project/core/locale/locale_provider.dart';
 import 'package:akimat_project/core/routes/app_routes.dart';
-import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_theme.dart';
+import 'package:akimat_project/core/ui/theme_mode_provider.dart';
 import 'package:akimat_project/core/ui/widgets/notification_overlay.dart';
 import 'package:akimat_project/core/ui/widgets/session_expired_dialog.dart';
 import 'package:akimat_project/core/utils/notification_helper.dart';
@@ -38,6 +38,7 @@ class _AkimatAppState extends ConsumerState<AkimatApp> {
   Widget build(BuildContext context) {
     final routerAsync = ref.watch(appRouterProvider);
     final locale = ref.watch(localeProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return routerAsync.when(
       data: (router) {
@@ -60,6 +61,8 @@ class _AkimatAppState extends ConsumerState<AkimatApp> {
                 debugShowCheckedModeBanner: false,
                 routerConfig: router,
                 theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: themeMode,
                 localizationsDelegates: const [
                   CustomLocalizationDelegate(),
                   GlobalMaterialLocalizations.delegate,
@@ -81,6 +84,9 @@ class _AkimatAppState extends ConsumerState<AkimatApp> {
         controller: _notificationController,
         child: MaterialApp(
           title: 'Akimat Project',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
           home: Scaffold(
             body: Center(
               child: Column(
@@ -99,6 +105,9 @@ class _AkimatAppState extends ConsumerState<AkimatApp> {
         controller: _notificationController,
         child: MaterialApp(
           title: 'Akimat Project',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
           home: Scaffold(
             body: Center(
               child: Column(

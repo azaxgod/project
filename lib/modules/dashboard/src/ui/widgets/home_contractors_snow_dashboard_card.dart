@@ -118,15 +118,19 @@ class _HomeContractorsSnowDashboardCardState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppPadding.large),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(AppSize.cardRadius),
-        border: Border.all(color: AppColors.divider, width: 0.5),
+        border: Border.all(color: scheme.outlineVariant.withAlpha(140), width: 0.8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(10),
+            color: (isDark ? Colors.black : Colors.black).withAlpha(10),
             blurRadius: AppSize.shadowBlur,
             offset: const Offset(0, 2),
           ),
@@ -159,31 +163,44 @@ class _HomeContractorsSnowDashboardCardState
   }
 
   Widget _buildData(BuildContext context, _ContractorsSnowData data) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     final maxVolume = data.rows.isEmpty
         ? 0.0
         : data.rows
             .map((e) => e.totalVolume)
             .fold<double>(0.0, (prev, v) => v > prev ? v : prev);
 
+    final containerGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isDark
+          ? [
+              const Color(0xFF0F172A),
+              const Color(0xFF111C33),
+            ]
+          : [
+              Colors.cyan.shade50,
+              Colors.blue.shade50,
+            ],
+    );
+
+    final borderColor = isDark ? const Color(0xFF22314F) : Colors.cyan.shade200;
+
     return Container(
       padding: const EdgeInsets.all(AppPadding.large),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.cyan.shade50,
-            Colors.blue.shade50,
-          ],
-        ),
+        gradient: containerGradient,
         borderRadius: BorderRadius.circular(AppSize.cardRadius),
         border: Border.all(
-          color: Colors.cyan.shade200,
+          color: borderColor,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.cyan.withAlpha(20),
+            color: (isDark ? Colors.black : Colors.cyan).withAlpha(20),
             blurRadius: 20,
             offset: const Offset(0, 8),
             spreadRadius: 0,
@@ -209,14 +226,14 @@ class _HomeContractorsSnowDashboardCardState
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.cyan.shade400,
-                      Colors.cyan.shade600,
+                      isDark ? scheme.primary : Colors.cyan.shade400,
+                      isDark ? scheme.primaryContainer : Colors.cyan.shade600,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.cyan.withAlpha(40),
+                      color: (isDark ? Colors.black : Colors.cyan).withAlpha(40),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -237,7 +254,7 @@ class _HomeContractorsSnowDashboardCardState
                       'Топ подрядчиков',
                       style: AppTextStyles.title1.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: Colors.cyan.shade900,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -246,13 +263,13 @@ class _HomeContractorsSnowDashboardCardState
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.cyan.shade100,
+                            color: scheme.surfaceContainerHighest.withAlpha(200),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '${data.contractorsCount} активных',
                             style: AppTextStyles.caption.copyWith(
-                              color: Colors.cyan.shade800,
+                              color: scheme.onSurface.withAlpha(220),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -262,13 +279,13 @@ class _HomeContractorsSnowDashboardCardState
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
+                              color: scheme.surfaceContainerHighest.withAlpha(200),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               'Топ ${data.rows.length}',
                               style: AppTextStyles.caption.copyWith(
-                                color: Colors.orange.shade800,
+                                color: scheme.onSurface.withAlpha(220),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -284,12 +301,13 @@ class _HomeContractorsSnowDashboardCardState
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(200),
+                    color: scheme.surfaceContainerHighest.withAlpha(220),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: scheme.outlineVariant.withAlpha(140), width: 1),
                   ),
                   child: Icon(
                     Icons.refresh_rounded,
-                    color: Colors.cyan.shade700,
+                    color: scheme.onSurface.withAlpha(220),
                     size: 20,
                   ),
                 ),
@@ -303,10 +321,10 @@ class _HomeContractorsSnowDashboardCardState
             width: double.infinity,
             padding: const EdgeInsets.all(AppPadding.large),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(180),
+              color: scheme.surfaceContainerHighest.withAlpha(200),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.cyan.shade200.withAlpha(100),
+                color: borderColor.withAlpha(120),
                 width: 1,
               ),
             ),
@@ -316,7 +334,7 @@ class _HomeContractorsSnowDashboardCardState
                   data.contractorsCount.toString(),
                   style: AppTextStyles.title1.copyWith(
                     fontWeight: FontWeight.w900,
-                    color: Colors.cyan.shade900,
+                    color: scheme.onSurface,
                     fontSize: 48,
                   ),
                 ),
@@ -324,7 +342,7 @@ class _HomeContractorsSnowDashboardCardState
                 Text(
                   'ПОДРЯДЧИКОВ В СИСТЕМЕ',
                   style: AppTextStyles.caption.copyWith(
-                    color: Colors.cyan.shade700,
+                    color: scheme.onSurface.withAlpha(200),
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
                   ),
@@ -340,22 +358,22 @@ class _HomeContractorsSnowDashboardCardState
               width: double.infinity,
               padding: const EdgeInsets.all(AppPadding.large),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: scheme.surfaceContainerHighest.withAlpha(180),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: scheme.outlineVariant.withAlpha(140)),
               ),
               child: Column(
                 children: [
                   Icon(
                     Icons.inbox_outlined,
                     size: 48,
-                    color: Colors.grey.shade400,
+                    color: scheme.onSurface.withAlpha(140),
                   ),
                   const SizedBox(height: AppPadding.normal),
                   Text(
                     'Нет данных о вывозе снега',
                     style: AppTextStyles.body.copyWith(
-                      color: Colors.grey.shade600,
+                      color: scheme.onSurface.withAlpha(200),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -383,9 +401,9 @@ class _HomeContractorsSnowDashboardCardState
                   vertical: AppPadding.small,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: scheme.surfaceContainerHighest.withAlpha(200),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
+                  border: Border.all(color: scheme.outlineVariant.withAlpha(140)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -393,13 +411,13 @@ class _HomeContractorsSnowDashboardCardState
                     Icon(
                       Icons.info_outline,
                       size: 16,
-                      color: Colors.orange.shade700,
+                      color: scheme.onSurface.withAlpha(220),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Показаны топ-${data.rows.length} из ${data.totalRows} подрядчиков',
                       style: AppTextStyles.caption.copyWith(
-                        color: Colors.orange.shade700,
+                        color: scheme.onSurface.withAlpha(220),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -452,20 +470,25 @@ class _ContractorSnowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final borderColor = scheme.outlineVariant.withAlpha(140);
+
     final progress = maxVolume <= 0 ? 0.0 : (row.totalVolume / maxVolume).clamp(0.0, 1.0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppPadding.small),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest.withAlpha(200),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.cyan.shade100,
+          color: borderColor,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.cyan.withAlpha(10),
+            color: (isDark ? Colors.black : Colors.cyan).withAlpha(10),
             blurRadius: 8,
             offset: const Offset(0, 2),
             spreadRadius: 0,
@@ -488,7 +511,7 @@ class _ContractorSnowTile extends StatelessWidget {
                     row.contractor.name,
                     style: AppTextStyles.title3.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Colors.cyan.shade900,
+                      color: scheme.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -504,14 +527,14 @@ class _ContractorSnowTile extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.cyan.shade400,
-                        Colors.cyan.shade600,
+                        scheme.primary,
+                        scheme.primaryContainer,
                       ],
                     ),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.cyan.withAlpha(30),
+                        color: (isDark ? Colors.black : scheme.primary).withAlpha(30),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -521,7 +544,7 @@ class _ContractorSnowTile extends StatelessWidget {
                     '${row.totalVolume.toStringAsFixed(1)} м³',
                     style: AppTextStyles.body.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: scheme.onPrimary,
                       fontSize: 14,
                     ),
                   ),
@@ -534,7 +557,7 @@ class _ContractorSnowTile extends StatelessWidget {
             Container(
               height: 8,
               decoration: BoxDecoration(
-                color: Colors.cyan.shade50,
+                color: scheme.surface.withAlpha(140),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: ClipRRect(
@@ -543,7 +566,7 @@ class _ContractorSnowTile extends StatelessWidget {
                   value: progress,
                   backgroundColor: Colors.transparent,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.cyan.shade500,
+                    scheme.primary,
                   ),
                 ),
               ),
@@ -556,7 +579,7 @@ class _ContractorSnowTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: scheme.surface.withAlpha(140),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -565,13 +588,13 @@ class _ContractorSnowTile extends StatelessWidget {
                       Icon(
                         Icons.directions_car_rounded,
                         size: 14,
-                        color: Colors.blue.shade700,
+                        color: scheme.onSurface.withAlpha(220),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${row.tripCount}',
                         style: AppTextStyles.caption.copyWith(
-                          color: Colors.blue.shade700,
+                          color: scheme.onSurface.withAlpha(220),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -582,7 +605,7 @@ class _ContractorSnowTile extends StatelessWidget {
                 Text(
                   'рейсов',
                   style: AppTextStyles.caption.copyWith(
-                    color: Colors.grey.shade600,
+                    color: scheme.onSurface.withAlpha(180),
                   ),
                 ),
               ],

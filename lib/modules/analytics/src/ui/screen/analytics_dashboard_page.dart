@@ -1123,6 +1123,42 @@ class _AnalyticsDashboardPageState
               ],
             ),
           ),
+
+          Builder(
+            builder: (context) {
+              final authState = ref.watch(authNotifierProvider);
+              final userRole = userRoleFromString(authState.user?.role);
+
+              if (userRole != UserRole.kguZkhAdmin &&
+                  userRole != UserRole.akimatAdmin &&
+                  userRole != UserRole.contractorAdmin) {
+                return const SizedBox.shrink();
+              }
+
+              final anprDateTo = _dateTo ?? DateTime.now();
+              final anprDateFrom =
+                  _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
+
+              final contractorId = userRole == UserRole.contractorAdmin
+                  ? authState.user?.organizationId
+                  : _selectedContractorId;
+
+              return Column(
+                children: [
+                  AnprSection(
+                    dateFrom: anprDateFrom,
+                    dateTo: anprDateTo,
+                    contractorId: contractorId,
+                    showReports: true,
+                    showStatistics: false,
+                    showEvents: false,
+                  ),
+                  const SizedBox(height: AppPadding.large),
+                ],
+              );
+            },
+          ),
+
           // KPI Cards (скрыты для LANDFILL_ADMIN, но показываются для CONTRACTOR_ADMIN)
           if (!isLandfillAdmin) ...[
             Row(
@@ -1298,50 +1334,50 @@ class _AnalyticsDashboardPageState
             ),
 
           // Секция ANPR (для KGU_ZKH_ADMIN, AKIMAT_ADMIN и CONTRACTOR_ADMIN)
-          Builder(
-            builder: (context) {
-              final authState = ref.watch(authNotifierProvider);
-              final userRole = userRoleFromString(authState.user?.role);
-
-              if (userRole != UserRole.kguZkhAdmin &&
-                  userRole != UserRole.akimatAdmin &&
-                  userRole != UserRole.contractorAdmin) {
-                return const SizedBox.shrink();
-              }
-
-              return const SizedBox(height: AppPadding.large);
-            },
-          ),
-          Builder(
-            builder: (context) {
-              final authState = ref.watch(authNotifierProvider);
-              final userRole = userRoleFromString(authState.user?.role);
-
-              if (userRole != UserRole.kguZkhAdmin &&
-                  userRole != UserRole.akimatAdmin &&
-                  userRole != UserRole.contractorAdmin) {
-                return const SizedBox.shrink();
-              }
-
-              // Согласно документации: период по умолчанию для ANPR - последние 24 часа
-              final anprDateTo = _dateTo ?? DateTime.now();
-              final anprDateFrom =
-                  _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
-
-              // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
-              // Для contractorAdmin всегда берем организацию пользователя.
-              // Для остальных ролей используем выбранного подрядчика (если выбран).
-              final contractorId = userRole == UserRole.contractorAdmin
-                  ? authState.user?.organizationId
-                  : _selectedContractorId;
-
-              return AnprSection(
-                dateFrom: anprDateFrom,
-                dateTo: anprDateTo,
-                contractorId: contractorId,
-              );
-            },
-          ),
+          // Builder(
+          //   builder: (context) {
+          //     final authState = ref.watch(authNotifierProvider);
+          //     final userRole = userRoleFromString(authState.user?.role);
+          //
+          //     if (userRole != UserRole.kguZkhAdmin &&
+          //         userRole != UserRole.akimatAdmin &&
+          //         userRole != UserRole.contractorAdmin) {
+          //       return const SizedBox.shrink();
+          //     }
+          //
+          //     return const SizedBox(height: AppPadding.large);
+          //   },
+          // ),
+          // Builder(
+          //   builder: (context) {
+          //     final authState = ref.watch(authNotifierProvider);
+          //     final userRole = userRoleFromString(authState.user?.role);
+          //
+          //     if (userRole != UserRole.kguZkhAdmin &&
+          //         userRole != UserRole.akimatAdmin &&
+          //         userRole != UserRole.contractorAdmin) {
+          //       return const SizedBox.shrink();
+          //     }
+          //
+          //     // Согласно документации: период по умолчанию для ANPR - последние 24 часа
+          //     final anprDateTo = _dateTo ?? DateTime.now();
+          //     final anprDateFrom =
+          //         _dateFrom ?? anprDateTo.subtract(const Duration(hours: 24));
+          //
+          //     // Для CONTRACTOR_ADMIN передаем contractorId (organizationId пользователя)
+          //     // Для contractorAdmin всегда берем организацию пользователя.
+          //     // Для остальных ролей используем выбранного подрядчика (если выбран).
+          //     final contractorId = userRole == UserRole.contractorAdmin
+          //         ? authState.user?.organizationId
+          //         : _selectedContractorId;
+          //
+          //     return AnprSection(
+          //       dateFrom: anprDateFrom,
+          //       dateTo: anprDateTo,
+          //       contractorId: contractorId,
+          //     );
+          //   },
+          // ),
         ],
       ),
     );
