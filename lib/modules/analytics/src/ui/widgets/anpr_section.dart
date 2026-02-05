@@ -921,8 +921,12 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
   bool _shouldUseHtmlImg(String url) {
     if (!kIsWeb) return false;
     // Для anpr-service могут быть защищенные урлы с Authorization — html <img> их не поддерживает.
-    if (url.startsWith(_anprBaseUrl)) return false;
+    if (url.startsWith(_anprBaseUrl)) {
+      debugPrint('Using Image.network (anpr-service): $url');
+      return false;
+    }
     // Для внешних (R2/CDN) используем нативный <img>, чтобы обойти проблемы декодинга/рендера CanvasKit.
+    debugPrint('Using WebCompatibleImage (external): $url');
     return true;
   }
 
