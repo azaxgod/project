@@ -2015,6 +2015,62 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
           ],
         ),
         const SizedBox(height: AppPadding.large),
+        // Кнопка выгрузки Excel
+        Container(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              try {
+                print('Starting Excel download...'); // Для отладки
+                final controller = ref.read(anprControllerProvider.notifier);
+                print('Controller obtained, calling downloadExcel...'); // Для отладки
+                
+                final filePath = await controller.downloadExcel(
+                  contractorId: widget.contractorId ?? _selectedContractorIdForReports,
+                  polygonId: widget.polygonId,
+                  vehicleId: widget.vehicleId,
+                  plate: widget.plate,
+                  from: widget.dateFrom,
+                  to: widget.dateTo,
+                );
+                
+                print('Excel download completed: $filePath'); // Для отладки
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Excel файл сохранен: $filePath'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              } catch (e) {
+                print('Error in Excel download button: $e'); // Для отладки
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ошибка при выгрузке Excel: $e'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.download),
+            label: const Text('Скачать Excel'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSize.smallRadius),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppPadding.large),
         // Таблица событий из отчета
         if (reportData.events.isEmpty)
           Container(

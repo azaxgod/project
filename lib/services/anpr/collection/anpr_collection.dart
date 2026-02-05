@@ -269,6 +269,66 @@ class AnprCollection {
       throw Exception('Failed to get reports: ${e.message}');
     }
   }
+
+  /// GET /api/v1/reports/excel - Выгрузка отчетов ANPR в Excel (XLSX)
+  /// Требует авторизацию (JWT токен)
+  /// Возвращает бинарные данные Excel файла
+  Future<Response> downloadExcel({
+    String? contractorId,
+    String? polygonId,
+    String? vehicleId,
+    String? plate,
+    DateTime? from,
+    DateTime? to,
+    String? jwtToken,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (contractorId != null) queryParams['contractor_id'] = contractorId;
+      if (polygonId != null) queryParams['polygon_id'] = polygonId;
+      if (vehicleId != null) queryParams['vehicle_id'] = vehicleId;
+      if (plate != null) queryParams['plate'] = plate;
+      if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
+      if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
+
+      final response = await dio.get(
+        '/api/v1/reports/excel',
+        queryParameters: queryParams,
+        options: Options(
+          headers: jwtToken != null
+              ? {'Authorization': 'Bearer $jwtToken'}
+              : null,
+          responseType: ResponseType.bytes, // Use bytes instead of stream for web compatibility
+        ),
+      );
+
+      return response;
+    } on DioException catch (e) {
+      String errorMessage = 'Failed to download Excel';
+      
+      // Добавляем детальную информацию об ошибке
+      if (e.response != null) {
+        errorMessage += ': ${e.response?.statusCode} ${e.response?.statusMessage}';
+        if (e.response?.data != null) {
+          errorMessage += ' - ${e.response?.data}';
+        }
+      } else {
+        errorMessage += ': ${e.message}';
+        if (e.type == DioExceptionType.connectionTimeout) {
+          errorMessage += ' (Connection timeout)';
+        } else if (e.type == DioExceptionType.receiveTimeout) {
+          errorMessage += ' (Receive timeout)';
+        } else if (e.type == DioExceptionType.sendTimeout) {
+          errorMessage += ' (Send timeout)';
+        } else if (e.type == DioExceptionType.connectionError) {
+          errorMessage += ' (Connection error)';
+        }
+      }
+      
+      print('DioException details: $e'); // Для отладки
+      throw Exception(errorMessage);
+      }
+  }
 }
 
 /// Ответ на получение списка событий

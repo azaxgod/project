@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:akimat_project/services/anpr/collection/anpr_collection.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
@@ -199,6 +200,56 @@ class AnprController extends StateNotifier<AnprState> {
       state = state.copyWith(
         reports: AsyncValue.error(e, stack),
       );
+    }
+  }
+
+  /// Скачать отчет в Excel формате
+  Future<String> downloadExcel({
+    String? contractorId,
+    String? polygonId,
+    String? vehicleId,
+    String? plate,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    try {
+      final token = await TokenStorage.getAccessToken();
+      final response = await _anprCollection.downloadExcel(
+        contractorId: contractorId,
+        polygonId: polygonId,
+        vehicleId: vehicleId,
+        plate: plate,
+        from: from,
+        to: to,
+        jwtToken: token,
+      );
+
+      // Получаем имя файла из заголовка Content-Disposition или генерируем свое
+      String fileName = 'anpr-events.xlsx';
+      final contentDisposition = response.headers['content-disposition'];
+      if (contentDisposition != null && contentDisposition.isNotEmpty) {
+        final match = RegExp(r'filename="?([^"]+)"?').firstMatch(contentDisposition.first);
+        if (match != null) {
+          fileName = match.group(1) ?? fileName;
+        }
+      }
+
+      // Сохраняем файл во временную директорию
+      final directory = Directory.systemTemp;
+      if (!directory.existsSync()) {
+        await directory.create(recursive: true);
+      }
+      final filePath = '${directory.path}/$fileName';
+      final file = File(filePath);
+      
+      // response.data теперь содержит Uint8List при responseType: ResponseType.bytes
+      await file.writeAsBytes(response.data);
+
+      return filePath;
+    } catch (e) {
+      print('Error in downloadExcel: $e'); // Для отладки
+      print('Stack trace: ${StackTrace.current}'); // Для отладки
+      throw Exception('Failed to download Excel file: $e');
     }
   }
 }
