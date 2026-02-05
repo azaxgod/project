@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 // Функция для определения подрядчика по номеру машины
 String? _getContractorNameByPlate(String? plateNumber, OrganizationsData? organizationsData) {
@@ -85,6 +86,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
   bool _hasLoadedEvents = false;
   bool _hasLoadedReports = false;
 
+  Timer? _filterDebounce;
+
   int _activeTabIndex = 0;
   String? _selectedContractorIdForReports; // Фильтр по подрядчикам для отчетов
   int _reportsPage = 0;
@@ -100,6 +103,12 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         _loadData();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _filterDebounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -119,10 +128,14 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       _hasLoadedEvents = false;
       _hasLoadedReports = false;
       _reportsPage = 0;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_hasLoaded) {
-          _loadData();
-        }
+
+      // Debounce: при выборе периода часто меняются обе даты подряд.
+      // Без debounce второй запрос мог игнорироваться/теряться.
+      _filterDebounce?.cancel();
+      _filterDebounce = Timer(const Duration(milliseconds: 350), () {
+        if (!mounted) return;
+        if (_hasLoaded) return;
+        _loadData();
       });
     }
   }

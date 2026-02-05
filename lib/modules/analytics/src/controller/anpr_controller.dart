@@ -16,6 +16,10 @@ class AnprController extends StateNotifier<AnprState> {
 
   final AnprCollection _anprCollection;
 
+  int _eventsRequestVersion = 0;
+  int _statisticsRequestVersion = 0;
+  int _reportsRequestVersion = 0;
+
   /// Загрузить события ANPR
   Future<void> loadEvents({
     String? plate,
@@ -24,9 +28,8 @@ class AnprController extends StateNotifier<AnprState> {
     int? limit,
     int? offset,
   }) async {
-    // Не загружаем если уже загружается
-    if (state.events?.isLoading ?? false) return;
-    
+    final requestVersion = ++_eventsRequestVersion;
+
     state = state.copyWith(
       events: const AsyncLoading(),
     );
@@ -42,10 +45,14 @@ class AnprController extends StateNotifier<AnprState> {
         jwtToken: token,
       );
 
+      // Если пришел ответ от старого запроса — игнорируем
+      if (requestVersion != _eventsRequestVersion) return;
+
       state = state.copyWith(
         events: AsyncValue.data(response.data),
       );
     } catch (e, stack) {
+      if (requestVersion != _eventsRequestVersion) return;
       state = state.copyWith(
         events: AsyncValue.error(e, stack),
       );
@@ -57,9 +64,8 @@ class AnprController extends StateNotifier<AnprState> {
     DateTime? from,
     DateTime? to,
   }) async {
-    // Не загружаем если уже загружается
-    if (state.statistics?.isLoading ?? false) return;
-    
+    final requestVersion = ++_statisticsRequestVersion;
+
     state = state.copyWith(
       statistics: const AsyncLoading(),
     );
@@ -75,6 +81,8 @@ class AnprController extends StateNotifier<AnprState> {
         offset: 0,
         jwtToken: token,
       );
+
+      if (requestVersion != _statisticsRequestVersion) return;
 
       final events = response.data;
       
@@ -103,6 +111,7 @@ class AnprController extends StateNotifier<AnprState> {
         statistics: AsyncValue.data(statistics),
       );
     } catch (e, stack) {
+      if (requestVersion != _statisticsRequestVersion) return;
       state = state.copyWith(
         statistics: AsyncValue.error(e, stack),
       );
@@ -173,9 +182,8 @@ class AnprController extends StateNotifier<AnprState> {
     int? limit,
     int? offset,
   }) async {
+    final requestVersion = ++_reportsRequestVersion;
 
-    if (state.reports?.isLoading ?? false) return;
-    
     state = state.copyWith(
       reports: const AsyncLoading(),
     );
@@ -194,10 +202,13 @@ class AnprController extends StateNotifier<AnprState> {
         jwtToken: token,
       );
 
+      if (requestVersion != _reportsRequestVersion) return;
+
       state = state.copyWith(
         reports: AsyncValue.data(response.data),
       );
     } catch (e, stack) {
+      if (requestVersion != _reportsRequestVersion) return;
       state = state.copyWith(
         reports: AsyncValue.error(e, stack),
       );
