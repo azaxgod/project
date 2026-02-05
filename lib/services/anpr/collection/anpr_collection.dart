@@ -327,7 +327,7 @@ class AnprCollection {
       
       print('DioException details: $e'); // Для отладки
       throw Exception(errorMessage);
-      }
+    }
   }
 }
 

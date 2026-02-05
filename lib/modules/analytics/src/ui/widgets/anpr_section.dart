@@ -2039,7 +2039,11 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Excel файл сохранен: $filePath'),
+                      content: Text(
+                        filePath == null
+                            ? 'Excel файл скачан'
+                            : 'Excel файл сохранен: $filePath',
+                      ),
                       backgroundColor: Colors.green,
                       duration: const Duration(seconds: 3),
                     ),

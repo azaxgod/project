@@ -1,9 +1,10 @@
-import 'dart:io';
 import 'package:akimat_project/services/anpr/collection/anpr_collection.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/core/utils/file_downloader.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Контроллер для работы с ANPR данными
@@ -204,7 +205,7 @@ class AnprController extends StateNotifier<AnprState> {
   }
 
   /// Скачать отчет в Excel формате
-  Future<String> downloadExcel({
+  Future<String?> downloadExcel({
     String? contractorId,
     String? polygonId,
     String? vehicleId,
@@ -234,18 +235,22 @@ class AnprController extends StateNotifier<AnprState> {
         }
       }
 
-      // Сохраняем файл во временную директорию
-      final directory = Directory.systemTemp;
-      if (!directory.existsSync()) {
-        await directory.create(recursive: true);
-      }
-      final filePath = '${directory.path}/$fileName';
-      final file = File(filePath);
-      
-      // response.data теперь содержит Uint8List при responseType: ResponseType.bytes
-      await file.writeAsBytes(response.data);
+      final bytes = List<int>.from(response.data);
+      final extension = fileName.contains('.') ? fileName.split('.').last : 'xlsx';
+      final filenameWithoutExtension = fileName.contains('.')
+          ? fileName.substring(0, fileName.length - extension.length - 1)
+          : fileName;
 
-      return filePath;
+      // В Web: FileDownloader сделает browser download через Blob.
+      // На mobile/desktop: сохранит в Documents/Downloads и вернет путь.
+      final savedPath = await FileDownloader.downloadFile(
+        bytes: bytes,
+        filename: filenameWithoutExtension,
+        extension: extension,
+      );
+
+      if (kIsWeb) return null;
+      return savedPath;
     } catch (e) {
       print('Error in downloadExcel: $e'); // Для отладки
       print('Stack trace: ${StackTrace.current}'); // Для отладки
