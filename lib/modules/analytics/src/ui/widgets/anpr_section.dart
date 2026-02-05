@@ -45,6 +45,12 @@ String? _getContractorNameByPlate(String? plateNumber, OrganizationsData? organi
 
 /// Виджет для отображения секции ANPR данных
 /// Согласно документации: период по умолчанию - последние 24 часа
+enum _AnprTab {
+  statistics,
+  reports,
+  events,
+}
+
 class AnprSection extends ConsumerStatefulWidget {
   const AnprSection({
     super.key,
@@ -75,6 +81,11 @@ class AnprSection extends ConsumerStatefulWidget {
 
 class _AnprSectionState extends ConsumerState<AnprSection> {
   bool _hasLoaded = false;
+  bool _hasLoadedStatistics = false;
+  bool _hasLoadedEvents = false;
+  bool _hasLoadedReports = false;
+
+  int _activeTabIndex = 0;
   String? _selectedContractorIdForReports; // Фильтр по подрядчикам для отчетов
   int _reportsPage = 0;
 
@@ -104,12 +115,80 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     
     if (paramsChanged) {
       _hasLoaded = false;
+      _hasLoadedStatistics = false;
+      _hasLoadedEvents = false;
+      _hasLoadedReports = false;
       _reportsPage = 0;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_hasLoaded) {
           _loadData();
         }
       });
+    }
+  }
+
+  List<_AnprTab> _availableTabs() {
+    final tabs = <_AnprTab>[];
+    if (widget.showStatistics) tabs.add(_AnprTab.statistics);
+    if (widget.showReports) tabs.add(_AnprTab.reports);
+    if (widget.showEvents) tabs.add(_AnprTab.events);
+    return tabs;
+  }
+
+  void _ensureTabLoaded(_AnprTab tab) {
+    final anprState = ref.read(anprControllerProvider);
+    final anprController = ref.read(anprControllerProvider.notifier);
+
+    final effectiveFrom =
+        widget.dateFrom ?? DateTime.now().subtract(const Duration(hours: 24));
+    final effectiveTo = widget.dateTo ?? DateTime.now();
+
+    switch (tab) {
+      case _AnprTab.statistics:
+        if (!widget.showStatistics) return;
+        if (_hasLoadedStatistics) return;
+
+        final statsIsLoading = anprState.statistics?.isLoading ?? false;
+        if (anprState.statistics == null && !statsIsLoading) {
+          anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
+        }
+
+        // Для статистики с фильтром по подрядчику используем события,
+        // поэтому подгружаем их лениво, даже если таб "События" выключен.
+        if (widget.contractorId != null && !_hasLoadedEvents) {
+          anprController.loadEvents(
+            plate: widget.plate,
+            from: effectiveFrom,
+            to: effectiveTo,
+            limit: 500,
+            offset: 0,
+          );
+          _hasLoadedEvents = true;
+        }
+        _hasLoadedStatistics = true;
+        return;
+
+      case _AnprTab.events:
+        if (!widget.showEvents) return;
+        if (_hasLoadedEvents) return;
+
+        anprController.loadEvents(
+          plate: widget.plate,
+          from: effectiveFrom,
+          to: effectiveTo,
+          limit: 100,
+          offset: 0,
+        );
+        _hasLoadedEvents = true;
+        return;
+
+      case _AnprTab.reports:
+        if (!widget.showReports) return;
+        if (_hasLoadedReports) return;
+
+        _loadReportsPage(from: effectiveFrom, to: effectiveTo, page: _reportsPage);
+        _hasLoadedReports = true;
+        return;
     }
   }
 
@@ -166,40 +245,13 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
 
   void _loadData() {
     if (_hasLoaded) return;
-    
-    final anprState = ref.read(anprControllerProvider);
-    final anprController = ref.read(anprControllerProvider.notifier);
 
-    // Согласно документации: период по умолчанию - последние 24 часа
-    final effectiveFrom = widget.dateFrom ?? DateTime.now().subtract(const Duration(hours: 24));
-    final effectiveTo = widget.dateTo ?? DateTime.now();
-
-    // Загружаем статистику только если её нет и не загружается
-    if (widget.showStatistics) {
-      final statsIsLoading = anprState.statistics?.isLoading ?? false;
-      if (anprState.statistics == null && !statsIsLoading) {
-        anprController.loadStatistics(from: effectiveFrom, to: effectiveTo);
+    final tabs = _availableTabs();
+    if (tabs.isNotEmpty) {
+      if (_activeTabIndex < 0 || _activeTabIndex >= tabs.length) {
+        _activeTabIndex = 0;
       }
-    }
-
-    final shouldLoadEvents = widget.showEvents ||
-        (widget.showStatistics && widget.contractorId != null);
-
-    if (shouldLoadEvents) {
-      anprController.loadEvents(
-        plate: widget.plate,
-        from: effectiveFrom,
-        to: effectiveTo,
-        limit: 100,
-        offset: 0,
-      );
-    }
-
-    if (widget.showReports) {
-      // Загружаем отчеты с учетом фильтра по подрядчику
-      // Согласно документации: отчеты показывают поездки и объем снега
-      // Всегда перезагружаем отчеты при изменении фильтров, чтобы получить актуальные данные
-      _loadReportsPage(from: effectiveFrom, to: effectiveTo, page: _reportsPage);
+      _ensureTabLoaded(tabs[_activeTabIndex]);
     }
     
     _hasLoaded = true;
@@ -212,10 +264,59 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     // Получаем данные отчетов для использования в таблице событий
     final reportsData = anprState.reports?.valueOrNull;
 
+    final tabs = _availableTabs();
+    final hasTabs = tabs.length > 1;
+    final activeTab = tabs.isEmpty ? null : tabs[_activeTabIndex.clamp(0, tabs.length - 1)];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.showStatistics)
+        if (hasTabs)
+          Container(
+            padding: const EdgeInsets.all(AppPadding.normal),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppSize.cardRadius),
+              border: Border.all(color: AppColors.divider, width: 0.5),
+            ),
+            child: Wrap(
+              spacing: AppPadding.small,
+              runSpacing: AppPadding.small,
+              children: List<Widget>.generate(tabs.length, (index) {
+                final tab = tabs[index];
+                final isSelected = index == _activeTabIndex;
+                String label;
+                switch (tab) {
+                  case _AnprTab.statistics:
+                    label = 'Распознавание';
+                    break;
+                  case _AnprTab.reports:
+                    label = 'Отчеты';
+                    break;
+                  case _AnprTab.events:
+                    label = 'События';
+                    break;
+                }
+
+                return ChoiceChip(
+                  selected: isSelected,
+                  label: Text(label),
+                  selectedColor: AppColors.primary.withOpacity(0.15),
+                  onSelected: (selected) {
+                    if (!selected) return;
+                    setState(() {
+                      _activeTabIndex = index;
+                    });
+                    _ensureTabLoaded(tab);
+                  },
+                );
+              }),
+            ),
+          ),
+
+        if (hasTabs) const SizedBox(height: AppPadding.large),
+
+        if (!hasTabs && widget.showStatistics)
           AnimatedSection(
             title: 'ANPR - Распознавание номеров',
             icon: Icons.camera_alt,
@@ -297,7 +398,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               },
             ),
           ),
-        if (widget.showReports) ...[
+
+        if (!hasTabs && widget.showReports) ...[
           const SizedBox(height: AppPadding.large),
           // Отчеты по объему снега и поездкам
           // Согласно документации: показывает total_volume, trip_count и список событий
@@ -319,7 +421,8 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             ) ?? const SizedBox.shrink(),
           ),
         ],
-        if (widget.showEvents) ...[
+
+        if (!hasTabs && widget.showEvents) ...[
           const SizedBox(height: AppPadding.large),
           AnimatedSection(
             title: 'События распознавания',
@@ -349,6 +452,134 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             ) ?? const SizedBox.shrink(),
           ),
         ],
+
+        if (hasTabs && activeTab == _AnprTab.statistics)
+          AnimatedSection(
+            title: 'ANPR - Распознавание номеров',
+            icon: Icons.camera_alt,
+            child: Builder(
+              builder: (context) {
+                if (widget.contractorId != null &&
+                    anprState.events?.hasValue == true) {
+                  final allEvents = anprState.events!.value!;
+                  final organizationsState =
+                      ref.watch(organizationsControllerProvider);
+                  final organizationsData = organizationsState.data.valueOrNull;
+
+                  final filteredEvents = allEvents.where((event) {
+                    if (event.contractorId != null) {
+                      return event.contractorId == widget.contractorId;
+                    }
+                    if (organizationsData != null) {
+                      try {
+                        final vehicle = organizationsData.vehicles.firstWhere(
+                          (v) =>
+                              v.plateNumber.replaceAll(' ', '').toUpperCase() ==
+                              event.normalizedPlate
+                                  .replaceAll(' ', '')
+                                  .toUpperCase(),
+                        );
+                        return vehicle.contractorId == widget.contractorId;
+                      } catch (e) {
+                        return false;
+                      }
+                    }
+                    return false;
+                  }).toList();
+
+                  final totalEvents = filteredEvents.length;
+                  final uniquePlates =
+                      filteredEvents.map((e) => e.normalizedPlate).toSet().length;
+                  final enterEvents =
+                      filteredEvents.where((e) => e.direction == 'enter').length;
+                  final exitEvents =
+                      filteredEvents.where((e) => e.direction == 'exit').length;
+                  final avgConfidence = filteredEvents
+                          .where((e) => e.confidence != null)
+                          .map((e) => e.confidence!)
+                          .fold(0.0, (sum, conf) => sum + conf) /
+                      (filteredEvents.where((e) => e.confidence != null).length > 0
+                          ? filteredEvents
+                              .where((e) => e.confidence != null)
+                              .length
+                          : 1);
+
+                  final filteredStats = AnprStatistics(
+                    totalEvents: totalEvents,
+                    uniquePlates: uniquePlates,
+                    enterEvents: enterEvents,
+                    exitEvents: exitEvents,
+                    avgConfidence: avgConfidence,
+                  );
+
+                  return _buildStatistics(filteredStats);
+                }
+
+                return anprState.statistics?.when(
+                      data: (stats) => _buildStatistics(stats),
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppPadding.large),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (error, stack) => _buildErrorState(error.toString()),
+                    ) ??
+                    const SizedBox.shrink();
+              },
+            ),
+          ),
+
+        if (hasTabs && activeTab == _AnprTab.reports)
+          AnimatedSection(
+            title: 'Отчеты по объему снега и поездкам',
+            icon: Icons.assessment,
+            child: anprState.reports?.when(
+                  data: (reportData) {
+                    final anprController =
+                        ref.read(anprControllerProvider.notifier);
+                    return _buildReportsSection(context, reportData, anprController);
+                  },
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppPadding.large),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  error: (error, stack) => _buildErrorState(error.toString()),
+                ) ??
+                const SizedBox.shrink(),
+          ),
+
+        if (hasTabs && activeTab == _AnprTab.events)
+          AnimatedSection(
+            title: 'События распознавания',
+            icon: Icons.event,
+            child: anprState.events?.when(
+                  data: (events) {
+                    final organizationsState =
+                        ref.watch(organizationsControllerProvider);
+                    final organizationsData = organizationsState.data.valueOrNull;
+                    final anprController =
+                        ref.read(anprControllerProvider.notifier);
+                    return _buildEventsTable(
+                      context,
+                      events,
+                      anprController,
+                      reportsData,
+                      organizationsData,
+                    );
+                  },
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppPadding.large),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  error: (error, stack) => _buildErrorState(error.toString()),
+                ) ??
+                const SizedBox.shrink(),
+          ),
       ],
     );
   }
