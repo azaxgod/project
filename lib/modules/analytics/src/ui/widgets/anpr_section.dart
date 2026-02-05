@@ -10,6 +10,8 @@ import 'package:akimat_project/core/ui/widgets/safe_dropdown_button.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
+import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/core/utils/web_compatible_image.dart';
 import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 import 'package:flutter/foundation.dart';
@@ -88,6 +90,9 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
 
   Timer? _filterDebounce;
 
+  static const String _anprBaseUrl = 'https://snowops-anpr-service.onrender.com';
+  String? _accessToken;
+
   int _activeTabIndex = 0;
   String? _selectedContractorIdForReports; // Фильтр по подрядчикам для отчетов
   int _reportsPage = 0;
@@ -97,6 +102,12 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
   @override
   void initState() {
     super.initState();
+    TokenStorage.getAccessToken().then((token) {
+      if (!mounted) return;
+      setState(() {
+        _accessToken = token;
+      });
+    });
     // Загружаем данные один раз при инициализации
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_hasLoaded) {
@@ -876,6 +887,43 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         ],
       ),
     );
+  }
+
+  String _resolveImageUrl(String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/')) return '$_anprBaseUrl$url';
+    return '$_anprBaseUrl/$url';
+  }
+
+  NetworkImage _networkImage(String url) {
+    final token = _accessToken;
+    if (token == null || token.isEmpty) {
+      return NetworkImage(url);
+    }
+
+    // В Web добавление Authorization на сторонние домены часто ломает загрузку из-за CORS.
+    // Поэтому добавляем заголовок только для ресурсов anpr-service.
+    final shouldAttachAuth = url.startsWith(_anprBaseUrl);
+    if (!shouldAttachAuth) {
+      return NetworkImage(url);
+    }
+
+    return NetworkImage(url, headers: {'Authorization': 'Bearer $token'});
+  }
+
+  Map<String, String>? _imageHeadersFor(String url) {
+    final token = _accessToken;
+    if (token == null || token.isEmpty) return null;
+    if (!url.startsWith(_anprBaseUrl)) return null;
+    return {'Authorization': 'Bearer $token'};
+  }
+
+  bool _shouldUseHtmlImg(String url) {
+    if (!kIsWeb) return false;
+    // Для anpr-service могут быть защищенные урлы с Authorization — html <img> их не поддерживает.
+    if (url.startsWith(_anprBaseUrl)) return false;
+    // Для внешних (R2/CDN) используем нативный <img>, чтобы обойти проблемы декодинга/рендера CanvasKit.
+    return true;
   }
 
   Widget _buildSnowVolumeWidget(Map<String, dynamic> stats) {
@@ -3657,6 +3705,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
   }
 
   Widget _buildPhotoCard(String label, String url) {
+    final resolvedUrl = _resolveImageUrl(url);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3669,22 +3718,33 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () {
-            _showFullScreenImage(context, url, label);
+            _showFullScreenImage(context, resolvedUrl, label);
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              url,
-              width: 120,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 120,
-                height: 120,
-                color: AppColors.secondaryBackground,
-                child: const Icon(Icons.error),
-              ),
-            ),
+            child: _shouldUseHtmlImg(resolvedUrl)
+                ? WebCompatibleImage(
+                    url: resolvedUrl,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  )
+                : Image.network(
+                    resolvedUrl,
+                    headers: _imageHeadersFor(resolvedUrl),
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('Failed to load image: $resolvedUrl. Error: $error');
+                      return Container(
+                        width: 120,
+                        height: 120,
+                        color: AppColors.secondaryBackground,
+                        child: const Icon(Icons.error),
+                      );
+                    },
+                  ),
           ),
         ),
       ],
@@ -4028,24 +4088,33 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                                 spacing: AppPadding.small,
                                 runSpacing: AppPadding.small,
                                 children: event.photos.map((photoUrl) {
+                                  final resolvedUrl = _resolveImageUrl(photoUrl);
                                   return GestureDetector(
                                     onTap: () {
-                                      _showFullScreenImage(context, photoUrl, 'Фото');
+                                      _showFullScreenImage(context, resolvedUrl, 'Фото');
                                     },
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        photoUrl,
-                                        width: 100,
-                                        height: 100,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          width: 100,
-                                          height: 100,
-                                          color: AppColors.secondaryBackground,
-                                          child: const Icon(Icons.error),
-                                        ),
-                                      ),
+                                      child: _shouldUseHtmlImg(resolvedUrl)
+                                          ? WebCompatibleImage(
+                                              url: resolvedUrl,
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(
+                                              resolvedUrl,
+                                              headers: _imageHeadersFor(resolvedUrl),
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => Container(
+                                                width: 100,
+                                                height: 100,
+                                                color: AppColors.secondaryBackground,
+                                                child: const Icon(Icons.error),
+                                              ),
+                                            ),
                                     ),
                                   );
                                 }).toList(),
@@ -4108,25 +4177,33 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               // Image
               Center(
                 child: InteractiveViewer(
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.black54,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error, color: Colors.white, size: 48),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Не удалось загрузить изображение',
-                            style: const TextStyle(color: Colors.white),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  child: _shouldUseHtmlImg(imageUrl)
+                      ? WebCompatibleImage(
+                          url: imageUrl,
+                          fit: BoxFit.contain,
+                        )
+                      : Image.network(
+                          imageUrl,
+                          headers: _imageHeadersFor(imageUrl),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint('Failed to load fullscreen image: $imageUrl. Error: $error');
+                            return Container(
+                              color: Colors.black54,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.error, color: Colors.white, size: 48),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Не удалось загрузить изображение',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ),
               // Close button
