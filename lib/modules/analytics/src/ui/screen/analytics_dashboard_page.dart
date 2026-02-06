@@ -19,6 +19,7 @@ import 'package:akimat_project/modules/analytics/src/ui/widgets/shimmer_loading.
 import 'package:akimat_project/modules/analytics/src/ui/widgets/anpr_section.dart';
 import 'package:akimat_project/modules/analytics/src/controller/anpr_controller.dart';
 import 'package:akimat_project/modules/auth/src/controller/auth_notifier.dart';
+import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/areas_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/contracts_controller.dart';
@@ -27,10 +28,16 @@ import 'package:akimat_project/modules/dashboard/src/repository/operations_repos
 import 'package:akimat_project/modules/dashboard/src/repository/operations_repository_impl.dart';
 import 'package:akimat_project/services/acts/module.dart';
 import 'package:akimat_project/services/analytics/model/analytics_response.dart';
+import 'dart:convert';
+import 'dart:io' show Platform, Directory, File;
+import 'dart:typed_data';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -1848,45 +1855,64 @@ class _AnalyticsDashboardPageState
               return Column(
                 children: [
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        // Используем ID контракта из карточки или выбранный контракт из виджета
-                        final contractIdToUse =
-                            _selectedContractId ?? contract.contractId;
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            // Используем ID контракта из карточки или выбранный контракт из виджета
+                            final contractIdToUse =
+                                _selectedContractId ?? contract.contractId;
 
-                        // Если период не выбран, бэкенд использует период действия контракта
-                        if (_dateFrom == null || _dateTo == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Период не выбран. Будет использован период действия контракта (ID: ${contractIdToUse.substring(0, 12)}...)'),
-                              backgroundColor: Colors.blue,
-                              duration: const Duration(seconds: 3),
+                            // Если период не выбран, бэкенд использует период действия контракта
+                            if (_dateFrom == null || _dateTo == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Период не выбран. Будет использован период действия контракта (ID: ${contractIdToUse.substring(0, 12)}...)'),
+                                  backgroundColor: Colors.blue,
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                              // Передаем null, бэкенд использует период контракта (start_at, end_at)
+                              _downloadActWithPeriod(
+                                contractIdToUse,
+                                null, // Бэкенд возьмет start_at контракта
+                                null, // Бэкенд возьмет end_at контракта
+                              );
+                            } else {
+                              // Период выбран пользователем - проверяем и корректируем его
+                              _downloadActWithValidation(contractIdToUse, contract);
+                            }
+                          },
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('Скачать акт (PDF)',
+                              style: TextStyle(fontSize: 12)),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
                             ),
-                          );
-                          // Передаем null, бэкенд использует период контракта (start_at, end_at)
-                          _downloadActWithPeriod(
-                            contractIdToUse,
-                            null, // Бэкенд возьмет start_at контракта
-                            null, // Бэкенд возьмет end_at контракта
-                          );
-                        } else {
-                          // Период выбран пользователем - проверяем и корректируем его
-                          _downloadActWithValidation(contractIdToUse, contract);
-                        }
-                      },
-                      icon: const Icon(Icons.download, size: 18),
-                      label: const Text('Скачать акт (PDF)',
-                          style: TextStyle(fontSize: 12)),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => _downloadExcelAct(context),
+                          icon: const Icon(Icons.table_chart, size: 18),
+                          label: const Text('Скачать Excel-акт',
+                              style: TextStyle(fontSize: 12)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               );
@@ -1904,6 +1930,107 @@ class _AnalyticsDashboardPageState
       _dateFrom,
       _dateTo,
     );
+  }
+
+  Future<void> _downloadExcelAct(BuildContext context) async {
+    if (_selectedContractId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Выберите контракт для выгрузки Excel-акта'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Показываем индикатор загрузки
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final authState = ref.read(authNotifierProvider);
+      final token = await TokenStorage.getAccessToken();
+      final userRole = userRoleFromString(authState.user?.role);
+      
+      // Определяем mode в зависимости от роли пользователя
+      final mode = userRole == UserRole.contractorAdmin ? 'contractor' : 'landfill';
+      
+      final response = await http.post(
+        Uri.parse('https://snowops-acts-service.onrender.com/acts/export'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'mode': mode,
+          'target_id': _selectedContractId!,
+          'period_start': _dateFrom != null 
+              ? '${_dateFrom!.year.toString().padLeft(4, '0')}-${_dateFrom!.month.toString().padLeft(2, '0')}-${_dateFrom!.day.toString().padLeft(2, '0')}'
+              : null,
+          'period_end': _dateTo != null
+              ? '${_dateTo!.year.toString().padLeft(4, '0')}-${_dateTo!.month.toString().padLeft(2, '0')}-${_dateTo!.day.toString().padLeft(2, '0')}'
+              : null,
+        }),
+      );
+
+      // Закрываем индикатор загрузки
+      Navigator.of(context).pop();
+
+      if (response.statusCode == 200) {
+        // Для Web используем blob и download
+        if (kIsWeb) {
+          final bytes = response.bodyBytes;
+          final filename = 'acts_${_selectedContractId}_${DateFormat('dd.MM.yyyy').format(DateTime.now())}.xlsx';
+          
+          // Создаем blob и скачиваем через браузер
+          final blob = html.Blob([bytes]);
+          final url = html.Url.createObjectUrl(blob);
+          final anchor = html.AnchorElement(href: url)
+            ..setAttribute('download', filename)
+            ..click();
+          html.Url.revokeObjectUrl(url);
+        } else {
+          // Для мобильных платформ сохраняем файл
+          final bytes = response.bodyBytes;
+          final filename = 'acts_${_selectedContractId}_${DateFormat('dd.MM.yyyy').format(DateTime.now())}.xlsx';
+          await FileDownloader.downloadFile(
+            bytes: bytes,
+            filename: filename,
+            extension: 'xlsx',
+          );
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Excel-акт успешно загружен'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      // Закрываем индикатор загрузки если открыт
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при выгрузке Excel-акта: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// Скачивание акта с валидацией периода относительно контракта
