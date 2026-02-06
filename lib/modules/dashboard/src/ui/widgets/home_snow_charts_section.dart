@@ -259,11 +259,11 @@ class _HomeSnowChartsSectionState extends ConsumerState<HomeSnowChartsSection> {
               height: 220,
             ),
             const SizedBox(height: AppPadding.large),
-            BarChartWidget(
-              title: 'События',
-              series: data.events,
-              height: 220,
-            ),
+            // BarChartWidget(
+            //   title: 'События',
+            //   series: data.events,
+            //   height: 220,
+            // ),
           ],
         ),
       ),
