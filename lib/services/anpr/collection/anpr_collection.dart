@@ -246,7 +246,7 @@ class AnprCollection {
     try {
       final queryParams = <String, dynamic>{};
       if (contractorId != null) queryParams['contractor_id'] = contractorId;
-      if (polygonId != null) queryParams['polygon_id'] = polygonId;
+      if (polygonId != null) queryParams['camera_id'] = polygonId;
       if (vehicleId != null) queryParams['vehicle_id'] = vehicleId;
       if (plate != null) queryParams['plate'] = plate;
       if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);

@@ -62,8 +62,9 @@ class _AnalyticsDashboardPageState
     extends ConsumerState<AnalyticsDashboardPage> {
   DateTime? _dateFrom;
   DateTime? _dateTo;
-  String? _selectedContractId;
   String? _selectedContractorId;
+  String? _selectedPolygonId;
+  String? _selectedContractId;
   AsyncValue<Map<String, dynamic>>? _landfillJournalData;
   bool _hasInitialLoad = false;
   bool _isLoadingInitialData = false;
@@ -905,6 +906,70 @@ class _AnalyticsDashboardPageState
                     },
                   ),
                 ],
+                // Фильтр по полигонам
+                const SizedBox(height: AppPadding.normal),
+                Container(
+                  padding: const EdgeInsets.all(AppPadding.small),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                    border: Border.all(color: AppColors.divider, width: 0.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Полигон',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppPadding.small),
+                      SizedBox(
+                        width: double.infinity,
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedPolygonId,
+                          decoration: InputDecoration(
+                            labelText: 'Полигон',
+                            hintText: 'Все полигоны',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  AppSize.smallRadius),
+                            ),
+                            prefixIcon: const Icon(Icons.location_on),
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('Все полигоны'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'yakor',
+                              child: Text('Якорь'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'shahovskoye',
+                              child: Text('Шаховское'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'solnechniy',
+                              child: Text('Солнечный'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedPolygonId = value;
+                            });
+                            debugPrint('DEBUG: Selected polygon filter: "$value"');
+                            // Перезагружаем данные ANPR при изменении фильтра полигона
+                            // Это произойдет автоматически через didUpdateWidget в AnprSection
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // Выбор контракта из созданных контрактов (скрыт для LANDFILL_ADMIN и CONTRACTOR_ADMIN)
                 if (!isLandfillAdmin && !isContractorAdmin) ...[
                   const SizedBox(height: AppPadding.normal),
@@ -1156,6 +1221,7 @@ class _AnalyticsDashboardPageState
                     dateFrom: anprDateFrom,
                     dateTo: anprDateTo,
                     contractorId: contractorId,
+                    polygonId: _selectedPolygonId,
                     showReports: true,
                     showStatistics: false,
                     showEvents: false,

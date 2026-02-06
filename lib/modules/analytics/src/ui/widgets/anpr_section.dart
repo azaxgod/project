@@ -491,24 +491,36 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                   final organizationsData = organizationsState.data.valueOrNull;
 
                   final filteredEvents = allEvents.where((event) {
-                    if (event.contractorId != null) {
-                      return event.contractorId == widget.contractorId;
+                    // Фильтр по подрядчику
+                    if (widget.contractorId != null) {
+                      if (event.contractorId != null) {
+                        if (event.contractorId != widget.contractorId) return false;
+                      } else {
+                        if (organizationsData != null) {
+                          try {
+                            final vehicle = organizationsData.vehicles.firstWhere(
+                              (v) =>
+                                  v.plateNumber.replaceAll(' ', '').toUpperCase() ==
+                                  event.normalizedPlate
+                                      .replaceAll(' ', '')
+                                      .toUpperCase(),
+                            );
+                            if (vehicle.contractorId != widget.contractorId) return false;
+                          } catch (e) {
+                            return false;
+                          }
+                        }
+                      }
                     }
-                    if (organizationsData != null) {
-                      try {
-                        final vehicle = organizationsData.vehicles.firstWhere(
-                          (v) =>
-                              v.plateNumber.replaceAll(' ', '').toUpperCase() ==
-                              event.normalizedPlate
-                                  .replaceAll(' ', '')
-                                  .toUpperCase(),
-                        );
-                        return vehicle.contractorId == widget.contractorId;
-                      } catch (e) {
+                    
+                    // Фильтр по полигону
+                    if (widget.polygonId != null) {
+                      if (event.polygonId?.toLowerCase() != widget.polygonId?.toLowerCase()) {
                         return false;
                       }
                     }
-                    return false;
+                    
+                    return true;
                   }).toList();
 
                   final totalEvents = filteredEvents.length;
@@ -709,6 +721,13 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       }).toList();
     }
 
+    // Фильтруем события по полигону, если указан
+    if (widget.polygonId != null) {
+      filteredEvents = filteredEvents.where((event) {
+        return event.polygonId?.toLowerCase() == widget.polygonId?.toLowerCase();
+      }).toList();
+    }
+
     if (filteredEvents.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(AppPadding.large),
@@ -819,6 +838,66 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       'eventsWithVolume': eventsWithVolume,
       'totalEvents': events.length,
     };
+  }
+
+  /// Определяет название полигона по polygonId или cameraId
+  String _getPolygonName(AnprEvent event) {
+    // Сначала проверяем polygonId в событии
+    if (event.polygonId != null) {
+      debugPrint('DEBUG: polygonId value = "${event.polygonId}"');
+      final polygonId = event.polygonId!.toLowerCase();
+      
+      // Пробуем разные варианты форматов
+      switch (polygonId) {
+        // Правильные значения из camera_id данных API
+        case 'shahovskoye':
+          return 'Шаховское';
+        case 'yakor':
+          return 'Якорь';
+        case 'solnechniy':
+          return 'Солнечный';
+        // Другие возможные варианты
+        case 'shakhovskoye':
+        case 'shahovskoy':
+          return 'Шаховское';
+        case 'yakorsk':
+          return 'Якорь';
+        case 'solnechnyy':
+        case 'solnechni':
+          return 'Солнечный';
+        // Цифровые ID (маловероятно, но оставим для совместимости)
+        case '1':
+        case 'polygon1':
+          return 'Шаховское';
+        case '2':
+        case 'polygon2':
+          return 'Якорь';
+        case '3':
+        case 'polygon3':
+          return 'Солнечный';
+        default:
+          debugPrint('DEBUG: Unknown polygonId: "${event.polygonId}"');
+          // Если неизвестный ID, пытаемся определить по cameraId
+          return _getPolygonNameByCameraId(event.cameraId);
+      }
+    }
+    
+    // Если polygonId нет, определяем по cameraId
+    return _getPolygonNameByCameraId(event.cameraId);
+  }
+
+  /// Определяет название полигона по camera_id
+  String _getPolygonNameByCameraId(String cameraId) {
+    switch (cameraId.toLowerCase()) {
+      case 'shahovskoye':
+        return 'Шаховское';
+      case 'yakor':
+        return 'Якорь';
+      case 'solnechniy':
+        return 'Солнечный';
+      default:
+        return cameraId;
+    }
   }
 
   /// Декоративный разделитель между секциями
@@ -1827,6 +1906,25 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               label: Row(
                 children: [
                   Icon(
+                    Icons.location_on,
+                    size: 18,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Полигон',
+                    style: AppTextStyles.title3.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            DataColumn(
+              label: Row(
+                children: [
+                  Icon(
                     Icons.ac_unit,
                     size: 18,
                     color: Colors.cyan.shade700,
@@ -2053,6 +2151,45 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                             style: AppTextStyles.body.copyWith(
                               fontWeight: FontWeight.w600,
                               color: Colors.blue.shade900,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.orange.shade200,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.orange.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _getPolygonName(event),
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange.shade900,
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
