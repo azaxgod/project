@@ -19,7 +19,7 @@ class OrganizationsDataTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final horizontalScrollController = ScrollController();
     final verticalScrollController = ScrollController();
-    
+
     return Container(
       constraints: maxWidth > 0 ? BoxConstraints(maxWidth: maxWidth) : null,
       decoration: BoxDecoration(
@@ -31,7 +31,7 @@ class OrganizationsDataTable extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: AppSize.shadowBlur,
             offset: const Offset(0, 2),
             spreadRadius: 0,
@@ -67,10 +67,10 @@ class OrganizationsDataTable extends StatelessWidget {
                   return DataColumn(label: styledLabel);
                 }).toList(),
                 rows: rows,
-                columnSpacing: AppPadding.large + 8,
+                columnSpacing: AppPadding.normal,
                 headingRowHeight: 56,
-                dataRowMinHeight: 64,
-                dataRowMaxHeight: 80,
+                dataRowMinHeight: 56,
+                dataRowMaxHeight: 96,
                 headingRowColor: WidgetStateProperty.all(
                   AppColors.secondaryBackground,
                 ),
@@ -89,4 +89,3 @@ class OrganizationsDataTable extends StatelessWidget {
     );
   }
 }
-

@@ -8,7 +8,6 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/wid
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_table_actions.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_details_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_dialogs.dart';
-import 'package:akimat_project/core/utils/notification_helper.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsContractorsTab extends StatelessWidget {
@@ -25,8 +24,6 @@ class OrganizationsContractorsTab extends StatelessWidget {
   final String? parentOrganizationId;
   final bool canManage;
 
-  bool get _shouldShowParentColumn => parentOrganizationId == null;
-
   @override
   Widget build(BuildContext context) {
     final contractors = data.organizations.where((organization) {
@@ -41,7 +38,7 @@ class OrganizationsContractorsTab extends StatelessWidget {
         OrganizationsTabHeader(
           title: 'Подрядчики',
           subtitle: parentOrganizationId == null
-              ? (canManage 
+              ? (canManage
                   ? 'Управление подрядчиками всех КГУ ЖКХ'
                   : 'Просмотр подрядчиков всех КГУ ЖКХ')
               : (canManage
@@ -63,89 +60,94 @@ class OrganizationsContractorsTab extends StatelessWidget {
           const Expanded(
             child: OrganizationsEmptyState(
               title: 'Нет подрядчиков',
-              message: 'Добавьте подрядчика, чтобы управлять водителями и транспортом.',
+              message:
+                  'Добавьте подрядчика, чтобы управлять водителями и транспортом.',
             ),
           )
         else
           Expanded(
             child: OrganizationsDataTable(
-            columns: [
-              const DataColumn(label: Text('Название')),
-              const DataColumn(label: Text('БИН')),
-              if (_shouldShowParentColumn) const DataColumn(label: Text('Родительская организация KGU ZKH')),
-              const DataColumn(label: Text('Руководитель')),
-              const DataColumn(label: Text('Адрес')),
-              const DataColumn(label: Text('Телефон')),
-              const DataColumn(label: Text('Статус')),
-              const DataColumn(label: Text('Действия')),
-            ],
-            rows: contractors.map((contractor) {
-              final parentName = contractor.parentOrgId == null
-                  ? '—'
-                  : data.organizations
-                          .firstWhere(
-                            (org) =>
-                                org.id == contractor.parentOrgId &&
-                                (org.type == OrganizationType.kguZkh || org.type == OrganizationType.too),
-                            orElse: () => contractor,
-                          )
-                          .name;
-              return DataRow(
-                cells: [
-                  DataCell(Text(contractor.name, overflow: TextOverflow.ellipsis)),
-                  DataCell(Text(contractor.bin, overflow: TextOverflow.ellipsis)),
-                  if (_shouldShowParentColumn) DataCell(Text(parentName, overflow: TextOverflow.ellipsis)),
-                  DataCell(Text(contractor.HeadFullName ?? '—', overflow: TextOverflow.ellipsis)),
-                  DataCell(Text(contractor.address ?? '—', overflow: TextOverflow.ellipsis)),
-                  DataCell(Text(contractor.phone ?? '—', overflow: TextOverflow.ellipsis)),
-                  DataCell(OrganizationsStatusChip(isActive: contractor.isActive)),
-                  DataCell(
-                    OrganizationsTableActions(
-                      actions: [
-                        OrganizationsTableAction(
-                          label: 'Подробнее',
-                          onPressed: () => OrganizationsDetailsDialogs.showOrganizationDetails(
-                            context: context,
-                            organization: contractor,
-                            data: data,
-                          ),
+              maxWidth: 0,
+              columns: const [
+                DataColumn(label: Text('Название')),
+                DataColumn(label: Text('БИН')),
+                DataColumn(label: Text('Руководитель')),
+                DataColumn(label: Text('Адрес')),
+                DataColumn(label: Text('Телефон')),
+                DataColumn(label: Text('Статус')),
+                DataColumn(label: Text('Действия')),
+              ],
+              rows: contractors.map((contractor) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: Text(
+                          contractor.name,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        OrganizationsTableAction(
-                          label: contractor.isActive ? 'Блокировать' : 'Разблокировать',
-                          isDestructive: contractor.isActive,
-                          onPressed: () async {
-                            try {
-                              await controller.updateOrganization(
-                                contractor.copyWith(isActive: !contractor.isActive),
-                                skipReload: true,
-                              );
-                              if (context.mounted) {
-                                await context.showSuccessWithReload(
-                                  contractor.isActive 
-                                      ? 'Подрядчик успешно заблокирован'
-                                      : 'Подрядчик успешно разблокирован',
-                                  () async {
-                                    await controller.refresh();
-                                  },
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                context.showErrorNotificationFromException(e);
-                              }
-                            }
-                          },
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }).toList(),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 130),
+                        child: Text(
+                          contractor.bin,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 190),
+                        child: Text(
+                          contractor.HeadFullName ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 240),
+                        child: Text(
+                          contractor.address ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 150),
+                        child: Text(
+                          contractor.phone ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                        OrganizationsStatusChip(isActive: contractor.isActive)),
+                    DataCell(
+                      OrganizationsTableActions(
+                        actions: [
+                          OrganizationsTableAction(
+                            label: 'Подробнее',
+                            onPressed: () => OrganizationsDetailsDialogs
+                                .showOrganizationDetails(
+                              context: context,
+                              organization: contractor,
+                              data: data,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
       ],
     );
   }
 }
-

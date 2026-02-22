@@ -5,25 +5,33 @@ import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 
 import 'package:equatable/equatable.dart';
+
 /// Коллекция для работы с ANPR сервисом
 class AnprCollection {
   final Dio dio;
 
   AnprCollection({required Dio dio}) : dio = dio;
 
-  /// Форматирует DateTime в RFC 3339 формат (UTC с Z в конце, без миллисекунд)
+  /// Форматирует DateTime в RFC 3339 в локальном часовом поясе (без ручного сдвига времени)
   String _formatDateTimeRfc3339(DateTime dateTime) {
-    final utc = dateTime.toUtc();
-    return '${utc.year.toString().padLeft(4, '0')}-'
-        '${utc.month.toString().padLeft(2, '0')}-'
-        '${utc.day.toString().padLeft(2, '0')}T'
-        '${utc.hour.toString().padLeft(2, '0')}:'
-        '${utc.minute.toString().padLeft(2, '0')}:'
-        '${utc.second.toString().padLeft(2, '0')}Z';
+    final local = dateTime.toLocal();
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final offsetHours = offset.inHours.abs().toString().padLeft(2, '0');
+    final offsetMinutes =
+        (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+
+    return '${local.year.toString().padLeft(4, '0')}-'
+        '${local.month.toString().padLeft(2, '0')}-'
+        '${local.day.toString().padLeft(2, '0')}T'
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}:'
+        '${local.second.toString().padLeft(2, '0')}'
+        '$sign$offsetHours:$offsetMinutes';
   }
 
   /// POST /api/v1/anpr/events - Приём события от камеры
-  /// 
+  ///
   /// Поддерживает два формата:
   /// 1. JSON (application/json)
   /// 2. Multipart Form Data (multipart/form-data) с фотографиями
@@ -83,9 +91,8 @@ class AnprCollection {
         '/api/v1/plates',
         queryParameters: {'plate': plate},
         options: Options(
-          headers: jwtToken != null
-              ? {'Authorization': 'Bearer $jwtToken'}
-              : null,
+          headers:
+              jwtToken != null ? {'Authorization': 'Bearer $jwtToken'} : null,
         ),
       );
 
@@ -119,9 +126,8 @@ class AnprCollection {
         '/api/v1/events',
         queryParameters: queryParams,
         options: Options(
-          headers: jwtToken != null
-              ? {'Authorization': 'Bearer $jwtToken'}
-              : null,
+          headers:
+              jwtToken != null ? {'Authorization': 'Bearer $jwtToken'} : null,
         ),
       );
 
@@ -141,9 +147,8 @@ class AnprCollection {
       final response = await dio.get(
         '/api/v1/events/$eventId',
         options: Options(
-          headers: jwtToken != null
-              ? {'Authorization': 'Bearer $jwtToken'}
-              : null,
+          headers:
+              jwtToken != null ? {'Authorization': 'Bearer $jwtToken'} : null,
         ),
       );
 
@@ -167,9 +172,8 @@ class AnprCollection {
           'plate_number': plateNumber,
         },
         options: Options(
-          headers: jwtToken != null
-              ? {'Authorization': 'Bearer $jwtToken'}
-              : null,
+          headers:
+              jwtToken != null ? {'Authorization': 'Bearer $jwtToken'} : null,
         ),
       );
       return response.data as Map<String, dynamic>;
@@ -258,9 +262,8 @@ class AnprCollection {
         '/api/v1/reports',
         queryParameters: queryParams,
         options: Options(
-          headers: jwtToken != null
-              ? {'Authorization': 'Bearer $jwtToken'}
-              : null,
+          headers:
+              jwtToken != null ? {'Authorization': 'Bearer $jwtToken'} : null,
         ),
       );
 
@@ -288,4 +291,3 @@ class AnprEventsResponse extends Equatable {
   @override
   List<Object?> get props => [data];
 }
-

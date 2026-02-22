@@ -1,19 +1,18 @@
 import 'dart:math';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:akimat_project/core/storage/tab_storage.dart';
-import 'package:akimat_project/generated/l10n.dart' hide S;
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_empty_state.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_contractors_tab.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_drivers_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_too_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/tabs/organizations_vehicles_tab.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/contractor_cabinet/contractor_users_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:akimat_project/l10n/l10n.dart';       
+import 'package:akimat_project/l10n/l10n.dart';
+
 class OrganizationsTabs extends StatefulWidget {
   const OrganizationsTabs({
     super.key,
@@ -49,16 +48,16 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
   @override
   void didUpdateWidget(OrganizationsTabs oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // Если данные изменились, нужно перепроверить длину табов
     final tabs = _getTabs(context);
-    
+
     // Если TabController существует и длина табов изменилась, пересоздаем контроллер
     if (_tabController != null && _tabController!.length != tabs.length) {
       final currentIndex = _tabController!.index;
       _tabController?.removeListener(_onTabChanged);
       _tabController?.dispose();
-      
+
       // Создаем новый контроллер с корректной длиной
       int newIndex = 0;
       if (currentIndex < tabs.length) {
@@ -66,14 +65,14 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       } else if (_savedTabIndex != null && _savedTabIndex! < tabs.length) {
         newIndex = _savedTabIndex!;
       }
-      
+
       _tabController = TabController(
         length: tabs.length,
         vsync: this,
         initialIndex: newIndex,
       );
       _tabController!.addListener(_onTabChanged);
-      
+
       // Синхронизируем после обновления
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -111,22 +110,22 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
   /// Обновляет URL при переключении вкладки
   void _updateRouteFromTab(int index) {
     if (!mounted) return;
-    
+
     try {
       final router = GoRouter.of(context);
       final currentUri = router.routerDelegate.currentConfiguration.uri;
       final currentTab = currentUri.queryParameters['tab'] ?? '';
-      
+
       final tabParam = index.toString();
-      
+
       // Если URL уже правильный, не обновляем
       if (currentTab == tabParam) {
         return;
       }
-      
+
       // Обновляем _lastTabParam
       _lastTabParam = tabParam;
-      
+
       // Обновляем URL с параметром вкладки
       final newRoute = '/organization?tab=$tabParam';
       router.go(newRoute);
@@ -138,43 +137,49 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
   /// Синхронизирует вкладку с query параметром из роута
   void _syncTabFromRoute() {
     if (!mounted || _tabController == null) return;
-    
+
     try {
       final router = GoRouter.of(context);
       final uri = router.routerDelegate.currentConfiguration.uri;
       final tab = uri.queryParameters['tab'];
-      
+
       final tabs = _getTabs(context);
       if (tabs.isEmpty) return;
-      
+
       // Получаем актуальную длину табов из контроллера
       final controllerLength = _tabController!.length;
-      
+
       // Если длина изменилась, нужно пересоздать контроллер
       if (controllerLength != tabs.length) {
-        debugPrint('Tab length changed from $controllerLength to ${tabs.length}, skipping sync');
+        debugPrint(
+            'Tab length changed from $controllerLength to ${tabs.length}, skipping sync');
         return;
       }
-      
+
       int tabIndex = _savedTabIndex ?? 0;
       if (tab != null && tab.isNotEmpty) {
         final parsedIndex = int.tryParse(tab);
-        if (parsedIndex != null && parsedIndex >= 0 && parsedIndex < tabs.length) {
+        if (parsedIndex != null &&
+            parsedIndex >= 0 &&
+            parsedIndex < tabs.length) {
           tabIndex = parsedIndex;
         } else {
           // Если индекс из URL невалиден, используем 0
           tabIndex = 0;
         }
       }
-      
+
       // Дополнительная проверка валидности индекса
       if (tabIndex < 0 || tabIndex >= tabs.length) {
-        debugPrint('Invalid tab index: $tabIndex, tabs length: ${tabs.length}, resetting to 0');
+        debugPrint(
+            'Invalid tab index: $tabIndex, tabs length: ${tabs.length}, resetting to 0');
         tabIndex = 0;
       }
-      
+
       // Обновляем вкладку только если она отличается от текущей и индекс валиден
-      if (_tabController!.index != tabIndex && tabIndex >= 0 && tabIndex < tabs.length) {
+      if (_tabController!.index != tabIndex &&
+          tabIndex >= 0 &&
+          tabIndex < tabs.length) {
         // Временно отключаем слушатель, чтобы избежать цикла
         _tabController!.removeListener(_onTabChanged);
         try {
@@ -189,7 +194,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
           }
         });
       }
-      
+
       _lastTabParam = tab ?? tabIndex.toString();
     } catch (e) {
       debugPrint('Error syncing tab from route: $e');
@@ -216,7 +221,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
   Widget build(BuildContext context) {
     final s = S.of(context);
     final tabs = _getTabs(context);
-    
+
     if (tabs.isEmpty) {
       return OrganizationsEmptyState(
         title: s!.no_available_tabs,
@@ -230,11 +235,11 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       // Здесь просто показываем loading, чтобы избежать ошибок
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     // Инициализируем TabController с сохраненным индексом или из URL
     if (_tabController == null && !_isInitializing) {
       int initialIndex = 0;
-      
+
       // Сначала проверяем URL параметр
       try {
         final router = GoRouter.of(context);
@@ -242,36 +247,38 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
         final tab = uri.queryParameters['tab'];
         if (tab != null && tab.isNotEmpty) {
           final parsedIndex = int.tryParse(tab);
-          if (parsedIndex != null && parsedIndex >= 0 && parsedIndex < tabs.length) {
+          if (parsedIndex != null &&
+              parsedIndex >= 0 &&
+              parsedIndex < tabs.length) {
             initialIndex = parsedIndex;
           }
-        } else if (_savedTabIndex != null && 
-            _savedTabIndex! >= 0 && 
+        } else if (_savedTabIndex != null &&
+            _savedTabIndex! >= 0 &&
             _savedTabIndex! < tabs.length) {
           initialIndex = _savedTabIndex!;
         }
       } catch (e) {
         // Используем сохраненный индекс как fallback
-        if (_savedTabIndex != null && 
-            _savedTabIndex! >= 0 && 
+        if (_savedTabIndex != null &&
+            _savedTabIndex! >= 0 &&
             _savedTabIndex! < tabs.length) {
           initialIndex = _savedTabIndex!;
         }
       }
-      
+
       // Финальная проверка валидности индекса
       if (initialIndex < 0 || initialIndex >= tabs.length) {
         initialIndex = 0;
       }
-      
+
       _tabController = TabController(
-      length: tabs.length,
+        length: tabs.length,
         vsync: this,
         initialIndex: initialIndex,
       );
       _tabController!.addListener(_onTabChanged);
       _lastTabParam = initialIndex.toString();
-      
+
       // Синхронизируем с URL после создания контроллера
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -286,7 +293,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
         final router = GoRouter.of(context);
         final uri = router.routerDelegate.currentConfiguration.uri;
         final currentTabParam = uri.queryParameters['tab'] ?? '';
-        
+
         // Если tab параметр изменился, синхронизируем вкладку
         if (currentTabParam != _lastTabParam) {
           _lastTabParam = currentTabParam;
@@ -307,52 +314,54 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
     }
 
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (widget.config.topOffset > 0) SizedBox(height: widget.config.topOffset),
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.config.padding,
-              vertical: 8,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  s!.role_management,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  s.organizations_contractors_drivers,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.config.topOffset > 0)
+          SizedBox(height: widget.config.topOffset),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.config.padding,
+            vertical: 8,
           ),
-          TabBar(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s!.role_management,
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Полигоны по вывозу снега, подрядчики и транспорт',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          labelColor: Theme.of(context).colorScheme.primary,
+          indicatorColor: Theme.of(context).colorScheme.primary,
+          tabs: tabs.map((tab) => Tab(text: tab.getLabel(context))).toList(),
+        ),
+        Expanded(
+          child: TabBarView(
             controller: _tabController,
-            isScrollable: true,
-            labelColor: Theme.of(context).colorScheme.primary,
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            tabs: tabs.map((tab) => Tab(text: tab.getLabel(context))).toList(),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: tabs
-                  .map(
-                    (tab) => Padding(
-                      padding: EdgeInsets.all(
-                        max(widget.config.padding, 16),
-                      ),
-                      child: tab.builder(context, widget.controller),
+            children: tabs
+                .map(
+                  (tab) => Padding(
+                    padding: EdgeInsets.all(
+                      max(widget.config.padding, 16),
                     ),
-                  )
-                  .toList(),
-            ),
+                    child: tab.builder(context, widget.controller),
+                  ),
+                )
+                .toList(),
           ),
-        ],
+        ),
+      ],
     );
   }
 
@@ -368,7 +377,7 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
       case UserRole.akimatAdmin:
         return [
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(ctx)!.too,
+            getLabel: (ctx) => 'Полигоны по вывозу снега',
             builder: (context, controller) => OrganizationsTooTab(
               data: data,
               controller: controller,
@@ -384,20 +393,12 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
             ),
           ),
           _OrganizationsTabDefinition(
-            getLabel: (ctx) => S.of(ctx)!.drivers,
-            builder: (context, controller) => OrganizationsDriversTab(
-              data: data,
-              controller: controller,
-              canManage: false,
-              organizationId: null,
-            ),
-          ),
-          _OrganizationsTabDefinition(
             getLabel: (ctx) => S.of(ctx)!.vehicles,
             builder: (context, controller) => OrganizationsVehiclesTab(
               data: data,
               controller: controller,
-              showAll: true, // AKIMAT_ADMIN видит весь транспорт, как KGU_ZKH_ADMIN
+              showAll:
+                  true, // AKIMAT_ADMIN видит весь транспорт, как KGU_ZKH_ADMIN
             ),
           ),
         ];
@@ -411,15 +412,6 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
                 data: data,
                 controller: controller,
                 parentOrganizationId: organizationId,
-              ),
-            ),
-            _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx)!.drivers,
-              builder: (context, controller) => OrganizationsDriversTab(
-                data: data,
-                controller: controller,
-                canManage: false,
-                organizationId: organizationId,
               ),
             ),
             _OrganizationsTabDefinition(
@@ -444,16 +436,6 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
                 parentOrganizationId: organizationId,
               ),
             ),
-            _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx)!.drivers,
-
-              builder: (context, controller) => OrganizationsDriversTab(
-                data: data,
-                controller: controller,
-                canManage: false,
-                organizationId: organizationId,
-              ),
-            ),
           ];
         }
         return [];
@@ -464,15 +446,6 @@ class _OrganizationsTabsState extends State<OrganizationsTabs>
               getLabel: (ctx) => 'Пользователи подрядчика',
               builder: (context, controller) => ContractorUsersPage(
                 scaffoldKey: GlobalKey<ScaffoldState>(),
-              ),
-            ),
-            _OrganizationsTabDefinition(
-              getLabel: (ctx) => S.of(ctx)!.drivers,
-              builder: (context, controller) => OrganizationsDriversTab(
-                data: data,
-                controller: controller,
-                canManage: true,
-                organizationId: organizationId,
               ),
             ),
             _OrganizationsTabDefinition(
@@ -505,6 +478,6 @@ class _OrganizationsTabDefinition {
   });
 
   final String Function(BuildContext context) getLabel;
-  final Widget Function(BuildContext context, OrganizationsController controller) builder;
+  final Widget Function(
+      BuildContext context, OrganizationsController controller) builder;
 }
-

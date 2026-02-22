@@ -45,7 +45,7 @@ class OrganizationsDialogs {
               type == OrganizationType.kguZkh
                   ? 'Добавить КГУ ЖКХ'
                   : type == OrganizationType.too
-                      ? 'Добавить ТОО'
+                      ? 'Добавить полигон'
                       : 'Добавить подрядчика',
             ),
             content: SizedBox(
@@ -1324,4 +1324,3 @@ class OrganizationsDialogs {
     }
   }
 }
-

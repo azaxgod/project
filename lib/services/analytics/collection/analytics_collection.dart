@@ -6,16 +6,16 @@ import '../model/analytics_response.dart';
 class AnalyticsException implements Exception {
   final String message;
   final int? statusCode;
-  
+
   AnalyticsException(this.message, [this.statusCode]);
-  
+
   @override
   String toString() => message;
 }
 
 class AnalyticsCollection {
   final Dio dio;
-  
+
   AnalyticsCollection({required this.dio});
 
   /// Обработка ошибок API
@@ -23,12 +23,12 @@ class AnalyticsCollection {
     if (error.response != null) {
       final statusCode = error.response!.statusCode;
       final errorData = error.response!.data;
-      
+
       // Пытаемся извлечь детальное сообщение об ошибке
       String errorMessage;
       if (errorData is Map) {
         if (errorData.containsKey('error')) {
-          errorMessage = errorData['error'] is String 
+          errorMessage = errorData['error'] is String
               ? errorData['error'] as String
               : errorData['error'].toString();
         } else if (errorData.containsKey('message')) {
@@ -43,7 +43,7 @@ class AnalyticsCollection {
       } else {
         errorMessage = error.message ?? 'Unknown error';
       }
-      
+
       // Добавляем статус код к сообщению для 500 ошибок
       if (statusCode == 500) {
         errorMessage = 'Internal Server Error (500): $errorMessage\n\n'
@@ -57,7 +57,9 @@ class AnalyticsCollection {
         case 400:
           throw AnalyticsException('Bad Request (400): $errorMessage', 400);
         case 401:
-          throw AnalyticsException('Unauthorized (401): Please check your authentication token', 401);
+          throw AnalyticsException(
+              'Unauthorized (401): Please check your authentication token',
+              401);
         case 403:
           throw AnalyticsException('Forbidden (403): $errorMessage', 403);
         case 404:
@@ -65,13 +67,15 @@ class AnalyticsCollection {
         case 500:
           throw AnalyticsException(errorMessage, 500);
         default:
-          throw AnalyticsException('Error ($statusCode): $errorMessage', statusCode);
+          throw AnalyticsException(
+              'Error ($statusCode): $errorMessage', statusCode);
       }
     } else {
       String errorMessage;
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
-          errorMessage = 'Connection timeout. Please check your internet connection.';
+          errorMessage =
+              'Connection timeout. Please check your internet connection.';
           break;
         case DioExceptionType.sendTimeout:
           errorMessage = 'Send timeout. Please try again.';
@@ -80,7 +84,8 @@ class AnalyticsCollection {
           errorMessage = 'Receive timeout. Please try again.';
           break;
         case DioExceptionType.connectionError:
-          errorMessage = 'Connection error. Please check your internet connection and try again.';
+          errorMessage =
+              'Connection error. Please check your internet connection and try again.';
           break;
         default:
           errorMessage = error.message ?? 'Unknown error';
@@ -90,18 +95,23 @@ class AnalyticsCollection {
     }
   }
 
-  /// Форматирует DateTime в RFC 3339 формат (UTC с Z в конце)
-  /// Пример: 2024-11-10T06:29:11Z
+  /// Форматирует DateTime в RFC 3339 в локальном часовом поясе (без ручного сдвига времени)
+  /// Пример: 2024-11-10T11:29:11+05:00
   String _formatDateTime(DateTime dateTime) {
-    // Конвертируем в UTC
-    final utc = dateTime.toUtc();
-    // Форматируем в RFC 3339 (без миллисекунд, с Z в конце)
-    return '${utc.year.toString().padLeft(4, '0')}-'
-        '${utc.month.toString().padLeft(2, '0')}-'
-        '${utc.day.toString().padLeft(2, '0')}T'
-        '${utc.hour.toString().padLeft(2, '0')}:'
-        '${utc.minute.toString().padLeft(2, '0')}:'
-        '${utc.second.toString().padLeft(2, '0')}Z';
+    final local = dateTime.toLocal();
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final offsetHours = offset.inHours.abs().toString().padLeft(2, '0');
+    final offsetMinutes =
+        (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+
+    return '${local.year.toString().padLeft(4, '0')}-'
+        '${local.month.toString().padLeft(2, '0')}-'
+        '${local.day.toString().padLeft(2, '0')}T'
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}:'
+        '${local.second.toString().padLeft(2, '0')}'
+        '$sign$offsetHours:$offsetMinutes';
   }
 
   /// GET /analytics/dashboard
@@ -115,7 +125,8 @@ class AnalyticsCollection {
       if (from != null) {
         final formattedFrom = _formatDateTime(from);
         queryParams['from'] = formattedFrom;
-        debugPrint('Analytics Dashboard - from: $formattedFrom (original: $from)');
+        debugPrint(
+            'Analytics Dashboard - from: $formattedFrom (original: $from)');
       }
       if (to != null) {
         final formattedTo = _formatDateTime(to);
@@ -125,28 +136,32 @@ class AnalyticsCollection {
 
       debugPrint('Analytics Dashboard - Request URL: /analytics/dashboard');
       debugPrint('Analytics Dashboard - Query params: $queryParams');
-      debugPrint('Analytics Dashboard - Full URL: ${dio.options.baseUrl}/analytics/dashboard');
-      
+      debugPrint(
+          'Analytics Dashboard - Full URL: ${dio.options.baseUrl}/analytics/dashboard');
+
       final response = await dio.get(
         '/analytics/dashboard',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
-      debugPrint('Analytics Dashboard - Response status: ${response.statusCode}');
+
+      debugPrint(
+          'Analytics Dashboard - Response status: ${response.statusCode}');
       debugPrint('Analytics Dashboard - Response headers: ${response.headers}');
-      
+
       if (response.statusCode != 200) {
         debugPrint('Analytics Dashboard - Error response: ${response.data}');
       }
-      
+
       return DashboardResponse.fromJson(response.data);
     } on DioException catch (e) {
       debugPrint('Analytics Dashboard - DioException: ${e.type}');
       debugPrint('Analytics Dashboard - Error message: ${e.message}');
       if (e.response != null) {
-        debugPrint('Analytics Dashboard - Error status: ${e.response!.statusCode}');
+        debugPrint(
+            'Analytics Dashboard - Error status: ${e.response!.statusCode}');
         debugPrint('Analytics Dashboard - Error data: ${e.response!.data}');
-        debugPrint('Analytics Dashboard - Error headers: ${e.response!.headers}');
+        debugPrint(
+            'Analytics Dashboard - Error headers: ${e.response!.headers}');
       }
       _handleError(e);
       rethrow;
@@ -188,7 +203,7 @@ class AnalyticsCollection {
         '/analytics/trips',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return TripsAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -243,7 +258,7 @@ class AnalyticsCollection {
         '/analytics/violations',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return ViolationsAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -274,7 +289,7 @@ class AnalyticsCollection {
         '/analytics/performance',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return PerformanceAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -331,7 +346,7 @@ class AnalyticsCollection {
         '/analytics/areas',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return AreasAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -366,7 +381,7 @@ class AnalyticsCollection {
         '/analytics/drivers',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return DriversAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -397,7 +412,7 @@ class AnalyticsCollection {
         '/analytics/vehicles',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return VehiclesAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -424,12 +439,66 @@ class AnalyticsCollection {
         '/analytics/technical',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-      
+
       return TechnicalAnalyticsResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
       rethrow;
     }
   }
-}
 
+  /// GET /api/v1/reports/comparison
+  /// Получить сравнение периодов
+  Future<Map<String, dynamic>> getPeriodComparison({
+    required String mode,
+    required DateTime from,
+    required DateTime to,
+    DateTime? previousFrom,
+    DateTime? previousTo,
+    String? contractorId,
+    String? polygonId,
+    String? vehicleId,
+    String? plate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'mode': mode,
+        'from': _formatDateTime(from),
+        'to': _formatDateTime(to),
+      };
+
+      if (previousFrom != null) {
+        queryParams['previous_from'] = _formatDateTime(previousFrom);
+      }
+      if (previousTo != null) {
+        queryParams['previous_to'] = _formatDateTime(previousTo);
+      }
+      if (contractorId != null) {
+        queryParams['contractor_id'] = contractorId;
+      }
+      if (polygonId != null) {
+        queryParams['polygon_id'] = polygonId;
+      }
+      if (vehicleId != null) {
+        queryParams['vehicle_id'] = vehicleId;
+      }
+      if (plate != null) {
+        queryParams['plate'] = plate;
+      }
+
+      debugPrint('Analytics - Period Comparison request with params: $queryParams');
+
+      final response = await dio.get(
+        '/api/v1/reports/comparison',
+        queryParameters: queryParams,
+      );
+
+      debugPrint('Analytics - Period Comparison response: ${response.data}');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      debugPrint('Analytics - Period Comparison error: ${e.message}');
+      _handleError(e);
+      rethrow;
+    }
+  }
+}

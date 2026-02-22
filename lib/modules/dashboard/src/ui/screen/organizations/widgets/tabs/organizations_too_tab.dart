@@ -1,6 +1,5 @@
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/organizations_state.dart';
-import 'package:akimat_project/modules/dashboard/src/model/organizations/organization.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/organization_type.dart';
 import 'package:akimat_project/modules/dashboard/src/model/organizations/user_role.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_data_table.dart';
@@ -10,7 +9,6 @@ import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/wid
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/components/organizations_table_actions.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_details_dialogs.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/organizations/widgets/dialogs/organizations_dialogs.dart';
-import 'package:akimat_project/core/utils/notification_helper.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationsTooTab extends StatelessWidget {
@@ -27,28 +25,17 @@ class OrganizationsTooTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Для KGU_ZKH_ADMIN показываем все организации типа TOO (включая LANDFILL)
-    // Это включает организации, связанные с ролью LANDFILL_ADMIN
-    // Для других ролей также показываем все TOO
     final organizations = data.organizations
         .where((organization) => organization.type == OrganizationType.too)
         .toList();
-    
-    // Отладочная информация
-    debugPrint('OrganizationsTooTab: userRole=$userRole');
-    debugPrint('OrganizationsTooTab: Total organizations: ${data.organizations.length}');
-    debugPrint('OrganizationsTooTab: TOO organizations: ${organizations.length}');
-    for (final org in organizations) {
-      debugPrint('OrganizationsTooTab: Org ${org.name} - type: ${org.type}, originalType: ${org.originalType}');
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizationsTabHeader(
-          title: 'Список ТОО',
-          subtitle: 'Создание, редактирование и блокировка ТОО',
-          actionLabel: 'Добавить ТОО',
+          title: 'Полигоны по вывозу снега',
+          subtitle: 'Создание и редактирование полигонов',
+          actionLabel: 'Добавить полигон',
           onAction: () => OrganizationsDialogs.showOrganizationDialog(
             context: context,
             controller: controller,
@@ -60,13 +47,14 @@ class OrganizationsTooTab extends StatelessWidget {
         if (organizations.isEmpty)
           const Expanded(
             child: OrganizationsEmptyState(
-              title: 'Нет ТОО',
-              message: 'Добавьте ТОО, чтобы начать управлять подрядчиками.',
+              title: 'Нет полигонов',
+              message: 'Добавьте полигон, чтобы начать управлять подрядчиками.',
             ),
           )
         else
           Expanded(
             child: OrganizationsDataTable(
+              maxWidth: 0,
               columns: const [
                 DataColumn(label: Text('Название')),
                 DataColumn(label: Text('БИН')),
@@ -79,48 +67,64 @@ class OrganizationsTooTab extends StatelessWidget {
               rows: organizations.map((organization) {
                 return DataRow(
                   cells: [
-                    DataCell(Text(organization.name)),
-                    DataCell(Text(organization.bin)),
-                    DataCell(Text(organization.HeadFullName ?? '—')),
-                    DataCell(Text(organization.address ?? '—')),
-                    DataCell(Text(organization.phone ?? '—')),
-                    DataCell(OrganizationsStatusChip(isActive: organization.isActive)),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: Text(
+                          organization.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 130),
+                        child: Text(
+                          organization.bin,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 190),
+                        child: Text(
+                          organization.HeadFullName ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 240),
+                        child: Text(
+                          organization.address ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 150),
+                        child: Text(
+                          organization.phone ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(OrganizationsStatusChip(
+                        isActive: organization.isActive)),
                     DataCell(
                       OrganizationsTableActions(
                         actions: [
                           OrganizationsTableAction(
                             label: 'Подробнее',
-                            onPressed: () => OrganizationsDetailsDialogs.showOrganizationDetails(
+                            onPressed: () => OrganizationsDetailsDialogs
+                                .showOrganizationDetails(
                               context: context,
                               organization: organization,
                               data: data,
                             ),
-                          ),
-                          OrganizationsTableAction(
-                            label: organization.isActive ? 'Блокировать' : 'Разблокировать',
-                            isDestructive: organization.isActive,
-                            onPressed: () async {
-                              try {
-                                await controller.updateOrganization(
-                                  organization.copyWith(isActive: !organization.isActive),
-                                  skipReload: true,
-                                );
-                                if (context.mounted) {
-                                  await context.showSuccessWithReload(
-                                    organization.isActive 
-                                        ? 'ТОО успешно заблокировано'
-                                        : 'ТОО успешно разблокировано',
-                                    () async {
-                                      await controller.refresh();
-                                    },
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  context.showErrorNotificationFromException(e);
-                                }
-                              }
-                            },
                           ),
                         ],
                       ),
@@ -134,4 +138,3 @@ class OrganizationsTooTab extends StatelessWidget {
     );
   }
 }
-

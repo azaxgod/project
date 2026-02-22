@@ -16,15 +16,17 @@ class NavbarWidgetsProvider {
   /// Проверяет роль пользователя и возвращает соответствующий навбар
   static List<Widget> getDefaultWebWidgets(BuildContext context) {
     // Получаем роль пользователя из контекста
-    final authNotifier = ProviderScope.containerOf(context).read(authNotifierProvider);
+    final authNotifier =
+        ProviderScope.containerOf(context).read(authNotifierProvider);
     final user = authNotifier.user;
-    final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
-    
+    final role =
+        user != null ? userRoleFromString(user.role) : UserRole.unknown;
+
     // Для водителя возвращаем упрощенный навбар
     if (role == UserRole.driver) {
       return getDriverWebWidgets(context);
     }
-    
+
     // Для остальных ролей - стандартный навбар
     return getStandardWebWidgets(context);
   }
@@ -41,10 +43,12 @@ class NavbarWidgetsProvider {
     } catch (e) {
       // Fallback if route cannot be determined
     }
-    
+
     // Нормализуем currentQuery: '' или 'current' означают первую вкладку
-    final normalizedQuery = (currentQuery.isEmpty || currentQuery == 'current') ? 'current' : currentQuery;
-    
+    final normalizedQuery = (currentQuery.isEmpty || currentQuery == 'current')
+        ? 'current'
+        : currentQuery;
+
     return [
       _NavbarButton(
         label: 'Текущий рейс',
@@ -82,25 +86,30 @@ class NavbarWidgetsProvider {
     } catch (e) {
       // Fallback if route cannot be determined
     }
-    
+
     // Получаем роль пользователя
-    final authNotifier = ProviderScope.containerOf(context).read(authNotifierProvider);
+    final authNotifier =
+        ProviderScope.containerOf(context).read(authNotifierProvider);
     final user = authNotifier.user;
-    final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
-    
+    final role =
+        user != null ? userRoleFromString(user.role) : UserRole.unknown;
+
     // Для LANDFILL_ADMIN показываем только Мониторинг и Аналитику
     if (role == UserRole.landfillAdmin) {
       return [
         _NavbarButton(
           label: 'Мониторинг',
           icon: Icons.map,
-          isActive: currentRoute == '/monitoring' || currentRoute == '/areas' || currentRoute == '/polygons',
+          isActive: currentRoute == '/monitoring' ||
+              currentRoute == '/areas' ||
+              currentRoute == '/polygons',
           route: '/monitoring',
         ),
         _NavbarButton(
           label: S.of(context)!.analytics,
           icon: Icons.analytics,
-          isActive: currentRoute == '/analytics' || currentRoute.startsWith('/analytics/'),
+          isActive: currentRoute == '/analytics' ||
+              currentRoute.startsWith('/analytics/'),
           route: '/analytics',
         ),
         const SizedBox(width: AppPadding.small),
@@ -111,7 +120,7 @@ class NavbarWidgetsProvider {
         const LogoutButtonWeb(),
       ];
     }
-    
+
     return [
       _NavbarButton(
         label: S.of(context)!.dashboard,
@@ -128,32 +137,24 @@ class NavbarWidgetsProvider {
       _NavbarButton(
         label: 'Мониторинг',
         icon: Icons.map,
-        isActive: currentRoute == '/monitoring' || currentRoute == '/areas' || currentRoute == '/polygons',
+        isActive: currentRoute == '/monitoring' ||
+            currentRoute == '/areas' ||
+            currentRoute == '/polygons',
         route: '/monitoring',
-      ),
-      _NavbarButton(
-        label: S.of(context)!.tickets,
-        icon: Icons.assignment,
-        isActive: currentRoute == '/tickets',
-        route: '/tickets',
-      ),
-      _NavbarButton(
-        label: S.of(context)!.contracts,
-        icon: Icons.receipt_long,
-        isActive: currentRoute == '/kgu/contracts',
-        route: '/kgu/contracts',
       ),
       _NavbarButton(
         label: S.of(context)!.analytics,
         icon: Icons.analytics,
-        isActive: currentRoute == '/analytics' || currentRoute.startsWith('/analytics/'),
+        isActive: currentRoute == '/analytics' ||
+            currentRoute.startsWith('/analytics/'),
         route: '/analytics',
       ),
       // Скрыты временно: Отчет и Рейсы о нарушениях
       _NavbarButton(
         label: S.of(context)!.violations,
         icon: Icons.gavel,
-        isActive: currentRoute == '/violations' || currentRoute.startsWith('/violations/'),
+        isActive: currentRoute == '/violations' ||
+            currentRoute.startsWith('/violations/'),
         route: '/violations',
       ),
       // _NavbarButton(
@@ -209,7 +210,9 @@ class NavbarWidgetsProvider {
     }
     // Ensure language switcher is always included
     final hasLanguageSwitcher = customWidgets.any(
-      (w) => w.runtimeType.toString() == 'LanguageSwitcher' || w is LanguageSwitcher,
+      (w) =>
+          w.runtimeType.toString() == 'LanguageSwitcher' ||
+          w is LanguageSwitcher,
     );
     if (!hasLanguageSwitcher) {
       return [...customWidgets, const LanguageSwitcher()];
@@ -227,7 +230,9 @@ class NavbarWidgetsProvider {
     }
     // Ensure language switcher is always included
     final hasLanguageSwitcher = customWidgets.any(
-      (w) => w.runtimeType.toString() == 'LanguageSwitcher' || w is LanguageSwitcher,
+      (w) =>
+          w.runtimeType.toString() == 'LanguageSwitcher' ||
+          w is LanguageSwitcher,
     );
     if (!hasLanguageSwitcher) {
       return [...customWidgets, const LanguageSwitcher()];
@@ -241,22 +246,18 @@ class _NavbarButton extends StatelessWidget {
   final IconData icon;
   final bool isActive;
   final String? route;
-  final VoidCallback? onPressed;
 
   const _NavbarButton({
     required this.label,
     required this.icon,
     required this.isActive,
     this.route,
-    this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     void handleTap() {
-      if (onPressed != null) {
-        onPressed!();
-      } else if (route != null) {
+      if (route != null) {
         try {
           context.go(route!);
         } catch (e) {
@@ -273,10 +274,12 @@ class _NavbarButton extends StatelessWidget {
         final screenWidth = MediaQuery.of(context).size.width;
         final isCompact = screenWidth < 1100;
         final isVeryCompact = screenWidth < 900;
-        
+
         return Tooltip(
           message: label,
-          waitDuration: isVeryCompact ? const Duration(milliseconds: 300) : const Duration(seconds: 1),
+          waitDuration: isVeryCompact
+              ? const Duration(milliseconds: 300)
+              : const Duration(seconds: 1),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -284,7 +287,8 @@ class _NavbarButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppSize.buttonRadius),
               child: Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isVeryCompact ? 8 : (isCompact ? 10 : AppPadding.normal),
+                  horizontal:
+                      isVeryCompact ? 8 : (isCompact ? 10 : AppPadding.normal),
                   vertical: AppPadding.small,
                 ),
                 decoration: BoxDecoration(
@@ -309,7 +313,8 @@ class _NavbarButton extends StatelessWidget {
                       Text(
                         isCompact ? _getShortLabel(label) : label,
                         style: TextStyle(
-                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight:
+                              isActive ? FontWeight.w600 : FontWeight.normal,
                           fontSize: isCompact ? 13 : 15,
                           letterSpacing: -0.24,
                           color: isActive
@@ -327,7 +332,7 @@ class _NavbarButton extends StatelessWidget {
       },
     );
   }
-  
+
   /// Сокращает длинные названия для компактного режима
   String _getShortLabel(String label) {
     // Словарь сокращений
@@ -344,4 +349,3 @@ class _NavbarButton extends StatelessWidget {
     return shortcuts[label] ?? label;
   }
 }
-

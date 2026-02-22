@@ -22,7 +22,6 @@ class OrganizationsDetailsDialogs {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            OrganizationsInfoRow(label: 'Тип', value: organization.type.label),
             OrganizationsInfoRow(label: 'БИН', value: organization.bin),
             OrganizationsInfoRow(
               label: 'Руководитель',
@@ -32,7 +31,7 @@ class OrganizationsDetailsDialogs {
             OrganizationsInfoRow(label: 'Адрес', value: organization.address ?? '—'),
             if (organization.parentOrgId != null)
               OrganizationsInfoRow(
-                label: 'Родительское ТОО',
+                label: 'Наименование',
                 value: data.organizations
                         .firstWhere(
                           (too) =>
@@ -40,8 +39,7 @@ class OrganizationsDetailsDialogs {
                               too.type == OrganizationType.too,
                           orElse: () => organization,
                         )
-                        .name ??
-                    '—',
+                        .name,
               ),
             OrganizationsInfoRow(
               label: 'Статус',
@@ -142,4 +140,3 @@ class OrganizationsDetailsDialogs {
     );
   }
 }
-

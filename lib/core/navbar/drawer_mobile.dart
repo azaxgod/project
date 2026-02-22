@@ -1,6 +1,5 @@
 import 'package:akimat_project/core/locale/locale_provider.dart';
 import 'package:akimat_project/core/navbar/logout_button.dart';
-import 'package:akimat_project/core/navbar/user_role_badge.dart';
 import 'package:akimat_project/core/ui/app_colors.dart';
 import 'package:akimat_project/core/ui/app_padding.dart';
 import 'package:akimat_project/core/ui/app_size.dart';
@@ -27,7 +26,7 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
   final authState = ref.watch(authNotifierProvider);
   final user = authState.user;
   final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
-  
+
   // Для водителя возвращаем упрощенный drawer
   if (role == UserRole.driver) {
     return [
@@ -48,7 +47,7 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
       ),
     ];
   }
-  
+
   // Для LANDFILL_ADMIN показываем только Мониторинг и Аналитику
   if (role == UserRole.landfillAdmin) {
     return [
@@ -64,7 +63,7 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
       ),
     ];
   }
-  
+
   // Для остальных ролей - стандартный drawer
   return [
     DrawerItem(
@@ -81,16 +80,6 @@ final mobileDrawerProvider = Provider.family<List<DrawerItem>, S>((ref, s) {
       title: 'Мониторинг',
       icon: Icons.map,
       route: '/monitoring',
-    ),
-    DrawerItem(
-      title: s.tickets,
-      icon: Icons.assignment,
-      route: '/tickets',
-    ),
-    DrawerItem(
-      title: s.contracts,
-      icon: Icons.receipt_long,
-      route: '/kgu/contracts',
     ),
     DrawerItem(
       title: s.analytics,
@@ -117,7 +106,8 @@ class DrawerMobile extends ConsumerWidget {
 
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
-    final role = user != null ? userRoleFromString(user.role) : UserRole.unknown;
+    final role =
+        user != null ? userRoleFromString(user.role) : UserRole.unknown;
 
     String getRoleLabel(UserRole role) {
       switch (role) {
@@ -208,8 +198,9 @@ class DrawerMobile extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(AppPadding.small),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius:
+                              BorderRadius.circular(AppSize.smallRadius),
                         ),
                         child: Icon(
                           Icons.snowing,
@@ -253,10 +244,10 @@ class DrawerMobile extends ConsumerWidget {
                       vertical: AppPadding.small,
                     ),
                     decoration: BoxDecoration(
-                      color: getRoleColor(role).withOpacity(0.1),
+                      color: getRoleColor(role).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppSize.buttonRadius),
                       border: Border.all(
-                        color: getRoleColor(role).withOpacity(0.3),
+                        color: getRoleColor(role).withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -315,8 +306,9 @@ class DrawerMobile extends ConsumerWidget {
                           height: 32,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius:
+                                BorderRadius.circular(AppSize.smallRadius),
                           ),
                           child: Icon(
                             item.icon,
@@ -334,7 +326,8 @@ class DrawerMobile extends ConsumerWidget {
                           ),
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSize.buttonRadius),
+                          borderRadius:
+                              BorderRadius.circular(AppSize.buttonRadius),
                         ),
                         onTap: () {
                           Navigator.of(context).pop();
@@ -352,4 +345,3 @@ class DrawerMobile extends ConsumerWidget {
     );
   }
 }
-

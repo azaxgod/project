@@ -294,10 +294,6 @@ class _MonitoringPolygonsTabState extends ConsumerState<MonitoringPolygonsTab> {
               const SizedBox(height: AppPadding.small),
               Row(
                 children: [
-                  Chip(
-                    label: Text('${cameras.length} камер'),
-                    labelStyle: AppTextStyles.caption,
-                  ),
                   const SizedBox(width: AppPadding.small),
                   Chip(
                     label: Text(polygon.isActive ? 'Активен' : 'Неактивен'),

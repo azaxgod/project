@@ -6,6 +6,7 @@ class AnprReportEvent extends Equatable {
   final DateTime eventTime;
   final String plateNumber;
   final String rawPlate;
+  final String? cameraId;
   final String? vehicleBrand;
   final String? vehicleModel;
   final String? contractorId;
@@ -21,6 +22,7 @@ class AnprReportEvent extends Equatable {
     required this.eventTime,
     required this.plateNumber,
     required this.rawPlate,
+    this.cameraId,
     this.vehicleBrand,
     this.vehicleModel,
     this.contractorId,
@@ -38,6 +40,7 @@ class AnprReportEvent extends Equatable {
       eventTime: DateTime.parse(json['event_time'] as String),
       plateNumber: json['plate_number'] as String,
       rawPlate: json['raw_plate'] as String,
+      cameraId: json['camera_id'] as String?,
       vehicleBrand: json['vehicle_brand'] as String?,
       vehicleModel: json['vehicle_model'] as String?,
       contractorId: json['contractor_id'] as String?,
@@ -56,6 +59,7 @@ class AnprReportEvent extends Equatable {
       'event_time': eventTime.toIso8601String(),
       'plate_number': plateNumber,
       'raw_plate': rawPlate,
+      if (cameraId != null) 'camera_id': cameraId,
       if (vehicleBrand != null) 'vehicle_brand': vehicleBrand,
       if (vehicleModel != null) 'vehicle_model': vehicleModel,
       if (contractorId != null) 'contractor_id': contractorId,
@@ -74,6 +78,7 @@ class AnprReportEvent extends Equatable {
         eventTime,
         plateNumber,
         rawPlate,
+        cameraId,
         vehicleBrand,
         vehicleModel,
         contractorId,
@@ -141,5 +146,3 @@ class AnprReportResponse extends Equatable {
   @override
   List<Object?> get props => [data];
 }
-
-
