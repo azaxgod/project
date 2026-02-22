@@ -297,4 +297,7 @@ class SEn extends S {
 
   @override
   String get analytics => 'Analytics';
+
+  @override
+  String get download_excel => 'Download Excel';
 }

@@ -93,5 +93,6 @@
   "no": "No",
   "open": "Open",
   "no_contracts_found": "No contracts found",
-  "analytics": "Analytics"
+  "analytics": "Analytics",
+  "download_excel": "Download Excel"
 }

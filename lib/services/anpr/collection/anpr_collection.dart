@@ -4,6 +4,7 @@ import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:equatable/equatable.dart';
 
 /// Коллекция для работы с ANPR сервисом
@@ -243,6 +244,7 @@ class AnprCollection {
     String? plate,
     DateTime? from,
     DateTime? to,
+    double? minVolume,
     int? limit,
     int? offset,
     String? jwtToken,
@@ -255,6 +257,7 @@ class AnprCollection {
       if (plate != null) queryParams['plate'] = plate;
       if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
       if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
+      if (minVolume != null) queryParams['min_volume'] = minVolume;
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 
@@ -270,6 +273,47 @@ class AnprCollection {
       return AnprReportResponse.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception('Failed to get reports: ${e.message}');
+    }
+  }
+
+  /// GET /api/v1/reports/excel - Скачать Excel отчет
+  /// Требует авторизацию (JWT токен)
+  Future<List<int>> getExcelReport({
+    String? contractorId,
+    String? polygonId,
+    String? vehicleId,
+    String? plate,
+    DateTime? from,
+    DateTime? to,
+    double? minVolume,
+    String? jwtToken,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (contractorId != null) queryParams['contractor_id'] = contractorId;
+      if (polygonId != null) queryParams['polygon_id'] = polygonId;
+      if (vehicleId != null) queryParams['vehicle_id'] = vehicleId;
+      if (plate != null) queryParams['plate'] = plate;
+      if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
+      if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
+      if (minVolume != null) queryParams['min_volume'] = minVolume;
+
+      debugPrint('ANPR Collection - getExcelReport URL: ${dio.options.baseUrl}/api/v1/reports/excel');
+      debugPrint('ANPR Collection - getExcelReport Params: $queryParams');
+
+      final response = await dio.get(
+        '/api/v1/reports/excel',
+        queryParameters: queryParams,
+        options: Options(
+          headers:
+              jwtToken != null ? {'Authorization': 'Bearer $jwtToken'} : null,
+          responseType: ResponseType.bytes,
+        ),
+      );
+
+      return response.data as List<int>;
+    } on DioException catch (e) {
+      throw Exception('Failed to get Excel report: ${e.message}');
     }
   }
 }

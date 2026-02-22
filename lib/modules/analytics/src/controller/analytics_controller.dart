@@ -1,5 +1,6 @@
 import 'package:akimat_project/modules/analytics/src/repository/i_analytics_repository.dart';
 import 'package:akimat_project/modules/analytics/src/controller/analytics_state.dart';
+import 'package:akimat_project/core/utils/file_downloader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AnalyticsController extends StateNotifier<AnalyticsState> {

@@ -662,6 +662,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Analytics'**
   String get analytics;
+
+  /// No description provided for @download_excel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Excel'**
+  String get download_excel;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

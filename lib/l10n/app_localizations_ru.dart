@@ -293,4 +293,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get analytics => 'Аналитика';
+
+  @override
+  String get download_excel => 'Скачать Excel';
 }

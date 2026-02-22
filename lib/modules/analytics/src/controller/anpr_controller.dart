@@ -3,6 +3,7 @@ import 'package:akimat_project/services/anpr/model/anpr_event.dart';
 import 'package:akimat_project/services/anpr/model/anpr_plate.dart';
 import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
+import 'package:akimat_project/core/utils/file_downloader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Контроллер для работы с ANPR данными
@@ -168,6 +169,7 @@ class AnprController extends StateNotifier<AnprState> {
     String? plate,
     DateTime? from,
     DateTime? to,
+    double? minVolume,
     int? limit,
     int? offset,
   }) async {
@@ -187,6 +189,7 @@ class AnprController extends StateNotifier<AnprState> {
         plate: plate,
         from: from,
         to: to,
+        minVolume: minVolume,
         limit: limit ?? 50, // Уменьшено с 100 для быстрой загрузки
         offset: offset ?? 0,
         jwtToken: token,
@@ -199,6 +202,43 @@ class AnprController extends StateNotifier<AnprState> {
       state = state.copyWith(
         reports: AsyncValue.error(e, stack),
       );
+    }
+  }
+
+  /// Скачать Excel отчет
+  Future<void> downloadExcelReport({
+    DateTime? from,
+    DateTime? to,
+    String? contractorId,
+    String? polygonId,
+    String? vehicleId,
+    String? plate,
+    double? minVolume,
+  }) async {
+    try {
+      final token = await TokenStorage.getAccessToken();
+      final bytes = await _anprCollection.getExcelReport(
+        from: from,
+        to: to,
+        contractorId: contractorId,
+        polygonId: polygonId,
+        vehicleId: vehicleId,
+        plate: plate,
+        minVolume: minVolume,
+        jwtToken: token,
+      );
+
+      final fileName =
+          'analytics_report_${DateTime.now().millisecondsSinceEpoch}';
+
+      await FileDownloader.downloadFile(
+        bytes: bytes,
+        filename: fileName,
+        extension: 'xlsx',
+      );
+    } catch (e) {
+      // Ошибки пробрасываются дальше для обработки в UI
+      rethrow;
     }
   }
 }

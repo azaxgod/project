@@ -608,6 +608,42 @@ class _AnalyticsDashboardPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: CustomDateRangePicker(
+                  label: 'Период аналитики',
+                  initialStartDate: _dateFrom,
+                  initialEndDate: _dateTo,
+                  onDateRangeSelected: (start, end) {
+                    setState(() {
+                      _dateFrom = start;
+                      _dateTo = end;
+                    });
+                    if (start != null && end != null) {
+                      controller.loadDashboard(from: start, to: end);
+                      controller.loadContractsAnalytics(from: start, to: end);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: AppPadding.normal),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.refresh, color: AppColors.primary),
+                  tooltip: 'Обновить данные',
+                  onPressed: () {
+                    controller.loadDashboard(from: _dateFrom, to: _dateTo);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppPadding.large),
           AnprSection(
             dateFrom: _dateFrom,
             dateTo: _dateTo,

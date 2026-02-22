@@ -17,6 +17,7 @@ import 'package:akimat_project/services/anpr/model/anpr_report.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:akimat_project/l10n/l10n.dart';
 import 'package:intl/intl.dart';
 
 const String _polygonShahovskoe = 'Шаховское';
@@ -171,6 +172,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
           polygonId: null,
           vehicleId: widget.vehicleId,
           plate: widget.plate,
+          minVolume: 0.01,
           limit: 1000,
         );
   }
@@ -184,6 +186,63 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       _currentPage = 1;
     });
     _loadReports();
+  }
+
+  Future<void> _handleDownloadExcel() async {
+    final s = S.of(context)!;
+    final controller = ref.read(anprControllerProvider.notifier);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(s.loading),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      await controller.downloadExcelReport(
+        from: _effectiveFrom,
+        to: _effectiveTo,
+        contractorId: _selectedContractorId,
+        polygonId: null, // Имя полигона не UUID
+        vehicleId: widget.vehicleId,
+        plate: widget.plate,
+        minVolume: 0.01, // Фильтруем записи без объема
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Отчет успешно скачан'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при скачивании отчета: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -326,6 +385,18 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
                   onPressed: _loadReports,
                   tooltip: 'Обновить',
                   icon: const Icon(Icons.refresh),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppSize.smallRadius),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.file_download_outlined,
+                        color: AppColors.primary),
+                    tooltip: S.of(context)!.download_excel,
+                    onPressed: _handleDownloadExcel,
+                  ),
                 ),
                 if (hasActiveFilters)
                   OutlinedButton.icon(

@@ -297,4 +297,7 @@ class SKk extends S {
 
   @override
   String get analytics => 'Аналитика';
+
+  @override
+  String get download_excel => 'Excel жүктеу';
 }

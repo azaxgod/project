@@ -93,6 +93,7 @@
   "no": "Нет",
   "open": "Открыть",
   "no_contracts_found": "Контракты не найдены",
-  "analytics": "Аналитика"
+  "analytics": "Аналитика",
+  "download_excel": "Скачать Excel"
 }
 
