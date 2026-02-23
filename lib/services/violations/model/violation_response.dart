@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:akimat_project/services/violations/model/appeal.dart';
 import 'package:akimat_project/services/violations/model/violation.dart';
 
@@ -111,16 +112,50 @@ class VehicleInfo {
 }
 
 class ViolationsListResponse {
-  final List<ViolationRecord> data;
+  final List<ViolationRecord> items;
 
-  ViolationsListResponse({required this.data});
+  ViolationsListResponse({required this.items});
 
   factory ViolationsListResponse.fromJson(Map<String, dynamic> json) {
-    return ViolationsListResponse(
-      data: (json['data'] as List<dynamic>)
-          .map((e) => ViolationRecord.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
+    debugPrint('ViolationsListResponse - Parsing JSON: $json');
+    
+    // Handle different response formats
+    if (json.containsKey('data')) {
+      final data = json['data'];
+      if (data is Map<String, dynamic> && data.containsKey('items')) {
+        // Format: { "data": { "items": [...] } }
+        return ViolationsListResponse(
+          items: (data['items'] as List<dynamic>)
+              .map((e) => ViolationRecord.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      } else if (data is List) {
+        // Format: { "data": [...] }
+        return ViolationsListResponse(
+          items: (data as List<dynamic>)
+              .map((e) => ViolationRecord.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      }
+    } else if (json.containsKey('items')) {
+      // Format: { "items": [...] }
+      return ViolationsListResponse(
+        items: (json['items'] as List<dynamic>)
+            .map((e) => ViolationRecord.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    } else if (json is List) {
+      // Format: [...] (direct array)
+      return ViolationsListResponse(
+        items: (json as List<dynamic>)
+            .map((e) => ViolationRecord.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    }
+    
+    // Default empty response
+    debugPrint('ViolationsListResponse - Unknown format, returning empty list');
+    return ViolationsListResponse(items: []);
   }
 }
 
@@ -184,16 +219,50 @@ class AppealRecord {
 }
 
 class AppealsListResponse {
-  final List<AppealRecord> data;
+  final List<AppealRecord> items;
 
-  AppealsListResponse({required this.data});
+  AppealsListResponse({required this.items});
 
   factory AppealsListResponse.fromJson(Map<String, dynamic> json) {
-    return AppealsListResponse(
-      data: (json['data'] as List<dynamic>)
-          .map((e) => AppealRecord.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
+    debugPrint('AppealsListResponse - Parsing JSON: $json');
+    
+    // Handle different response formats
+    if (json.containsKey('data')) {
+      final data = json['data'];
+      if (data is Map<String, dynamic> && data.containsKey('items')) {
+        // Format: { "data": { "items": [...] } }
+        return AppealsListResponse(
+          items: (data['items'] as List<dynamic>)
+              .map((e) => AppealRecord.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      } else if (data is List) {
+        // Format: { "data": [...] }
+        return AppealsListResponse(
+          items: (data as List<dynamic>)
+              .map((e) => AppealRecord.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      }
+    } else if (json.containsKey('items')) {
+      // Format: { "items": [...] }
+      return AppealsListResponse(
+        items: (json['items'] as List<dynamic>)
+            .map((e) => AppealRecord.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    } else if (json is List) {
+      // Format: [...] (direct array)
+      return AppealsListResponse(
+        items: (json as List<dynamic>)
+            .map((e) => AppealRecord.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    }
+    
+    // Default empty response
+    debugPrint('AppealsListResponse - Unknown format, returning empty list');
+    return AppealsListResponse(items: []);
   }
 }
 

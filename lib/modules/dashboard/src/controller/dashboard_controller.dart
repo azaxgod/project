@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../services/operations/module.dart';
 import '../../../../services/tickets/module.dart';
 import '../../../../services/violations/module.dart';
+import '../../../../services/anpr/module.dart';
 import '../model/kpi_card.dart';
 import '../model/trip.dart';
 import '../model/polygon.dart';
@@ -17,6 +18,15 @@ class AkimatHomeController extends StateNotifier<AkimatHomeState> {
   
   AkimatHomeController(this.ref) : super(AkimatHomeState.initial()) {
     _loadRealData();
+  }
+
+  Future<T?> _safeLoad<T>(Future<T> Function() loader, String label) async {
+    try {
+      return await loader();
+    } catch (e) {
+      debugPrint('Error loading $label: $e');
+      return null;
+    }
   }
 
   Future<void> _loadRealData() async {
@@ -46,65 +56,120 @@ class AkimatHomeController extends StateNotifier<AkimatHomeState> {
   }
 
   Future<List<KpiCardModel>> _loadKpiData() async {
+    final operationsCollection = ref.read(operationsCollectionProvider);
+    final ticketsCollection = ref.read(ticketsCollectionProvider);
+    final violationsCollection = ref.read(violationsCollectionProvider);
+    final anprCollection = ref.read(anprCollectionProvider);
+
+    // Загружаем активные участки и полигоны - они должны показываться всегда
+    int areasCount = 0;
+    int polygonsCount = 0;
     try {
-      final operationsCollection = ref.read(operationsCollectionProvider);
-      final ticketsCollection = ref.read(ticketsCollectionProvider);
-      final violationsCollection = ref.read(violationsCollectionProvider);
-
-      // Получаем данные для KPI
       final areas = await operationsCollection.getCleaningAreas(onlyActive: true);
-      final tickets = await ticketsCollection.getTicketsAkimat();
-      final violations = await violationsCollection.getViolations();
-
-      return [
-        KpiCardModel(
-          title: 'Активные участки',
-          value: areas.length.toString(),
-          clickable: true,
-        ),
-        KpiCardModel(
-          title: 'Активные тикеты',
-          value: tickets.length.toString(),
-          clickable: true,
-        ),
-        KpiCardModel(
-          title: 'Нарушения',
-          value: violations.data.length.toString(),
-          clickable: true,
-        ),
-        KpiCardModel(
-          title: 'Рейсы сегодня',
-          value: '0', // TODO: Добавить получение количества рейсов
-          clickable: false,
-        ),
-      ];
+      areasCount = areas.length;
     } catch (e) {
-      debugPrint('Error loading KPI data: $e');
-      // Возвращаем KPI с ошибками
-      return [
-        KpiCardModel(title: 'Активные участки', value: '--', clickable: false),
-        KpiCardModel(title: 'Активные тикеты', value: '--', clickable: false),
-        KpiCardModel(title: 'Нарушения', value: '--', clickable: false),
-        KpiCardModel(title: 'Рейсы сегодня', value: '--', clickable: false),
-      ];
+      debugPrint('Error loading active areas: $e');
     }
+
+    try {
+      final polygons = await operationsCollection.getPolygons(onlyActive: true);
+      polygonsCount = polygons.length;
+    } catch (e) {
+      debugPrint('Error loading active polygons: $e');
+    }
+
+    // Загружаем остальные данные безопасно
+    final tickets = await _safeLoad(
+      () => ticketsCollection.getTicketsAkimat(),
+      'tickets',
+    );
+
+    final violationsCount = await _safeLoad<int>(
+      () async {
+        final violations = await violationsCollection.getViolations();
+        return violations.items.length;
+      },
+      'violations',
+    );
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final monthStart = DateTime(now.year, now.month, 1);
+
+    final reportsTripCount = await _safeLoad<int>(
+      () async {
+        final reports = await anprCollection.getReports(
+          from: monthStart,
+          to: now,
+          minVolume: 0.01,
+          limit: 1000,
+          offset: 0,
+        );
+        return reports.data.tripCount;
+      },
+      'anpr reports (tripCount)',
+    );
+
+    return [
+      KpiCardModel(
+        title: 'Активные участки',
+        value: areasCount.toString(),
+        clickable: true,
+      ),
+      KpiCardModel(
+        title: 'Активные полигоны',
+        value: polygonsCount.toString(),
+        clickable: false,
+      ),
+      KpiCardModel(
+        title: 'Активные тикеты',
+        value: tickets?.length.toString() ?? '--',
+        clickable: true,
+      ),
+      KpiCardModel(
+        title: 'Нарушения',
+        value: violationsCount?.toString() ?? '--',
+        clickable: true,
+      ),
+      KpiCardModel(
+        title: 'Рейсы сегодня',
+        value: reportsTripCount?.toString() ?? '--',
+        clickable: false,
+      ),
+    ];
   }
 
   Future<List<TripModel>> _loadLastTrips() async {
     try {
-      final violationsCollection = ref.read(violationsCollectionProvider);
-      final violations = await violationsCollection.getViolations();
+      final anprCollection = ref.read(anprCollectionProvider);
 
-      // Используем нарушения как "последние рейсы" для демонстрации
-      return violations.data.map((record) => TripModel(
-        time: '${record.violation.createdAt.hour.toString().padLeft(2, '0')}:${record.violation.createdAt.minute.toString().padLeft(2, '0')}',
-        contractor: record.contractor?.name ?? 'Неизвестно',
-        plate: record.vehicle?.plateNumber ?? 'Неизвестно',
-        area: record.polygonName ?? 'Неизвестно',
-        polygon: record.polygonName ?? 'Неизвестно',
-        volume: 0.0, // В нарушениях нет объема
-        status: record.tripStatus ?? 'UNKNOWN',
-      )).toList();
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month, 1);
+
+      final reports = await anprCollection.getReports(
+        from: from,
+        to: now,
+        minVolume: 0.01,
+        limit: 20,
+        offset: 0,
+      );
+
+      final events = reports.data.events;
+      // Сортируем по времени события (последние сверху)
+      final sorted = [...events]..sort((a, b) => b.eventTime.compareTo(a.eventTime));
+
+      return sorted.take(10).map((e) {
+        final t = e.eventTime.toLocal();
+        return TripModel(
+          time: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+          contractor: e.contractorName ?? 'Неизвестно',
+          plate: e.plateNumber,
+          area: e.polygonId ?? '—',
+          polygon: e.polygonId ?? '—',
+          volume: e.snowVolumeM3 ?? 0.0,
+          status: e.snowVolumeM3 != null ? 'MEASURED' : 'NO_VOLUME',
+        );
+      }).toList();
     } catch (e) {
       debugPrint('Error loading last trips: $e');
       return [];

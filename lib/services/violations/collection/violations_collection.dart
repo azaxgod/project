@@ -108,13 +108,14 @@ class ViolationsCollection {
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 
-      debugPrint('Violations - Request: GET /violations with params: $queryParams');
+      debugPrint('Violations - Request: GET /api/v1/violations with params: $queryParams');
 
       final response = await dio.get(
-        '/violations',
+        '/api/v1/violations',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
+      debugPrint('Violations - Response: ${response.data}');
       return ViolationsListResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -126,7 +127,7 @@ class ViolationsCollection {
   /// Получить детальную информацию о нарушении
   Future<ViolationDetailResponse> getViolationDetail(String violationId) async {
     try {
-      final response = await dio.get('/violations/$violationId');
+      final response = await dio.get('/api/v1/violations/$violationId');
       return ViolationDetailResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -145,7 +146,7 @@ class ViolationsCollection {
   }) async {
     try {
       final response = await dio.post(
-        '/violations',
+        '/api/v1/violations',
         data: {
           'trip_id': tripId,
           'type': type.value,
@@ -170,7 +171,7 @@ class ViolationsCollection {
   }) async {
     try {
       await dio.put(
-        '/violations/$violationId/status',
+        '/api/v1/violations/$violationId/status',
         data: {
           'status': status.value,
           'description': description,
@@ -206,7 +207,7 @@ class ViolationsCollection {
       if (offset != null) queryParams['offset'] = offset;
 
       final response = await dio.get(
-        '/appeals',
+        '/api/v1/appeals',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
@@ -221,7 +222,7 @@ class ViolationsCollection {
   /// Получить детальную информацию об апелляции
   Future<AppealDetailResponse> getAppealDetail(String appealId) async {
     try {
-      final response = await dio.get('/appeals/$appealId');
+      final response = await dio.get('/api/v1/appeals/$appealId');
       return AppealDetailResponse.fromJson(response.data);
     } on DioException catch (e) {
       _handleError(e);
@@ -239,7 +240,7 @@ class ViolationsCollection {
   }) async {
     try {
       final response = await dio.post(
-        '/violations/$violationId/appeals',
+        '/api/v1/violations/$violationId/appeals',
         data: {
           'reason_code': reasonCode.value,
           'reason_text': reasonText,
@@ -262,7 +263,7 @@ class ViolationsCollection {
   }) async {
     try {
       final response = await dio.post(
-        '/appeals/$appealId/comments',
+        '/api/v1/appeals/$appealId/comments',
         data: {
           'message': message,
           'attachments': attachments ?? [],
@@ -284,7 +285,7 @@ class ViolationsCollection {
   }) async {
     try {
       await dio.post(
-        '/appeals/$appealId/actions',
+        '/api/v1/appeals/$appealId/actions',
         data: {
           'action': action,
           'message': message,

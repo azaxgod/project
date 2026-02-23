@@ -675,7 +675,7 @@ class AkimatHome extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Важная информация',
+                      'Информация!',
                       style: AppTextStyles.title2,
                     ),
                     const SizedBox(height: AppPadding.xs),

@@ -2,6 +2,7 @@ import 'package:akimat_project/modules/auth/src/storage/token_storage.dart';
 import 'package:akimat_project/services/violations/collection/violations_collection.dart';
 import 'package:akimat_project/services/violations/services.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provider для Dio с настройкой для violations-service
@@ -26,7 +27,13 @@ final violationsDioProvider = Provider<Dio>((ref) {
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        debugPrint('ViolationsService Request: ${options.method} ${options.uri}');
         handler.next(options);
+      },
+      onError: (error, handler) {
+        debugPrint('ViolationsService Error: ${error.response?.statusCode} - ${error.message}');
+        debugPrint('ViolationsService URL: ${error.requestOptions.uri}');
+        handler.next(error);
       },
     ),
   );

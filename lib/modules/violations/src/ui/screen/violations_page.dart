@@ -285,7 +285,7 @@ class _ViolationsPageState extends ConsumerState<ViolationsPage> {
   }
 
   Widget _buildViolationsList(data, ViolationsController controller) {
-    final violations = data.data;
+    final violations = data.items;
     
     if (violations.isEmpty) {
       return Center(
