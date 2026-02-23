@@ -1,11 +1,16 @@
+import 'package:akimat_project/modules/dashboard/src/model/kpi_card.dart';
 import 'package:flutter/material.dart';
-// import '../model/kpi_card.dart';
+// import '../../../controller/dashboard_controller.dart';
 
 class KpiCardWidget extends StatelessWidget {
-  // final KpiCardModel data;
+  final KpiCardModel data;
   final VoidCallback? onTap;
 
-  const KpiCardWidget({super.key,  this.onTap});
+  const KpiCardWidget({
+    super.key,
+    required this.data,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,14 +24,12 @@ class KpiCardWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                // data.title,
-                'a',
+                data.title,
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
-                // data.value,
-                'a',
+                data.value,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
