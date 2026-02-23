@@ -404,7 +404,7 @@ class _VolumeLineChartCard extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: maxValue > 0 ? maxValue / 5 : 1,
+                  horizontalInterval: maxValue > 0 ? maxValue / 5 : 1 ,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
                       color: AppColors.divider,
