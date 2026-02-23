@@ -17,6 +17,8 @@ import 'dart:async';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:akimat_project/services/anpr/module.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class AkimatHome extends ConsumerStatefulWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -34,9 +36,27 @@ class AkimatHome extends ConsumerStatefulWidget {
   _AkimatHomeState createState() => _AkimatHomeState();
 }
 
+enum _SnowChartRange {
+  week,
+  month,
+}
+
+class _SnowVolumePoint {
+  final DateTime day;
+  final double volumeM3;
+
+  const _SnowVolumePoint({
+    required this.day,
+    required this.volumeM3,
+  });
+}
+
 class _AkimatHomeState extends ConsumerState<AkimatHome> {
   Timer? _alertTimer;
   DateTime _loadTime = DateTime.now();
+
+  _SnowChartRange _snowChartRange = _SnowChartRange.week;
+  Future<List<_SnowVolumePoint>>? _snowVolumeFuture;
 
   @override
   void initState() {
@@ -47,6 +67,8 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
         setState(() {});
       }
     });
+
+    _snowVolumeFuture = _loadSnowVolumeSeries();
   }
 
   @override
@@ -92,6 +114,9 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
             child: RefreshIndicator(
               onRefresh: () async {
                 ref.read(akimatHomeControllerProvider.notifier).refreshData();
+                setState(() {
+                  _snowVolumeFuture = _loadSnowVolumeSeries();
+                });
               },
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(config.padding),
@@ -101,24 +126,6 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                     if (config.topOffset > 0)
                       SizedBox(height: config.topOffset),
                     
-                    // Бегущая строка оповещений
-                    _buildAlertTicker(state, ref),
-                    
-                    const SizedBox(height: AppPadding.normal),
-                    
-                    // Важная информация
-                    _buildImportantInfoSection(state, ref),
-                    
-                    const SizedBox(height: AppPadding.large),
-
-                    const SizedBox.shrink(),
-
-                    const SizedBox(height: AppPadding.large),
-
-                    _buildProjectSummary(state),
-
-                    const SizedBox(height: AppPadding.large),
-
                     // Заголовок панели
                     Container(
                       padding: const EdgeInsets.all(AppPadding.large),
@@ -178,6 +185,25 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: AppPadding.normal),
+
+                    // Бегущая строка оповещений
+                    _buildAlertTicker(state, ref),
+                    
+                    const SizedBox(height: AppPadding.normal),
+                    
+                    // Важная информация
+                    _buildImportantInfoSection(state, ref),
+                    
+                    const SizedBox(height: AppPadding.large),
+
+                    const SizedBox.shrink(),
+
+                    const SizedBox(height: AppPadding.large),
+
+                    _buildProjectSummary(state),
+
                     const SizedBox(height: AppPadding.large),
 
                     // ---------------- KPI карточки ----------------
@@ -234,12 +260,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                                   ],
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    s.additional_web_widget,
-                                    style: AppTextStyles.callout.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
+                                  child: const SizedBox.shrink(),
                                 )
                               )
                             ]
@@ -264,12 +285,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                                   ],
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    s.additional_mobile_widget,
-                                    style: AppTextStyles.callout.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
+                                  child: const SizedBox.shrink(),
                                 ),
                               )
                             ],
@@ -488,6 +504,198 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                   ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<_SnowVolumePoint>> _loadSnowVolumeSeries() async {
+    final anprCollection = ref.read(anprCollectionProvider);
+    final now = DateTime.now();
+
+    DateTime from;
+    if (_snowChartRange == _SnowChartRange.week) {
+      final today = DateTime(now.year, now.month, now.day);
+      from = today.subtract(const Duration(days: 6));
+    } else {
+      from = DateTime(now.year, now.month, 1);
+    }
+
+    final reports = await anprCollection.getReports(
+      from: from,
+      to: now,
+      minVolume: 0.01,
+      limit: 1000,
+      offset: 0,
+    );
+
+    final events = reports.data.events;
+    final Map<DateTime, double> volumeByDay = {};
+    for (final e in events) {
+      final t = e.eventTime.toLocal();
+      final bucket = DateTime(t.year, t.month, t.day);
+      final v = e.snowVolumeM3 ?? 0.0;
+      volumeByDay[bucket] = (volumeByDay[bucket] ?? 0.0) + v;
+    }
+
+    final startDay = DateTime(from.year, from.month, from.day);
+    final endDay = DateTime(now.year, now.month, now.day);
+
+    final List<_SnowVolumePoint> points = [];
+    for (DateTime d = startDay; !d.isAfter(endDay); d = d.add(const Duration(days: 1))) {
+      points.add(_SnowVolumePoint(
+        day: d,
+        volumeM3: volumeByDay[d] ?? 0.0,
+      ));
+    }
+
+    return points;
+  }
+
+  Widget _buildSnowVolumeChart() {
+    final future = _snowVolumeFuture;
+    if (future == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(AppPadding.normal),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppSize.smallRadius),
+        border: Border.all(
+          color: AppColors.divider,
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Объем снега по дням',
+                  style: AppTextStyles.title3,
+                ),
+              ),
+              ToggleButtons(
+                isSelected: [
+                  _snowChartRange == _SnowChartRange.week,
+                  _snowChartRange == _SnowChartRange.month,
+                ],
+                onPressed: (index) {
+                  final range = index == 0 ? _SnowChartRange.week : _SnowChartRange.month;
+                  if (range == _snowChartRange) return;
+                  setState(() {
+                    _snowChartRange = range;
+                    _snowVolumeFuture = _loadSnowVolumeSeries();
+                  });
+                },
+                constraints: const BoxConstraints(minHeight: 32, minWidth: 72),
+                children: const [
+                  Text('Неделя'),
+                  Text('Месяц'),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppPadding.normal),
+          SizedBox(
+            height: 160,
+            child: FutureBuilder<List<_SnowVolumePoint>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Ошибка загрузки графика',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+
+                final data = snapshot.data ?? const [];
+                if (data.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Нет данных',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+
+                final maxY = data.map((e) => e.volumeM3).fold<double>(0, (a, b) => a > b ? a : b);
+                final safeMaxY = maxY <= 0 ? 1.0 : maxY * 1.2;
+
+                return BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: safeMaxY,
+                    barTouchData: BarTouchData(enabled: true),
+                    titlesData: FlTitlesData(
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 44,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toStringAsFixed(0),
+                              style: AppTextStyles.caption,
+                            );
+                          },
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 28,
+                          interval: data.length > 10 ? (data.length / 5).ceil().toDouble() : 1,
+                          getTitlesWidget: (value, meta) {
+                            final i = value.toInt();
+                            if (i < 0 || i >= data.length) return const SizedBox.shrink();
+                            final d = data[i].day;
+                            final label = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(label, style: AppTextStyles.caption),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    gridData: FlGridData(show: true, drawVerticalLine: false),
+                    borderData: FlBorderData(show: true, border: Border.all(color: AppColors.divider, width: 1)),
+                    barGroups: data.asMap().entries.map((e) {
+                      return BarChartGroupData(
+                        x: e.key,
+                        barRods: [
+                          BarChartRodData(
+                            toY: e.value.volumeM3,
+                            width: 10,
+                            color: AppColors.primary,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -857,6 +1065,10 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
               ),
             ],
           ),
+
+          const SizedBox(height: AppPadding.normal),
+
+          _buildSnowVolumeChart(),
           
           const SizedBox(height: AppPadding.normal),
           
