@@ -195,8 +195,23 @@ class AnprController extends StateNotifier<AnprState> {
         jwtToken: token,
       );
 
+      var reportData = response.data;
+
+      // Резервная фильтрация на клиенте, если бэкенд игнорирует параметры
+      if (minVolume != null) {
+        final filteredEvents = reportData.events
+            .where((e) => (e.snowVolumeM3 ?? 0) >= minVolume)
+            .toList();
+        
+        reportData = AnprReportData(
+          totalVolume: reportData.totalVolume,
+          tripCount: filteredEvents.length,
+          events: filteredEvents,
+        );
+      }
+
       state = state.copyWith(
-        reports: AsyncValue.data(response.data),
+        reports: AsyncValue.data(reportData),
       );
     } catch (e, stack) {
       state = state.copyWith(

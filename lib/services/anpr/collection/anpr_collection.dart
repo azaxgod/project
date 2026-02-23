@@ -257,7 +257,14 @@ class AnprCollection {
       if (plate != null) queryParams['plate'] = plate;
       if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
       if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
-      if (minVolume != null) queryParams['min_volume'] = minVolume;
+      if (minVolume != null) {
+        queryParams['min_volume'] = minVolume;
+        queryParams['min_snow_volume_m3'] = minVolume;
+        queryParams['has_volume'] = true;
+        queryParams['only_measured'] = true;
+        queryParams['only_with_volume'] = true;
+        queryParams['measured_only'] = true;
+      }
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 
@@ -296,7 +303,14 @@ class AnprCollection {
       if (plate != null) queryParams['plate'] = plate;
       if (from != null) queryParams['from'] = _formatDateTimeRfc3339(from);
       if (to != null) queryParams['to'] = _formatDateTimeRfc3339(to);
-      if (minVolume != null) queryParams['min_volume'] = minVolume;
+      if (minVolume != null) {
+        queryParams['min_volume'] = minVolume;
+        queryParams['min_snow_volume_m3'] = minVolume;
+        queryParams['has_volume'] = true;
+        queryParams['only_measured'] = true;
+        queryParams['only_with_volume'] = true;
+        queryParams['measured_only'] = true;
+      }
 
       debugPrint('ANPR Collection - getExcelReport URL: ${dio.options.baseUrl}/api/v1/reports/excel');
       debugPrint('ANPR Collection - getExcelReport Params: $queryParams');
