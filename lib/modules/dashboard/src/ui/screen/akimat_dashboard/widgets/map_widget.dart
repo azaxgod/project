@@ -243,7 +243,7 @@ class MapWidget extends StatelessWidget {
       child: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 6,
-          childAspectRatio: 4,
+          childAspectRatio: 3.2,
           crossAxisSpacing: AppPadding.small,
           mainAxisSpacing: AppPadding.small,
         ),
@@ -266,8 +266,9 @@ class MapWidget extends StatelessWidget {
           width: 1,
         ),
       ),
+      clipBehavior: Clip.hardEdge,
       child: Padding(
-        padding: const EdgeInsets.all(AppPadding.small),
+        padding: const EdgeInsets.all(4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -284,14 +285,16 @@ class MapWidget extends StatelessWidget {
             const SizedBox(height: AppPadding.xs),
             
             // Название полигона
-            Text(
-              polygon.name,
-              style: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 10,
+            Flexible(
+              child: Text(
+                polygon.name,
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 9,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
             
             const SizedBox(height: 2),
@@ -301,7 +304,7 @@ class MapWidget extends StatelessWidget {
               children: [
                 Icon(
                   Icons.business,
-                  size: 10,
+                  size: 11,
                   color: AppColors.textSecondary,
                 ),
                 const SizedBox(width: 2),
@@ -318,25 +321,28 @@ class MapWidget extends StatelessWidget {
                 ),
               ],
             ),
-            
-            const Spacer(),
+            const SizedBox(height: 2),
             
             // Статус
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4,
-                vertical: 1,
-              ),
-              decoration: BoxDecoration(
-                color: _getStatusColor(polygon.status).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                _getStatusText(polygon.status),
-                style: AppTextStyles.caption.copyWith(
-                  color: _getStatusColor(polygon.status),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 7,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(polygon.status).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _getStatusText(polygon.status),
+                  style: AppTextStyles.caption.copyWith(
+                    color: _getStatusColor(polygon.status),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 7,
+                  ),
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class TripData {
+  final String date;
   final String time;
   final String contractor;
   final String plate;
@@ -10,6 +11,7 @@ class TripData {
   final String status;
 
   TripData({
+    required this.date,
     required this.time,
     required this.contractor,
     required this.plate,
@@ -44,10 +46,10 @@ class TripTableWidget extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columns: const [
+          DataColumn(label: Text('Дата')),
           DataColumn(label: Text('Время')),
           DataColumn(label: Text('Подрядчик')),
           DataColumn(label: Text('Госномер')),
-          DataColumn(label: Text('Участок')),
           DataColumn(label: Text('Полигон')),
           DataColumn(label: Text('Объем (м³)')),
           DataColumn(label: Text('Статус')),
@@ -57,10 +59,10 @@ class TripTableWidget extends StatelessWidget {
             .map(
               (trip) => DataRow(
                 cells: [
+                  DataCell(Text(trip.date)),
                   DataCell(Text(trip.time)),
                   DataCell(Text(trip.contractor)),
                   DataCell(Text(trip.plate)),
-                  DataCell(Text(trip.area)),
                   DataCell(Text(trip.polygon)),
                   DataCell(Text(trip.volume.toStringAsFixed(2))),
                   DataCell(Container(

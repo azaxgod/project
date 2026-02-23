@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class TripModel {
+  final String date;
   final String time;
   final String contractor;
   final String plate;
@@ -10,6 +11,7 @@ class TripModel {
   final String status;
 
   TripModel({
+    required this.date,
     required this.time,
     required this.contractor,
     required this.plate,

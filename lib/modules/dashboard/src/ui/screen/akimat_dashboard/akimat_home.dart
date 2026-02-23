@@ -111,7 +111,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                     
                     const SizedBox(height: AppPadding.large),
 
-                    _buildQuickActions(context),
+                    const SizedBox.shrink(),
 
                     const SizedBox(height: AppPadding.large),
 
@@ -403,6 +403,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                                   TripTableWidget(
                                     trips: state.lastTrips
                                         .map((t) => TripData(
+                                              date: t.date,
                                               time: t.time,
                                               contractor: t.contractor,
                                               plate: t.plate,
@@ -1115,18 +1116,22 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
     final secondsSinceLoad = now.difference(_loadTime).inSeconds;
     
     if (secondsSinceLoad < 3) {
-      return Container(
-        height: 30,
-        child: Row(
-          children: [
-            Text(
+      return SizedBox(
+        height: 36,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
               '✅ Система работает в нормальном режиме',
-              style: AppTextStyles.caption.copyWith(
+              style: AppTextStyles.body.copyWith(
                 color: Colors.green,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
         ),
       );
     }
@@ -1140,17 +1145,21 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
           : '🚛 Рейсы: --';
 
       return SizedBox(
-        height: 30,
-        child: Row(
-          children: [
-            Text(
-              '$tripsText • Обновлено: ${_formatDateTime(updatedAt)}',
-              style: AppTextStyles.caption.copyWith(
+        height: 36,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Сегодня: $tripsText • Обновлено: ${_formatDateTime(updatedAt)}',
+              style: AppTextStyles.body.copyWith(
                 color: Colors.blue,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
         ),
       );
     }
@@ -1163,32 +1172,35 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
     final Color color = (violations != null && violations > 0) ? Colors.orange : Colors.green;
 
     return SizedBox(
-      height: 30,
-      child: ClipRect(
-        child: TweenAnimationBuilder<double>(
-          duration: const Duration(seconds: 15),
-          tween: Tween(begin: 0.0, end: -1.0),
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(value * 400, 0),
-              child: Row(
-                children: [
-                  for (int i = 0; i < 3; i++) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(right: 100),
-                      child: Text(
-                        text,
-                        style: AppTextStyles.caption.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w500,
+      height: 36,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
+        child: ClipRect(
+          child: TweenAnimationBuilder<double>(
+            duration: const Duration(seconds: 15),
+            tween: Tween(begin: 0.0, end: -1.0),
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(value * 400, 0),
+                child: Row(
+                  children: [
+                    for (int i = 0; i < 3; i++) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(right: 100),
+                        child: Text(
+                          text,
+                          style: AppTextStyles.body.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

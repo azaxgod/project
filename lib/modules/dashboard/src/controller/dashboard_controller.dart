@@ -94,12 +94,11 @@ class AkimatHomeController extends StateNotifier<AkimatHomeState> {
 
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final monthStart = DateTime(now.year, now.month, 1);
 
     final reportsTripCount = await _safeLoad<int>(
       () async {
         final reports = await anprCollection.getReports(
-          from: monthStart,
+          from: todayStart,
           to: now,
           minVolume: 0.01,
           limit: 1000,
@@ -142,9 +141,30 @@ class AkimatHomeController extends StateNotifier<AkimatHomeState> {
   Future<List<TripModel>> _loadLastTrips() async {
     try {
       final anprCollection = ref.read(anprCollectionProvider);
+      final operationsCollection = ref.read(operationsCollectionProvider);
 
       final now = DateTime.now();
       final from = DateTime(now.year, now.month, 1);
+
+      final Map<String, String> areaNameById = {};
+      try {
+        final areas = await operationsCollection.getCleaningAreas(onlyActive: true);
+        for (final a in areas) {
+          areaNameById[a.id] = a.name;
+        }
+      } catch (e) {
+        debugPrint('Error loading cleaning areas for trip mapping: $e');
+      }
+
+      final Map<String, String> polygonNameById = {};
+      try {
+        final polygons = await operationsCollection.getPolygons(onlyActive: null);
+        for (final p in polygons) {
+          polygonNameById[p.id] = p.name;
+        }
+      } catch (e) {
+        debugPrint('Error loading polygons for trip mapping: $e');
+      }
 
       final reports = await anprCollection.getReports(
         from: from,
@@ -160,12 +180,21 @@ class AkimatHomeController extends StateNotifier<AkimatHomeState> {
 
       return sorted.take(10).map((e) {
         final t = e.eventTime.toLocal();
+        final date = '${t.day.toString().padLeft(2, '0')}.${t.month.toString().padLeft(2, '0')}.${t.year}';
+
+        final polygonId = e.polygonId;
+        final areaName = polygonId != null ? areaNameById[polygonId] : null;
+        final polygonName = polygonId != null ? polygonNameById[polygonId] : null;
+
+        final displayArea = areaName ?? polygonId ?? '—';
+        final displayPolygon = polygonName ?? polygonId ?? '—';
         return TripModel(
+          date: date,
           time: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
           contractor: e.contractorName ?? 'Неизвестно',
           plate: e.plateNumber,
-          area: e.polygonId ?? '—',
-          polygon: e.polygonId ?? '—',
+          area: displayArea,
+          polygon: displayPolygon,
           volume: e.snowVolumeM3 ?? 0.0,
           status: e.snowVolumeM3 != null ? 'MEASURED' : 'NO_VOLUME',
         );
