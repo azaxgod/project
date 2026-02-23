@@ -22,14 +22,17 @@ class KpiCardWidget extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 data.title,
+                textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
                 data.value,
+                textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],

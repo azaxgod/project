@@ -207,35 +207,35 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                     const SizedBox(height: AppPadding.large),
 
                     // ---------------- KPI карточки ----------------
-                    if (state.error != null)
-                      _buildErrorWidget(state.error!, ref)
-                    else ...[
-                      SizedBox(
-                        height: 140,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: state.kpiCards.length,
-                          itemBuilder: (context, index) {
-                            final kpi = state.kpiCards[index];
-                            return KpiCardWidget(
-                              data: kpi,
-                              onTap: kpi.clickable
-                                  ? () {
-                                      // Обработка кликов на KPI карточки
-                                      if (kpi.title.contains('участки')) {
-                                        context.go('/areas');
-                                      } else if (kpi.title.contains('тикеты')) {
-                                        context.go('/tickets');
-                                      } else if (kpi.title.contains('Нарушения')) {
-                                        context.go('/violations');
-                                      }
-                                    }
-                                    : null,
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                    // if (state.error != null)
+                    //   _buildErrorWidget(state.error!, ref)
+                    // else ...[
+                    //   SizedBox(
+                    //     height: 140,
+                    //     child: ListView.builder(
+                    //       scrollDirection: Axis.horizontal,
+                    //       itemCount: state.kpiCards.length,
+                    //       itemBuilder: (context, index) {
+                    //         final kpi = state.kpiCards[index];
+                    //         return KpiCardWidget(
+                    //           data: kpi,
+                    //           onTap: kpi.clickable
+                    //               ? () {
+                    //                   // Обработка кликов на KPI карточки
+                    //                   if (kpi.title.contains('участки')) {
+                    //                     context.go('/areas');
+                    //                   } else if (kpi.title.contains('тикеты')) {
+                    //                     context.go('/tickets');
+                    //                   } else if (kpi.title.contains('Нарушения')) {
+                    //                     context.go('/violations');
+                    //                   }
+                    //                 }
+                    //               : null,
+                    //         );
+                    //       },
+                    //     ),
+                    //   ),
+                    //   const SizedBox(height: 16),
 
                       // ---------------- Дополнительные платформенные виджеты ----------------
                       ...config.showExtraWidget
@@ -604,7 +604,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
           ),
           const SizedBox(height: AppPadding.normal),
           SizedBox(
-            height: 160,
+            height: 200,
             child: FutureBuilder<List<_SnowVolumePoint>>(
               future: future,
               builder: (context, snapshot) {
@@ -1029,7 +1029,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                     ),
                     const SizedBox(height: AppPadding.xs),
                     Text(
-                      isWorkingHours ? 'Рабочее время • Подрядчики активны' : 'Внерабочее время • Мониторинг',
+                      isWorkingHours ? 'Рабочее время • Подрядчики активны' : 'Мониторинг подрядчиков',
                       style: AppTextStyles.caption.copyWith(
                         color: isWorkingHours ? Colors.green : Colors.orange,
                         fontWeight: FontWeight.w600,
@@ -1069,8 +1069,8 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
           const SizedBox(height: AppPadding.normal),
 
           _buildSnowVolumeChart(),
-          
-          const SizedBox(height: AppPadding.normal),
+
+          const SizedBox(height: AppPadding.large),
           
           // Основная информация в сетке
           Row(
