@@ -27,19 +27,6 @@ class TripTableWidget extends StatelessWidget {
 
   const TripTableWidget({super.key, required this.trips});
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'CONFIRMED':
-        return Colors.green;
-      case 'ROUTE_VIOLATION':
-        return Colors.red;
-      case 'MISMATCH_PLATE':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -52,8 +39,6 @@ class TripTableWidget extends StatelessWidget {
           DataColumn(label: Text('Госномер')),
           DataColumn(label: Text('Полигон')),
           DataColumn(label: Text('Объем (м³)')),
-          DataColumn(label: Text('Статус')),
-          DataColumn(label: Text('Действие')),
         ],
         rows: trips
             .map(
@@ -65,29 +50,6 @@ class TripTableWidget extends StatelessWidget {
                   DataCell(Text(trip.plate)),
                   DataCell(Text(trip.polygon)),
                   DataCell(Text(trip.volume.toStringAsFixed(2))),
-                  DataCell(Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _statusColor(trip.status).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      trip.status,
-                      style: TextStyle(
-                        color: _statusColor(trip.status),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )),
-                  DataCell(
-                    TextButton(
-                      onPressed: () {
-                        // TODO: действие "Подробнее"
-                      },
-                      child: const Text('Подробнее'),
-                    ),
-                  ),
                 ],
               ),
             )

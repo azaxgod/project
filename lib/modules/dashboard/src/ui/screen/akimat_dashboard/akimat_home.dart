@@ -9,11 +9,10 @@ import 'package:akimat_project/core/ui/app_textstyle.dart';
 import 'package:akimat_project/l10n/l10n.dart';
 import 'package:akimat_project/modules/dashboard/src/controller/dashboard_controller.dart';
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/kpi_card.dart';
-import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/map_widget.dart';
+
 import 'package:akimat_project/modules/dashboard/src/ui/screen/akimat_dashboard/widgets/trip_table_widget.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:akimat_project/core/platform/platform_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,8 +51,6 @@ class _SnowVolumePoint {
 }
 
 class _AkimatHomeState extends ConsumerState<AkimatHome> {
-  Timer? _alertTimer;
-  DateTime _loadTime = DateTime.now();
 
   _SnowChartRange _snowChartRange = _SnowChartRange.week;
   Future<List<_SnowVolumePoint>>? _snowVolumeFuture;
@@ -61,19 +58,11 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
   @override
   void initState() {
     super.initState();
-    // Запускаем таймер для обновления оповещений
-    _alertTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-
     _snowVolumeFuture = _loadSnowVolumeSeries();
   }
 
   @override
   void dispose() {
-    _alertTimer?.cancel();
     super.dispose();
   }
 
@@ -188,21 +177,8 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
 
                     const SizedBox(height: AppPadding.normal),
 
-                    // Бегущая строка оповещений
-                    _buildAlertTicker(state, ref),
-                    
-                    const SizedBox(height: AppPadding.normal),
-                    
                     // Важная информация
                     _buildImportantInfoSection(state, ref),
-                    
-                    const SizedBox(height: AppPadding.large),
-
-                    const SizedBox.shrink(),
-
-                    const SizedBox(height: AppPadding.large),
-
-                    _buildProjectSummary(state),
 
                     const SizedBox(height: AppPadding.large),
 
@@ -237,76 +213,6 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                     //   ),
                     //   const SizedBox(height: 16),
 
-                      // ---------------- Дополнительные платформенные виджеты ----------------
-                      ...config.showExtraWidget
-                          ? [
-                              Container(
-                                height: 120,
-                                padding: const EdgeInsets.all(AppPadding.large),
-                                decoration: BoxDecoration(
-                                  color: AppColors.cardBackground,
-                                  borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                                  border: Border.all(
-                                    color: AppColors.divider,
-                                    width: 0.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.04),
-                                      blurRadius: AppSize.shadowBlur,
-                                      offset: const Offset(0, 2),
-                                      spreadRadius: 0,
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: const SizedBox.shrink(),
-                                )
-                              )
-                            ]
-                          : [
-                              Container(
-                                height: 100,
-                                padding: const EdgeInsets.all(AppPadding.large),
-                                decoration: BoxDecoration(
-                                  color: AppColors.cardBackground,
-                                  borderRadius: BorderRadius.circular(AppSize.cardRadius),
-                                  border: Border.all(
-                                    color: AppColors.divider,
-                                    width: 0.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.04),
-                                      blurRadius: AppSize.shadowBlur,
-                                      offset: const Offset(0, 2),
-                                      spreadRadius: 0,
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: const SizedBox.shrink(),
-                                ),
-                              )
-                            ],
-                      const SizedBox(height: AppPadding.large),
-
-                      // ---------------- Карта ----------------
-                      if (state.polygons.isNotEmpty)
-                        SizedBox(
-                          height: 500,
-                          child: MapWidget(
-                            polygons: state.polygons
-                                .map((p) => PolygonData(
-                                      name: p.name,
-                                      contractor: p.contractor,
-                                      status: p.status,
-                                      color: p.color,
-                                    ))
-                                .toList(),
-                          ),
-                        ),
-                      const SizedBox(height: 16),
 
                       // ---------------- Последние рейсы ----------------
                       Container(
@@ -364,10 +270,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                                     ],
                                   ),
                                 ),
-                                TextButton(
-                                  onPressed: () => context.go('/analytics/trips'),
-                                  child: const Text('Все рейсы'),
-                                ),
+
                               ],
                             ),
                             
@@ -500,7 +403,6 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                         ),
                       ),
                       _buildLastUpdatedInfo(state),
-                    ],
                   ],
                 ),
               ),
@@ -638,7 +540,7 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                 }
 
                 final maxY = data.map((e) => e.volumeM3).fold<double>(0, (a, b) => a > b ? a : b);
-                final safeMaxY = maxY <= 0 ? 1.0 : maxY * 1.2;
+                final safeMaxY = maxY <= 0 ? 10.0 : (maxY * 1.35).ceilToDouble();
 
                 return BarChart(
                   BarChartData(
@@ -693,6 +595,123 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
                         ],
                       );
                     }).toList(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppPadding.large),
+          // Cumulative volume line chart
+          Text(
+            'Накопительный объем',
+            style: AppTextStyles.title3,
+          ),
+          const SizedBox(height: AppPadding.normal),
+          SizedBox(
+            height: 200,
+            child: FutureBuilder<List<_SnowVolumePoint>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+
+                final data = snapshot.data ?? const [];
+                if (data.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                // Build cumulative series
+                double cumulative = 0;
+                final spots = <FlSpot>[];
+                for (int i = 0; i < data.length; i++) {
+                  cumulative += data[i].volumeM3;
+                  spots.add(FlSpot(i.toDouble(), cumulative));
+                }
+                final cumMaxY = cumulative <= 0 ? 10.0 : (cumulative * 1.2).ceilToDouble();
+
+                return LineChart(
+                  LineChartData(
+                    minY: 0,
+                    maxY: cumMaxY,
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: spots,
+                        isCurved: true,
+                        curveSmoothness: 0.3,
+                        color: Colors.teal,
+                        barWidth: 3,
+                        isStrokeCapRound: true,
+                        dotData: FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, bar, index) {
+                            return FlDotCirclePainter(
+                              radius: 3,
+                              color: Colors.teal,
+                              strokeWidth: 1.5,
+                              strokeColor: Colors.white,
+                            );
+                          },
+                        ),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: Colors.teal.withValues(alpha: 0.12),
+                        ),
+                      ),
+                    ],
+                    titlesData: FlTitlesData(
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 44,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toStringAsFixed(0),
+                              style: AppTextStyles.caption,
+                            );
+                          },
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 28,
+                          interval: data.length > 10 ? (data.length / 5).ceil().toDouble() : 1,
+                          getTitlesWidget: (value, meta) {
+                            final i = value.toInt();
+                            if (i < 0 || i >= data.length) return const SizedBox.shrink();
+                            final d = data[i].day;
+                            final label = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(label, style: AppTextStyles.caption),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    gridData: FlGridData(show: true, drawVerticalLine: false),
+                    borderData: FlBorderData(show: true, border: Border.all(color: AppColors.divider, width: 1)),
+                    lineTouchData: LineTouchData(
+                      touchTooltipData: LineTouchTooltipData(
+                        getTooltipItems: (touchedSpots) {
+                          return touchedSpots.map((spot) {
+                            return LineTooltipItem(
+                              '${spot.y.toStringAsFixed(1)} м³',
+                              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            );
+                          }).toList();
+                        },
+                      ),
+                    ),
                   ),
                 );
               },
@@ -1319,111 +1338,8 @@ class _AkimatHomeState extends ConsumerState<AkimatHome> {
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}';
   }
 
-  Widget _buildAlertTicker(AkimatHomeState state, WidgetRef ref) {
-    final violationsCount = state.kpiCards.where((kpi) => kpi.title == 'Нарушения').firstOrNull?.value ?? '0';
-    final tripsCount = state.kpiCards.where((kpi) => kpi.title == 'Рейсы сегодня').firstOrNull?.value ?? '0';
-    final now = DateTime.now();
-    
-    // Показываем зеленый текст первые 3 секунд
-    final secondsSinceLoad = now.difference(_loadTime).inSeconds;
-    
-    if (secondsSinceLoad < 3) {
-      return SizedBox(
-        height: 36,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '✅ Система работает в нормальном режиме',
-              style: AppTextStyles.body.copyWith(
-                color: Colors.green,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      );
-    }
 
-    if (secondsSinceLoad < 8) {
-      final updatedAt = state.lastUpdated ?? now;
 
-      final int? trips = tripsCount == '--' ? null : int.tryParse(tripsCount);
-      final String tripsText = (trips != null)
-          ? '🚛 Выполнено $tripsCount рейсов сегодня'
-          : '🚛 Рейсы: --';
-
-      return SizedBox(
-        height: 36,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Сегодня: $tripsText • Обновлено: ${_formatDateTime(updatedAt)}',
-              style: AppTextStyles.body.copyWith(
-                color: Colors.blue,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      );
-    }
-    
-    final int? violations = violationsCount == '--' ? null : int.tryParse(violationsCount);
-    final String text = (violations != null && violations > 0)
-        ? '⚠️ Нарушений: $violationsCount'
-        : '✅ Нарушений нет';
-
-    final Color color = (violations != null && violations > 0) ? Colors.orange : Colors.green;
-
-    return SizedBox(
-      height: 36,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppPadding.small),
-        child: ClipRect(
-          child: TweenAnimationBuilder<double>(
-            duration: const Duration(seconds: 15),
-            tween: Tween(begin: 0.0, end: -1.0),
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(value * 400, 0),
-                child: Row(
-                  children: [
-                    for (int i = 0; i < 3; i++) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(right: 100),
-                        child: Text(
-                          text,
-                          style: AppTextStyles.body.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Color _getAlertColor(bool hasViolations) {
-    if (hasViolations) {
-      return Colors.orange;
-    }
-    return Colors.green;
-  }
 
   Widget _buildErrorWidget(String error, WidgetRef ref) {
     return Container(

@@ -190,14 +190,14 @@ class AnprController extends StateNotifier<AnprState> {
         from: from,
         to: to,
         minVolume: minVolume,
-        limit: limit ?? 50, // Уменьшено с 100 для быстрой загрузки
+        limit: limit ?? 20,
         offset: offset ?? 0,
         jwtToken: token,
       );
 
       var reportData = response.data;
 
-      // Резервная фильтрация на клиенте, если бэкенд игнорирует параметры
+      // Client-side volume filter fallback
       if (minVolume != null) {
         final filteredEvents = reportData.events
             .where((e) => (e.snowVolumeM3 ?? 0) >= minVolume)
@@ -205,7 +205,7 @@ class AnprController extends StateNotifier<AnprState> {
         
         reportData = AnprReportData(
           totalVolume: reportData.totalVolume,
-          tripCount: filteredEvents.length,
+          tripCount: reportData.tripCount,
           events: filteredEvents,
         );
       }

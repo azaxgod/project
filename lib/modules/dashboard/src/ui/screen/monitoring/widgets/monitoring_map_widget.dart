@@ -92,10 +92,6 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
   late final MapController _mapController;
   late final LayerHitNotifier<String> _areaHitNotifier;
   late final LayerHitNotifier<String> _polygonHitNotifier;
-  String? _lastAreaFillHitId;
-  DateTime? _lastAreaFillHitAt;
-  String? _lastPolygonFillHitId;
-  DateTime? _lastPolygonFillHitAt;
 
   @override
   void initState() {
@@ -103,14 +99,10 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
     _mapController = MapController();
     _areaHitNotifier = ValueNotifier<LayerHitResult<String>?>(null);
     _polygonHitNotifier = ValueNotifier<LayerHitResult<String>?>(null);
-    _areaHitNotifier.addListener(_onAreaFillHit);
-    _polygonHitNotifier.addListener(_onPolygonFillHit);
   }
 
   @override
   void dispose() {
-    _areaHitNotifier.removeListener(_onAreaFillHit);
-    _polygonHitNotifier.removeListener(_onPolygonFillHit);
     _areaHitNotifier.dispose();
     _polygonHitNotifier.dispose();
     _mapController.dispose();
@@ -176,11 +168,29 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
             options: MapOptions(
               initialCenter: _defaultCenter,
               initialZoom: 12.0,
-              onTap: widget.onMapTap != null
-                  ? (tapPosition, point) {
-                      widget.onMapTap!(point.latitude, point.longitude);
-                    }
-                  : null,
+              onTap: (tapPosition, point) {
+                if (widget.onMapTap != null) {
+                  widget.onMapTap!(point.latitude, point.longitude);
+                  return;
+                }
+                // Check if an area or polygon was tapped
+                final areaHit = _areaHitNotifier.value;
+                if (areaHit != null && areaHit.hitValues.isNotEmpty) {
+                  final area = _findAreaById(areaHit.hitValues.first);
+                  if (area != null) {
+                    _handleAreaTap(area);
+                    return;
+                  }
+                }
+                final polygonHit = _polygonHitNotifier.value;
+                if (polygonHit != null && polygonHit.hitValues.isNotEmpty) {
+                  final polygon = _findPolygonById(polygonHit.hitValues.first);
+                  if (polygon != null) {
+                    _handlePolygonTap(polygon);
+                    return;
+                  }
+                }
+              },
               interactionOptions: InteractionOptions(
                 flags: widget.onMapTap != null
                     ? InteractiveFlag.all & ~InteractiveFlag.doubleTapZoom
@@ -207,8 +217,7 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                 ),
               if (visibleAreas.isNotEmpty)
                 PolygonLayer<String>(
-                  hitNotifier:
-                      widget.onMapTap == null ? _areaHitNotifier : null,
+                  hitNotifier: _areaHitNotifier,
                   polygons: visibleAreas.map((area) {
                     final isSelected = area.id == widget.selectedAreaId;
                     return Polygon<String>(
@@ -237,8 +246,7 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
                 ),
               if (visiblePolygons.isNotEmpty)
                 PolygonLayer<String>(
-                  hitNotifier:
-                      widget.onMapTap == null ? _polygonHitNotifier : null,
+                  hitNotifier: _polygonHitNotifier,
                   polygons: visiblePolygons.map((polygon) {
                     final isSelected = polygon.id == widget.selectedPolygonId;
                     return Polygon<String>(
@@ -801,62 +809,8 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
         .toColor();
   }
 
-  void _onAreaFillHit() {
-    final hit = _areaHitNotifier.value;
-    if (hit == null || hit.hitValues.isEmpty || widget.onMapTap != null) {
-      return;
-    }
 
-    final areaId = hit.hitValues.first;
-    if (_isDuplicateAreaFillHit(areaId)) {
-      return;
-    }
 
-    final area = _findAreaById(areaId);
-    if (area != null) {
-      _handleAreaTap(area);
-    }
-  }
-
-  void _onPolygonFillHit() {
-    final hit = _polygonHitNotifier.value;
-    if (hit == null || hit.hitValues.isEmpty || widget.onMapTap != null) {
-      return;
-    }
-
-    final polygonId = hit.hitValues.first;
-    if (_isDuplicatePolygonFillHit(polygonId)) {
-      return;
-    }
-
-    final polygon = _findPolygonById(polygonId);
-    if (polygon != null) {
-      _handlePolygonTap(polygon);
-    }
-  }
-
-  bool _isDuplicateAreaFillHit(String areaId) {
-    final now = DateTime.now();
-    final isDuplicate = _lastAreaFillHitId == areaId &&
-        _lastAreaFillHitAt != null &&
-        now.difference(_lastAreaFillHitAt!) < const Duration(milliseconds: 250);
-
-    _lastAreaFillHitId = areaId;
-    _lastAreaFillHitAt = now;
-    return isDuplicate;
-  }
-
-  bool _isDuplicatePolygonFillHit(String polygonId) {
-    final now = DateTime.now();
-    final isDuplicate = _lastPolygonFillHitId == polygonId &&
-        _lastPolygonFillHitAt != null &&
-        now.difference(_lastPolygonFillHitAt!) <
-            const Duration(milliseconds: 250);
-
-    _lastPolygonFillHitId = polygonId;
-    _lastPolygonFillHitAt = now;
-    return isDuplicate;
-  }
 
   void _handleAreaTap(CleaningArea area) {
     _focusGeometry(area.geometry);
@@ -918,26 +872,25 @@ class _MonitoringMapWidgetState extends State<MonitoringMapWidget> {
     }
 
     final center = _calculateCentroid(points);
-    final targetZoom = _zoomForGeometry(geometry);
+    final geometryZoom = _zoomForGeometry(geometry);
+
+    // Never zoom out — take the max of current zoom and geometry zoom
+    double currentZoom = 12.0;
+    try {
+      currentZoom = _mapController.camera.zoom;
+    } catch (_) {}
+
+    final targetZoom = math.max(currentZoom, geometryZoom);
     _moveCamera(center, targetZoom);
   }
 
   void _moveCamera(LatLng center, double zoom) {
-    if (!mounted) {
-      return;
+    if (!mounted) return;
+    try {
+      _mapController.move(center, zoom.clamp(3.0, 18.0).toDouble());
+    } catch (_) {
+      // Map not attached yet
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      try {
-        _mapController.move(center, zoom.clamp(3.0, 18.0).toDouble());
-      } catch (_) {
-        // ignore if map is not attached yet
-      }
-    });
   }
 
   double _zoomForGeometry(List<List<double>> geometry) {

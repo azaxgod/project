@@ -168,12 +168,12 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
           from: _effectiveFrom,
           to: _effectiveTo,
           contractorId: _selectedContractorId,
-          // Для camera_id фильтруем на клиенте (полигон в отчетах приходит как camera_id)
           polygonId: null,
           vehicleId: widget.vehicleId,
           plate: widget.plate,
           minVolume: 0.01,
-          limit: 1000,
+          limit: _rowsPerPage,
+          offset: (_currentPage - 1) * _rowsPerPage,
         );
   }
 
@@ -440,17 +440,12 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
     required String? selectedContractorId,
     required String? selectedPolygonName,
   }) {
-    var filteredEvents = reportData.events;
+    // Events come pre-paginated from server (20 per page)
+    var pageEvents = reportData.events;
 
-    if (selectedContractorId != null) {
-      filteredEvents = filteredEvents.where((event) {
-        return _resolveContractorId(event, organizationsData) ==
-            selectedContractorId;
-      }).toList();
-    }
-
+    // Client-side polygon filter on current page
     if (selectedPolygonName != null) {
-      filteredEvents = filteredEvents.where((event) {
+      pageEvents = pageEvents.where((event) {
         return _polygonName(
               cameraId: event.cameraId,
               polygonId: event.polygonId,
@@ -459,34 +454,17 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
       }).toList();
     }
 
-    final totalTrips = filteredEvents.length;
-    final totalVolume = filteredEvents.fold<double>(
-      0,
-      (sum, event) => sum + max(0, event.snowVolumeM3 ?? 0),
-    );
+    // Use server's total for KPI and pagination
+    final serverTotalTrips = reportData.tripCount;
+    final totalVolume = reportData.totalVolume;
 
-    final totalPages = filteredEvents.isEmpty
+    final totalPages = serverTotalTrips <= 0
         ? 1
-        : (filteredEvents.length / _rowsPerPage).ceil();
+        : (serverTotalTrips / _rowsPerPage).ceil();
     final safePage = _currentPage.clamp(1, totalPages).toInt();
 
-    if (safePage != _currentPage) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() {
-          _currentPage = safePage;
-        });
-      });
-    }
-
-    final startIndex =
-        filteredEvents.isEmpty ? 0 : (safePage - 1) * _rowsPerPage;
-    final endIndex = filteredEvents.isEmpty
-        ? 0
-        : min(startIndex + _rowsPerPage, filteredEvents.length);
-    final pagedEvents = filteredEvents.isEmpty
-        ? <AnprReportEvent>[]
-        : filteredEvents.sublist(startIndex, endIndex);
+    final startIndex = (safePage - 1) * _rowsPerPage;
+    final endIndex = min(startIndex + pageEvents.length, serverTotalTrips);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,7 +474,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             Expanded(
               child: AnimatedKPICard(
                 title: 'Всего поездок',
-                value: totalTrips.toString(),
+                value: serverTotalTrips.toString(),
                 icon: Icons.directions_car,
                 color: AppColors.primary,
               ),
@@ -513,11 +491,11 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
           ],
         ),
         const SizedBox(height: AppPadding.large),
-        if (filteredEvents.isEmpty)
+        if (pageEvents.isEmpty)
           _buildEmptyState('Нет событий с объемом снега за выбранный период')
         else ...[
           _buildReportsTable(
-            events: pagedEvents,
+            events: pageEvents,
             organizationsData: organizationsData,
             rowStartIndex: startIndex,
           ),
@@ -527,7 +505,7 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
             totalPages: totalPages,
             startIndex: startIndex,
             endIndex: endIndex,
-            totalCount: filteredEvents.length,
+            totalCount: serverTotalTrips,
           ),
         ],
       ],
@@ -1371,18 +1349,20 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               IconButton(
                 tooltip: 'Первая страница',
                 onPressed: currentPage > 1
-                    ? () => setState(() {
-                          _currentPage = 1;
-                        })
+                    ? () {
+                        setState(() { _currentPage = 1; });
+                        _loadReports();
+                      }
                     : null,
                 icon: const Icon(Icons.first_page),
               ),
               IconButton(
                 tooltip: 'Предыдущая страница',
                 onPressed: currentPage > 1
-                    ? () => setState(() {
-                          _currentPage = currentPage - 1;
-                        })
+                    ? () {
+                        setState(() { _currentPage = currentPage - 1; });
+                        _loadReports();
+                      }
                     : null,
                 icon: const Icon(Icons.chevron_left),
               ),
@@ -1396,18 +1376,20 @@ class _AnprSectionState extends ConsumerState<AnprSection> {
               IconButton(
                 tooltip: 'Следующая страница',
                 onPressed: currentPage < totalPages
-                    ? () => setState(() {
-                          _currentPage = currentPage + 1;
-                        })
+                    ? () {
+                        setState(() { _currentPage = currentPage + 1; });
+                        _loadReports();
+                      }
                     : null,
                 icon: const Icon(Icons.chevron_right),
               ),
               IconButton(
                 tooltip: 'Последняя страница',
                 onPressed: currentPage < totalPages
-                    ? () => setState(() {
-                          _currentPage = totalPages;
-                        })
+                    ? () {
+                        setState(() { _currentPage = totalPages; });
+                        _loadReports();
+                      }
                     : null,
                 icon: const Icon(Icons.last_page),
               ),
